@@ -13,6 +13,8 @@ logging.basicConfig(level=logging.INFO)
 # Инициализация Flask-приложения
 app = Flask(__name__)
 
+
+
 # Глобальная переменная для хранения токенов пользователей
 user_tokens = {}
 data_lock = threading.Lock()  # Блокировка для защиты доступа к user_tokens
