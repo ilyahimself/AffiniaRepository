@@ -65,12 +65,6 @@ def favicon():
 def static_files(path):
     return send_from_directory('static', path)
 
-    @app.route('/mini_app')
-def mini_app():
-    return render_template('index.html')
-
-
-
 # Маршрут для получения баланса пользователя
 @app.route('/get_balance', methods=['POST'])
 def get_balance():
@@ -159,8 +153,9 @@ async def show_menu(update, context, user_id=None):
         [InlineKeyboardButton("My Balance", callback_data='balance')],
         [InlineKeyboardButton("Referral Link", callback_data='create_referral')],
         [InlineKeyboardButton("Consent Link", callback_data='create_consent')],
-        [InlineKeyboardButton("Open App", web_app=WebAppInfo(url="https://affiniabot-6eb338ddee5e.herokuapp.com/mini_app"))],
-    ]
+        [InlineKeyboardButton("Open App", web_app=WebAppInfo(url="https://9929-173-211-46-175.ngrok-free.app/mini_app"))]
+    ]       
+
     text = 'Please choose:'
     reply_markup = InlineKeyboardMarkup(keyboard)
 
