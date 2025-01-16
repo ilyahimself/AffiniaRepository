@@ -48,48 +48,54 @@
         }
 
         function updateCounter() {
-            fetch('/get_balance', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe.user.id })
-            })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('counter').textContent = data.balance + ' AffinyCoins';
-            })
-            .catch(error => console.error('Error:', error));
+            if (Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) {
+                fetch('/get_balance', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe.user.id })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('counter').textContent = data.balance + ' AffinyCoins';
+                })
+                .catch(error => console.error('Error:', error));
+            }
         }
 
         function getReferralLink() {
-            fetch('/create_referral_link', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe.user.id })
-            })
-            .then(response => response.json())
-            .then(data => {
-                alert('Referral link: ' + data.link);
-            })
-            .catch(error => console.error('Error:', error));
+            if (Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) {
+                fetch('/create_referral_link', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe.user.id })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert('Referral link: ' + data.link);
+                })
+                .catch(error => console.error('Error:', error));
+            }
         }
 
         function getConsentLink() {
-            fetch('/create_consent_link', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe.user.id })
-            })
-            .then(response => response.json())
-            .then(data => {
-                alert('Consent link: ' + data.link);
-            })
-            .catch(error => console.error('Error:', error));
+            if (Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) {
+                fetch('/create_consent_link', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe.user.id })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert('Consent link: ' + data.link);
+                })
+                .catch(error => console.error('Error:', error));
+            }
         }
 
         Telegram.WebApp.ready();

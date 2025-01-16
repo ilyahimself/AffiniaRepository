@@ -61,9 +61,13 @@ def mini_app():
 def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
-@app.route('/static/<path:path>')
-def static_files(path):
-    return send_from_directory('static', path)
+@app.route('/static/manifest.json')
+def serve_manifest():
+    return send_from_directory('static', 'manifest.json', mimetype='application/json')
+
+@app.route('/static/<path:filename>')
+def static_files(filename):
+    return send_from_directory('static', filename, mimetype='application/json')
 
 # Маршрут для получения баланса пользователя
 @app.route('/get_balance', methods=['POST'])
@@ -153,7 +157,7 @@ async def show_menu(update, context, user_id=None):
         [InlineKeyboardButton("My Balance", callback_data='balance')],
         [InlineKeyboardButton("Referral Link", callback_data='create_referral')],
         [InlineKeyboardButton("Consent Link", callback_data='create_consent')],
-        [InlineKeyboardButton("Open App", web_app=WebAppInfo(url="https://9929-173-211-46-175.ngrok-free.app/mini_app"))]
+        [InlineKeyboardButton("Open App", web_app=WebAppInfo(url="https://50d8-38-134-148-226.ngrok-free.app/mini_app"))]
     ]       
 
     text = 'Please choose:'
