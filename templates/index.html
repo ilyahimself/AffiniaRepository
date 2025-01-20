@@ -25,6 +25,46 @@
             font-size: 2em;
             margin: 20px 0;
         }
+
+         /* Стили для модального окна */
+         #referral-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        #referral-modal-content {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            width: 300px;
+            position: relative;
+        }
+
+        /* Стили для кнопки "Close" */
+        #close-referral-modal {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #888;
+            border: none;
+            background: none;
+            cursor: pointer;
+        }
+
+        #close-referral-modal:hover {
+            color: #000;
+        }
+
         button {
             background-color: #1e90ff;
             border: none;
@@ -81,6 +121,51 @@
             }
         }
 
+        function showReferralModal() {
+            if (Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) {
+                fetch('/generate_referral_qr', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe.user.id })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                    } else {
+                        document.getElementById('qr-code').src = `data:image/png;base64,${data.qr_code}`;
+                        document.getElementById('referral-link').textContent = data.referral_link;
+                        document.getElementById('referral-modal').style.display = 'flex';
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            }
+        }
+
+        function closeReferralModal() {
+            document.getElementById('referral-modal').style.display = 'none';
+        }
+
+       // Отправить реферальную ссылку
+        function sendReferralLink() {
+            const referralLink = document.getElementById('referral-link').textContent;
+
+            if (referralLink) {
+                // Формируем ссылку для открытия списка чатов
+                const shareLink = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}`;
+
+                // Открываем Telegram с предложением выбрать чат
+                Telegram.WebApp.openTelegramLink(shareLink);
+
+                // Сворачиваем приложение
+                Telegram.WebApp.close();
+            } else {
+                alert('Referral link not found.');
+            }
+        }
+
         function getConsentLink() {
             if (Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) {
                 fetch('/create_consent_link', {
@@ -105,7 +190,17 @@
 <body>
     <h1>Affinia</h1>
     <div id="counter">Loading...</div>
-    <button onclick="getReferralLink()">Referral Link</button>
+    <button onclick="showReferralModal()">Referral Link</button>
     <button onclick="getConsentLink()">Consent Link</button>
+
+    <div id="referral-modal">
+        <div id="referral-modal-content">
+            <button id="close-referral-modal" onclick="closeReferralModal()">x</button>
+            <h3 style="color: black" >Your Referral Link</h3>
+            <img id="qr-code" src="" alt="QR Code" style="width:200px; height:200px;">
+            <p id="referral-link" style="word-wrap:break-word;"></p>
+            <button onclick="sendReferralLink()">Send</button>
+        </div>
+    </div>    
 </body>
 </html>
