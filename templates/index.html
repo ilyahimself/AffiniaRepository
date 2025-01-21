@@ -18,16 +18,53 @@
             height: 100vh;
             margin: 0;
         }
+
         h1 {
             font-size: 3em;
+            margin-top: 20px;
         }
+
+        .user-info {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .user-info img {
+            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+            margin-bottom: 10px;
+        }
+
+        .user-info p {
+            font-size: 1.2em;
+            margin-top: 5px;
+        }
+
         #counter {
             font-size: 2em;
             margin: 20px 0;
         }
 
-         /* Стили для модального окна */
-         #referral-modal {
+        button {
+            background-color: #1e90ff;
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 10px 5px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #155fa0;
+        }
+
+        #referral-modal {
             display: none;
             position: fixed;
             top: 0;
@@ -46,9 +83,9 @@
             text-align: center;
             width: 300px;
             position: relative;
+            color: #000;
         }
 
-        /* Стили для кнопки "Close" */
         #close-referral-modal {
             position: absolute;
             top: 10px;
@@ -64,143 +101,109 @@
         #close-referral-modal:hover {
             color: #000;
         }
-
-        button {
-            background-color: #1e90ff;
-            border: none;
-            color: white;
-            padding: 15px 30px;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 16px;
-            margin: 10px 5px;
-            cursor: pointer;
-            border-radius: 5px;
-        }
     </style>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/static/service-worker.js')
-                .then(() => console.log('Service Worker registered'))
-                .catch(error => console.error('Service Worker registration failed:', error));
+        Telegram.WebApp.ready();
+
+        function updateUserInfo() {
+            const user = Telegram.WebApp.initDataUnsafe?.user;
+
+            if (user) {
+                document.getElementById('username').textContent = user.username || `${user.first_name} ${user.last_name || ''}`;
+                document.getElementById('user-avatar').src = user.photo_url || 'https://via.placeholder.com/80';
+            } else {
+                document.getElementById('username').textContent = 'Unknown User';
+                document.getElementById('user-avatar').src = 'https://via.placeholder.com/80';
+            }
         }
 
         function updateCounter() {
-            if (Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) {
-                fetch('/get_balance', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe.user.id })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('counter').textContent = data.balance + ' AffinyCoins';
-                })
-                .catch(error => console.error('Error:', error));
-            }
-        }
-
-        function getReferralLink() {
-            if (Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) {
-                fetch('/create_referral_link', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe.user.id })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    alert('Referral link: ' + data.link);
-                })
-                .catch(error => console.error('Error:', error));
-            }
+            fetch('/get_balance', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe?.user?.id })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('counter').textContent = data.balance + ' AffinyCoins';
+            })
+            .catch(error => console.error('Error:', error));
         }
 
         function showReferralModal() {
-            if (Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) {
-                fetch('/generate_referral_qr', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe.user.id })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        alert(data.error);
-                    } else {
-                        document.getElementById('qr-code').src = `data:image/png;base64,${data.qr_code}`;
-                        document.getElementById('referral-link').textContent = data.referral_link;
-                        document.getElementById('referral-modal').style.display = 'flex';
-                    }
-                })
-                .catch(error => console.error('Error:', error));
-            }
+            fetch('/generate_referral_qr', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe?.user?.id })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    document.getElementById('qr-code').src = `data:image/png;base64,${data.qr_code}`;
+                    
+                    // Сохраняем ссылку в скрытом атрибуте для дальнейшего использования
+                    document.getElementById('referral-link').setAttribute('data-link', data.referral_link);
+
+                    // Скрываем текст ссылки
+                    document.getElementById('referral-link').textContent = '';
+                    document.getElementById('referral-modal').style.display = 'flex';
+                }
+            })
+            .catch(error => console.error('Error:', error));
         }
 
         function closeReferralModal() {
             document.getElementById('referral-modal').style.display = 'none';
         }
 
-       // Отправить реферальную ссылку
         function sendReferralLink() {
-            const referralLink = document.getElementById('referral-link').textContent;
+            const referralLink = document.getElementById('referral-link').getAttribute('data-link');
 
             if (referralLink) {
-                // Формируем ссылку для открытия списка чатов
                 const shareLink = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}`;
-
-                // Открываем Telegram с предложением выбрать чат
                 Telegram.WebApp.openTelegramLink(shareLink);
-
-                // Сворачиваем приложение
                 Telegram.WebApp.close();
             } else {
                 alert('Referral link not found.');
             }
         }
 
-        function getConsentLink() {
-            if (Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) {
-                fetch('/create_consent_link', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe.user.id })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    alert('Consent link: ' + data.link);
-                })
-                .catch(error => console.error('Error:', error));
-            }
-        }
-
-        Telegram.WebApp.ready();
-        updateCounter();
+        window.onload = function () {
+            updateUserInfo();
+            updateCounter();
+        };
     </script>
 </head>
 <body>
     <h1>Affinia</h1>
+
+    <div class="user-info">
+        <img id="user-avatar" src="https://via.placeholder.com/80" alt="User Avatar">
+        <p id="username">Loading...</p>
+    </div>
+
     <div id="counter">Loading...</div>
+
     <button onclick="showReferralModal()">Referral Link</button>
     <button onclick="getConsentLink()">Consent Link</button>
 
     <div id="referral-modal">
         <div id="referral-modal-content">
-            <button id="close-referral-modal" onclick="closeReferralModal()">x</button>
-            <h3 style="color: black" >Your Referral Link</h3>
+            <button id="close-referral-modal" onclick="closeReferralModal()">×</button>
+            <h3>Your Referral Link</h3>
             <img id="qr-code" src="" alt="QR Code" style="width:200px; height:200px;">
-            <p id="referral-link" style="word-wrap:break-word;"></p>
+            <!-- Текст ссылки скрыт, но значение сохранено в data-link -->
+            <p id="referral-link" style="visibility: hidden;"></p>
             <button onclick="sendReferralLink()">Send</button>
         </div>
-    </div>    
+    </div>
 </body>
 </html>
+
