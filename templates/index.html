@@ -17,6 +17,7 @@
             align-items: center;
             height: 100vh;
             margin: 0;
+            text-align: center;
         }
 
         h1 {
@@ -41,13 +42,46 @@
             margin-top: 5px;
         }
 
+        .nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            background-color: #333;
+            padding: 10px 0;
+        }
+
+        .nav-bar button {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: none;
+            border: none;
+            color: white;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        .nav-bar button.active {
+            background-color: #777a7d;
+        }
+
+        .nav-bar img {
+            height: 20px;
+            margin-bottom: 5px;
+        }
+
+
         #counter {
             font-size: 2em;
             margin: 20px 0;
         }
 
         button {
-            background-color: #1e90ff;
+            background-color: #777a7d;
             border: none;
             color: white;
             padding: 15px 30px;
@@ -61,8 +95,22 @@
         }
 
         button:hover {
-            background-color: #155fa0;
+            background-color: #777a7d;
         }
+
+        .text-center {
+            text-align: center;
+            width: 100%;  
+        }
+
+        .page {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+
 
         #referral-modal {
             display: none;
@@ -175,24 +223,56 @@
             }
         }
 
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(page => {
+                page.style.display = 'none'; // Скрываем все страницы
+            });
+            document.querySelectorAll('.nav-bar button').forEach(button => {
+                button.classList.remove('active'); // Убираем активность со всех кнопок
+            });
+            document.getElementById(pageId).style.display = 'block'; // Показываем нужную страницу
+            document.querySelector(`button[data-page="${pageId}"]`).classList.add('active'); // Делаем кнопку активной
+        }
+
         window.onload = function () {
             updateUserInfo();
             updateCounter();
+            showPage('main-page'); // Показываем страницу Main по умолчанию
         };
     </script>
 </head>
 <body>
-    <h1>Affinia</h1>
+    <!-- Содержимое страницы Main -->
+    <div id="main-page" class="page">
+        <h1 class="text-center">Affinia</h1>
 
-    <div class="user-info">
-        <img id="user-avatar" src="https://via.placeholder.com/80" alt="User Avatar">
-        <p id="username">Loading...</p>
+        <div class="user-info">
+            <img id="user-avatar" src="https://via.placeholder.com/80" alt="User Avatar">
+            <p id="username">Loading...</p>
+        </div>
+    
+        <div id="counter" class="text-center">Loading...</div>
+    
+        <button onclick="showReferralModal()">Referral Link</button>
+        <button onclick="getConsentLink()">Consent Link</button>
     </div>
 
-    <div id="counter">Loading...</div>
-
-    <button onclick="showReferralModal()">Referral Link</button>
-    <button onclick="getConsentLink()">Consent Link</button>
+    <!-- Содержимое страницы Friends -->
+    <div id="friends-page" class="page" style="display:none;">
+        <h1 class="text-center">Friends</h1>
+        <!-- Пока пусто -->
+    </div>
+      
+    <div class="nav-bar">
+        <button data-page="main-page" class="nav-btn" onclick="showPage('main-page')">
+            <img src="/static/house-icon.png" alt="Main"> <!-- Замените 'house-icon.png' на путь к вашей иконке домика -->
+            Main
+        </button>
+        <button data-page="friends-page" class="nav-btn" onclick="showPage('friends-page')">
+            <img src="/static/person-icon.png" alt="Friends"> <!-- Замените 'person-icon.png' на путь к вашей иконке человечка -->
+            Friends
+        </button>
+    </div>
 
     <div id="referral-modal">
         <div id="referral-modal-content">
@@ -204,6 +284,8 @@
             <button onclick="sendReferralLink()">Send</button>
         </div>
     </div>
+
+    
 </body>
 </html>
 
