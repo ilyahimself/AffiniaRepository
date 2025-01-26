@@ -7,41 +7,135 @@
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#1e90ff">
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            background-color: #121212;
-            color: #ffffff;
+            background-color: #9789A3;
+            color: #e8e6d9;
             font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 1px 0 0 0;
+        }
+
+        /* ----- Верхняя часть (шапка) ----- */
+        header {
+            width: 100%;
+            text-align: center; /* Заголовок по центру */
+            padding: 10px 0;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 2em;
+        }
+
+        /* Контейнер аватара, ника, коинов и кнопки настроек */
+        .top-bar {
+            position: relative;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between; 
+            padding: 0 10px;
+            margin-top: 10px; 
+        }
+
+        /* Левая секция (аватар, никнейм, коins) */
+        .left-section {
+            display: flex;
+            align-items: center;
+            margin-top: 30px;
+        }
+
+        .left-section img {
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            border: none;
+        }
+
+        .user-details {
+            margin-left: 15px; 
             display: flex;
             flex-direction: column;
+        }
+
+        .user-details p {
+            margin: 0px;
+            font-size: 1.1em;
+            font-weight: 500;
+            color: #e8e6d9;
+            text-align: left;
+        }
+
+        /* Кнопка настроек (вертикальные три точки) */
+        .settings-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #e8e6d9;
+            padding: 40px 10px;
+        }
+
+        .settings-btn:hover {
+            color: #fff;
+        }
+
+        /* ----- Центр экрана: кнопки Referral Link, Consent Link ----- */
+        .center-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 100px;
+        }
+
+        .center-content button {
+            background-color: #e8e6d9;
+            border: none;
+            color: #8d799c;
+            padding: 15px 30px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 500;
+            margin: 10px 5px;
+            border-radius: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .center-content button:hover {
+            background-color: #dcd2e4;
+        }
+
+        /* ----- Кнопка SOS (круглая), расположена над навбаром ----- */
+        .sos-container {
+            margin: 0; /* отступ над навигационной панелью */
+            padding: 0 0 30px 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        .sos-button {
+            background-color: #f5a89e;
+            color: #8d799c;
+            border: none;
+            border-radius: 50%;
+            width: 100px;
+            height: 100px;
+            font-size: 20px;
+            font-weight: bold;
+            display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            margin: 0;
-            text-align: center;
         }
 
-        h1 {
-            font-size: 3em;
-            margin-top: 20px;
+        .sos-button:hover {
+            background-color: #f48b81;
         }
 
-        .user-info {
-            margin-top: 20px;
-            text-align: center;
-        }
-
-        .user-info img {
-            border-radius: 50%;
-            width: 80px;
-            height: 80px;
-            margin-bottom: 10px;
-        }
-
-        .user-info p {
-            font-size: 1.2em;
-            margin-top: 5px;
-        }
-
+        /* ----- Навигационный бар снизу ----- */
         .nav-bar {
             position: fixed;
             bottom: 0;
@@ -49,8 +143,10 @@
             width: 100%;
             display: flex;
             justify-content: space-around;
-            background-color: #333;
+            background-color: #e8e6d9;
             padding: 10px 0;
+            color: #8d799c;
+            box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
         }
 
         .nav-bar button {
@@ -60,58 +156,33 @@
             align-items: center;
             background: none;
             border: none;
-            color: white;
+            color: inherit;
             padding: 10px;
-            font-size: 16px;
+            font-size: 14px;
         }
 
-        .nav-bar button.active {
-            background-color: #777a7d;
-        }
-
-        .nav-bar img {
-            height: 20px;
+        .nav-bar button img {
+            width: 24px;
+            height: 24px;
             margin-bottom: 5px;
         }
 
-
-        #counter {
-            font-size: 2em;
-            margin: 20px 0;
+        .nav-bar button.active {
+            /* можно задать стиль для активной кнопки */
         }
 
-        button {
-            background-color: #777a7d;
-            border: none;
-            color: white;
-            padding: 15px 30px;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 16px;
-            margin: 10px 5px;
-            cursor: pointer;
-            border-radius: 5px;
-        }
-
-        button:hover {
-            background-color: #777a7d;
-        }
-
-        .text-center {
-            text-align: center;
-            width: 100%;  
-        }
-
+        /* ----- Страницы (для переключения контента) ----- */
         .page {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            display: none;
             width: 100%;
+            padding-top: 10px;
         }
 
+        .page.active {
+            display: block; 
+        }
 
+        /* ----- Модальное окно (Referral) ----- */
         #referral-modal {
             display: none;
             position: fixed;
@@ -143,13 +214,13 @@
             color: #888;
             border: none;
             background: none;
-            cursor: pointer;
         }
 
         #close-referral-modal:hover {
             color: #000;
         }
     </style>
+
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script>
         Telegram.WebApp.ready();
@@ -158,7 +229,14 @@
             const user = Telegram.WebApp.initDataUnsafe?.user;
 
             if (user) {
-                document.getElementById('username').textContent = user.username || `${user.first_name} ${user.last_name || ''}`;
+                // Если у пользователя есть username, добавляем "@", 
+                // иначе используем first_name и last_name
+                if (user.username) {
+                    document.getElementById('username').textContent = '@' + user.username;
+                } else {
+                    document.getElementById('username').textContent =
+                        user.first_name + (user.last_name ? ' ' + user.last_name : '');
+                }
                 document.getElementById('user-avatar').src = user.photo_url || 'https://via.placeholder.com/80';
             } else {
                 document.getElementById('username').textContent = 'Unknown User';
@@ -176,7 +254,8 @@
             })
             .then(response => response.json())
             .then(data => {
-                document.getElementById('counter').textContent = data.balance + ' AffinyCoins';
+                // Вместо 'AffinyCoins' — 'AFN'
+                document.getElementById('counter').textContent = data.balance + ' AFN';
             })
             .catch(error => console.error('Error:', error));
         }
@@ -196,7 +275,7 @@
                 } else {
                     document.getElementById('qr-code').src = `data:image/png;base64,${data.qr_code}`;
                     
-                    // Сохраняем ссылку в скрытом атрибуте для дальнейшего использования
+                    // Сохраняем ссылку в скрытом атрибуте
                     document.getElementById('referral-link').setAttribute('data-link', data.referral_link);
 
                     // Скрываем текст ссылки
@@ -225,13 +304,13 @@
 
         function showPage(pageId) {
             document.querySelectorAll('.page').forEach(page => {
-                page.style.display = 'none'; // Скрываем все страницы
+                page.classList.remove('active');
             });
-            document.querySelectorAll('.nav-bar button').forEach(button => {
-                button.classList.remove('active'); // Убираем активность со всех кнопок
+            document.querySelectorAll('.nav-bar button').forEach(btn => {
+                btn.classList.remove('active');
             });
-            document.getElementById(pageId).style.display = 'block'; // Показываем нужную страницу
-            document.querySelector(`button[data-page="${pageId}"]`).classList.add('active'); // Делаем кнопку активной
+            document.getElementById(pageId).classList.add('active');
+            document.querySelector(`.nav-bar button[data-page="${pageId}"]`).classList.add('active');
         }
 
         window.onload = function () {
@@ -239,53 +318,91 @@
             updateCounter();
             showPage('main-page'); // Показываем страницу Main по умолчанию
         };
+
+        function getConsentLink() {
+            alert('Здесь будет логика для Consent Link');
+        }
     </script>
 </head>
 <body>
-    <!-- Содержимое страницы Main -->
-    <div id="main-page" class="page">
-        <h1 class="text-center">Affinia</h1>
 
-        <div class="user-info">
-            <img id="user-avatar" src="https://via.placeholder.com/80" alt="User Avatar">
-            <p id="username">Loading...</p>
+    <!-- Шапка сайта: заголовок по центру, под ним аватар+ник+коины слева и кнопка настроек справа -->
+    <header>
+        <h1>Affinia</h1>
+        <div class="top-bar">
+            <div class="left-section">
+                <img id="user-avatar" src="https://via.placeholder.com/80" alt="User Avatar">
+                <div class="user-details">
+                    <p id="username">Loading...</p>
+                    <p id="counter">Loading...</p>
+                </div>
+            </div>
+            <!-- Кнопка настроек (вертикальные три точки) -->
+            <button class="settings-btn">⋮</button>
         </div>
-    
-        <div id="counter" class="text-center">Loading...</div>
-    
-        <button onclick="showReferralModal()">Referral Link</button>
-        <button onclick="getConsentLink()">Consent Link</button>
+    </header>
+
+    <!-- Страница Main -->
+    <div id="main-page" class="page">
+        <div class="center-content">
+            <button onclick="showReferralModal()">Referral Link</button>
+            <button onclick="getConsentLink()">Consent Link</button>
+        </div>
+            <!-- Контейнер для кнопки SOS, фиксированно над навбаром -->
+            <<div class="sos-container">
+                <button class="sos-button" onclick="window.location.href='tel:112';">SOS</button>
+              </div>                          
     </div>
 
-    <!-- Содержимое страницы Friends -->
-    <div id="friends-page" class="page" style="display:none;">
-        <h1 class="text-center">Friends</h1>
-        <!-- Пока пусто -->
+
+    <!-- Страница Friends -->
+    <div id="friends-page" class="page">
+        <h2 style="text-align:center;">Friends</h2>
+        <!-- Контент для друзей -->
     </div>
-      
+
+    <!-- Страница b3 -->
+    <div id="b3-page" class="page">
+        <h2 style="text-align:center;">b3 Page</h2>
+        <!-- Контент для b3 -->
+    </div>
+
+    <!-- Страница b4 -->
+    <div id="b4-page" class="page">
+        <h2 style="text-align:center;">b4 Page</h2>
+        <!-- Контент для b4 -->
+    </div>
+
+    <!-- Навигационная панель снизу с 4 кнопками -->
     <div class="nav-bar">
-        <button data-page="main-page" class="nav-btn" onclick="showPage('main-page')">
-            <img src="/static/house-icon.png" alt="Main"> <!-- Замените 'house-icon.png' на путь к вашей иконке домика -->
+        <button data-page="main-page" onclick="showPage('main-page')">
+            <img src="/static/house-icon.png" alt="Main">
             Main
         </button>
-        <button data-page="friends-page" class="nav-btn" onclick="showPage('friends-page')">
-            <img src="/static/person-icon.png" alt="Friends"> <!-- Замените 'person-icon.png' на путь к вашей иконке человечка -->
+        <button data-page="friends-page" onclick="showPage('friends-page')">
+            <img src="/static/person-icon.png" alt="Friends">
             Friends
+        </button>
+        <button data-page="b3-page" onclick="showPage('b3-page')">
+            <img src="/static/placeholder-icon.png" alt="b3">
+            b3
+        </button>
+        <button data-page="b4-page" onclick="showPage('b4-page')">
+            <img src="/static/placeholder-icon.png" alt="b4">
+            b4
         </button>
     </div>
 
+    <!-- Модальное окно реферальной ссылки -->
     <div id="referral-modal">
         <div id="referral-modal-content">
             <button id="close-referral-modal" onclick="closeReferralModal()">×</button>
             <h3>Your Referral Link</h3>
             <img id="qr-code" src="" alt="QR Code" style="width:200px; height:200px;">
-            <!-- Текст ссылки скрыт, но значение сохранено в data-link -->
+            <!-- Текст ссылки скрыт, но значение хранится в data-link -->
             <p id="referral-link" style="visibility: hidden;"></p>
             <button onclick="sendReferralLink()">Send</button>
         </div>
     </div>
-
-    
 </body>
 </html>
-

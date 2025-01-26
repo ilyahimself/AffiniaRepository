@@ -173,7 +173,7 @@ async def show_menu(update, context, user_id=None):
         [InlineKeyboardButton("My Balance", callback_data='balance')],
         [InlineKeyboardButton("Referral Link", callback_data='create_referral')],
         [InlineKeyboardButton("Consent Link", callback_data='create_consent')],
-        [InlineKeyboardButton("Open App", web_app=WebAppInfo(url="https://4c21-154-62-226-69.ngrok-free.app/mini_app"))]
+        [InlineKeyboardButton("Open App", web_app=WebAppInfo(url="https://d6ce-2a0b-4140-a2e0-00-2.ngrok-free.app/mini_app"))]
     ]
 
     text = 'Please choose:'
