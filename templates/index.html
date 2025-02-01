@@ -168,8 +168,8 @@
             margin-bottom: 5px;
         }
 
-        .nav-bar button.active {
-            /* можно задать стиль для активной кнопки */
+        .nav-bar button.active span{
+            color: #f48b81;
         }
 
         /* ----- Страницы (для переключения контента) ----- */
@@ -364,9 +364,19 @@
             });
             document.querySelectorAll('.nav-bar button').forEach(btn => {
                 btn.classList.remove('active');
+                let img = btn.querySelector("img");
+                let text = btn.querySelector("span");
+                let pageName = btn.getAttribute("data-page");
+
+                if (pageName === pageId) {
+                    btn.classList.add('active');
+                    img.src = `/static/${pageName}-active.png`;
+                } else {
+                    img.src = `/static/${pageName}-passive.png`;
+                }
             });
+
             document.getElementById(pageId).classList.add('active');
-            document.querySelector(`.nav-bar button[data-page="${pageId}"]`).classList.add('active');
 
             if (pageId === 'friends-page') {
                 updateFriendsList();
@@ -442,16 +452,6 @@
                         </div>
                         <button class="delete-btn" onclick="deleteFriend('${friend.user_id}')">Delete</button>
                     `;
-                    // friendDiv.classList.add('friend-item');
-
-                    // friendDiv.innerHTML = `
-                    //     <img src="${userInfo.avatar}" alt="Avatar">
-                    //     <div class="friend-info">
-                    //         <p>${userInfo.username}</p>
-                    //         <p>${friend.coins} AFN</p>
-                    //     </div>
-                    //     <button class="delete-btn" onclick="deleteFriend('${friend.user_id}')">Delete</button>
-                    // `;
 
                     friendsList.appendChild(friendDiv);
                 }
@@ -551,23 +551,23 @@
     <div class="nav-bar">
         <button data-page="main-page" onclick="showPage('main-page')">
             <img src="/static/home-passive.png" alt="Main">
-            Main
+            <span>Main</span>
         </button>
         <button data-page="friends-page" onclick="showPage('friends-page')">
             <img src="/static/friends-passive.png" alt="Friends">
-            Friends
+            <span>Friends</span>
         </button>
         <button data-page="beloved-page" onclick="showPage('beloved-page')">
             <img src="/static/beloved-passive.png" alt="Beloved">
-            Beloved
+            <span>Beloved</span>
         </button>
         <button data-page="mission-page" onclick="showPage('mission-page')">
             <img src="/static/mission-passive.png" alt="Mission">
-            Mission
+            <span>Mission</span>
         </button>
         <button data-page="wallet-page" onclick="showPage('wallet-page')">
             <img src="/static/wallet-passive.png" alt="Wallet">
-            Wallet
+            <span>Wallet</span>
         </button>
     </div>
 
