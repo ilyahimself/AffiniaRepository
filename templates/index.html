@@ -60,6 +60,7 @@
             margin-left: 15px; 
             display: flex;
             flex-direction: column;
+            gap: 10px;
         }
 
         .user-details p {
@@ -219,6 +220,62 @@
         #close-referral-modal:hover {
             color: #000;
         }
+
+        /* ----- Элементы списка друзей ----- */        
+        #friends-list .friend-info {
+            position: relative;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between; 
+            padding: 0 10px;
+            margin-top: 10px; 
+        }
+
+        #friends-list .friend-left-section{
+            display: flex;
+            align-items: center;
+        }
+
+        #friends-list .friend-left-section img {
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            border: none;
+        }
+
+        .friend-details {
+            margin-left: 15px; 
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        #friends-list .friend-details p {
+            margin: 0px;
+            font-size: 1em;
+            font-weight: 500;
+            color: #e8e6d9;
+            text-align: left;
+        }
+        
+        .delete-btn {
+            background-color: #e8e6d9;
+            color: #8d799c;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 14px;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+
+        .delete-btn:hover {
+            background-color: #e8e6d9ea;
+        }
+
+</style>
+
     </style>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -254,7 +311,6 @@
             })
             .then(response => response.json())
             .then(data => {
-                // Вместо 'AffinyCoins' — 'AFN'
                 document.getElementById('counter').textContent = data.balance + ' AFN';
             })
             .catch(error => console.error('Error:', error));
@@ -311,7 +367,119 @@
             });
             document.getElementById(pageId).classList.add('active');
             document.querySelector(`.nav-bar button[data-page="${pageId}"]`).classList.add('active');
+
+            if (pageId === 'friends-page') {
+                updateFriendsList();
+            }
+
         }
+
+        async function fetchTelegramUserData(userId) {
+            BOT_TOKEN = "REDACTED_BOT_TOKEN"
+            try {
+                // 1. Получаем основные данные пользователя
+                let response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getChat?chat_id=${userId}`);
+                let data = await response.json();
+
+                let username = data.ok
+                    ? (data.result.username ? `@${data.result.username}` : `${data.result.first_name} ${data.result.last_name || ''}`)
+                    : "@unknown";
+
+                // 2. Запрашиваем фото пользователя (если есть)
+                response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUserProfilePhotos?user_id=${userId}&limit=1`);
+                data = await response.json();
+
+                let avatar = "https://via.placeholder.com/80"; // Заглушка на случай отсутствия фото
+
+                if (data.ok && data.result.photos.length > 0) {
+                    const fileId = data.result.photos[0][0].file_id; // Берем первый аватар пользователя
+
+                    // 3. Запрашиваем URL файла
+                    response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`);
+                    data = await response.json();
+
+                    if (data.ok) {
+                        avatar = `https://api.telegram.org/file/bot${BOT_TOKEN}/${data.result.file_path}`;
+                    }
+                }
+
+                return { username, avatar };
+            } catch (error) {
+                console.error("Error fetching Telegram user data:", error);
+                return { username: "@unknown", avatar: "https://via.placeholder.com/80" };
+            }
+        }
+
+
+        async function updateFriendsList() {
+            try {
+                const response = await fetch('/get_friends', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe?.user?.id })
+                });
+                const data = await response.json();
+                const friendsList = document.getElementById('friends-list');
+                friendsList.innerHTML = '';
+
+                if (data.friends.length === 0) {
+                    friendsList.innerHTML = '<p>No friends yet.</p>';
+                    return;
+                }
+
+                for (const friend of data.friends) {
+                    const userInfo = await fetchTelegramUserData(friend.user_id);
+
+                    const friendDiv = document.createElement('div');
+                    friendDiv.classList.add('friend-info');
+                    friendDiv.innerHTML = `
+                        <div class="friend-left-section">
+                            <img src="${userInfo.avatar}" alt="Avatar">
+                            <div class="friend-details">
+                                <p>${userInfo.username}</p>
+                                <p>${friend.coins} AFN</p>
+                            </div>
+                        </div>
+                        <button class="delete-btn" onclick="deleteFriend('${friend.user_id}')">Delete</button>
+                    `;
+                    // friendDiv.classList.add('friend-item');
+
+                    // friendDiv.innerHTML = `
+                    //     <img src="${userInfo.avatar}" alt="Avatar">
+                    //     <div class="friend-info">
+                    //         <p>${userInfo.username}</p>
+                    //         <p>${friend.coins} AFN</p>
+                    //     </div>
+                    //     <button class="delete-btn" onclick="deleteFriend('${friend.user_id}')">Delete</button>
+                    // `;
+
+                    friendsList.appendChild(friendDiv);
+                }
+            } catch (error) {
+                console.error('Error fetching friends:', error);
+            }
+        }
+
+        function deleteFriend(userId) {
+            fetch('/delete_friend', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    user_id: Telegram.WebApp.initDataUnsafe?.user?.id,
+                    friend_id: userId 
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateFriendsList(); // Перезагружаем список друзей
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
 
         window.onload = function () {
             updateUserInfo();
@@ -349,47 +517,57 @@
             <button onclick="getConsentLink()">Consent Link</button>
         </div>
             <!-- Контейнер для кнопки SOS, фиксированно над навбаром -->
-            <<div class="sos-container">
+            <div class="sos-container">
                 <button class="sos-button" onclick="window.location.href='tel:112';">SOS</button>
               </div>                          
     </div>
 
-
     <!-- Страница Friends -->
     <div id="friends-page" class="page">
         <h2 style="text-align:center;">Friends</h2>
-        <!-- Контент для друзей -->
+        <div id="friends-list">
+            <p>Loading...</p>
+        </div>        
     </div>
 
     <!-- Страница b3 -->
-    <div id="b3-page" class="page">
-        <h2 style="text-align:center;">b3 Page</h2>
-        <!-- Контент для b3 -->
+    <div id="beloved-page" class="page">
+        <h2 style="text-align:center;">Beloved</h2>
+        <!-- Контент для beloved -->
     </div>
 
     <!-- Страница b4 -->
-    <div id="b4-page" class="page">
-        <h2 style="text-align:center;">b4 Page</h2>
-        <!-- Контент для b4 -->
+    <div id="wallet-page" class="page">
+        <h2 style="text-align:center;">Wallet</h2>
+        <!-- Контент для wallet -->
+    </div>
+    <!-- Страница mission -->
+    <div id="mission-page" class="page">
+        <h2 style="text-align:center;">Mission</h2>
+        <!-- Контент для mission -->
     </div>
 
     <!-- Навигационная панель снизу с 4 кнопками -->
     <div class="nav-bar">
         <button data-page="main-page" onclick="showPage('main-page')">
-            <img src="/static/house-icon.png" alt="Main">
+            <img src="/static/home-passive.png" alt="Main">
             Main
         </button>
         <button data-page="friends-page" onclick="showPage('friends-page')">
-            <img src="/static/person-icon.png" alt="Friends">
+            <img src="/static/friends-passive.png" alt="Friends">
             Friends
         </button>
-        <button data-page="b3-page" onclick="showPage('b3-page')">
-            <img src="/static/placeholder-icon.png" alt="b3">
-            b3
+        <button data-page="beloved-page" onclick="showPage('beloved-page')">
+            <img src="/static/beloved-passive.png" alt="Beloved">
+            Beloved
         </button>
-        <button data-page="b4-page" onclick="showPage('b4-page')">
-            <img src="/static/placeholder-icon.png" alt="b4">
-            b4
+        <button data-page="mission-page" onclick="showPage('mission-page')">
+            <img src="/static/mission-passive.png" alt="Mission">
+            Mission
+        </button>
+        <button data-page="wallet-page" onclick="showPage('wallet-page')">
+            <img src="/static/wallet-passive.png" alt="Wallet">
+            Wallet
         </button>
     </div>
 

@@ -7,7 +7,7 @@ import qrcode
 from io import BytesIO
 from base64 import b64encode
 from flask import Flask, render_template, request, jsonify, send_from_directory
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo,Bot
 from telegram.ext import Application, CommandHandler, CallbackContext, CallbackQueryHandler
 from json.decoder import JSONDecodeError
 
@@ -16,21 +16,27 @@ logging.basicConfig(level=logging.INFO)
 app = Flask(__name__)
 
 user_tokens = {}
+referrals = {}
 data_lock = threading.Lock()
 
 API_TOKEN = os.getenv('API_TOKEN', 'REDACTED_BOT_TOKEN')
 BOT_USERNAME = os.getenv('BOT_USERNAME', 'AffiniaBot')
+bot = Bot(token=API_TOKEN)
+URL = "https://d7c3-109-176-207-179.ngrok-free.app"
 
 # Создаём приложение бота
 application = Application.builder().token(API_TOKEN).build()
 
+
 def load_data():
-    global user_tokens
+    global user_tokens, referrals
+
     try:
         with open('user_tokens.json', 'r') as f:
             data = json.load(f)
             user_tokens = data.get('user_tokens', {})
-            print(f"Loaded data: {user_tokens}")
+            referrals = data.get('referrals', {})
+            print(f"Loaded data: {user_tokens}, {referrals}")
     except FileNotFoundError:
         user_tokens = {}
         print("Data file not found, starting with an empty dictionary")
@@ -41,12 +47,13 @@ def load_data():
         logging.error(f"Unexpected error while loading data: {e}")
         user_tokens = {}
 
+
 def save_data():
     try:
         with data_lock:
             with open('user_tokens.json', 'w') as f:
-                json.dump({'user_tokens': user_tokens}, f)
-        print(f"Saved data: {user_tokens}")
+                json.dump({'user_tokens': user_tokens, 'referrals': referrals}, f)
+        print(f"Saved data: {user_tokens}, {referrals}")
     except Exception as e:
         logging.error(f"Unexpected error while saving data: {e}")
 
@@ -135,16 +142,28 @@ async def start(update: Update, context: CallbackContext) -> None:
     else:
         await show_menu(update, context, user_id)
 
+
 async def referral_start(update: Update, context: CallbackContext, referrer_id: str) -> None:
     new_user_id = str(update.message.from_user.id)
     if referrer_id and referrer_id != new_user_id:
-        user_tokens[referrer_id] = user_tokens.get(referrer_id, 0) + 10
-        user_tokens[new_user_id] = user_tokens.get(new_user_id, 0) + 5
-        save_data()
-        referrer_text = 'You have been credited with 10 AffinyCoin for inviting a new user.'
-        new_user_text = 'Thank you for registering! You have been credited with 5 AffinyCoin.\nYour referrer has been credited with 10 AffinyCoin.'
-        await update.message.reply_text(new_user_text)
-        await context.bot.send_message(chat_id=referrer_id, text=referrer_text)
+        if referrer_id not in referrals:
+            referrals[referrer_id] = []
+
+        # Проверяем, не был ли уже добавлен этот друг
+        if new_user_id not in referrals[referrer_id]:
+            referrals[referrer_id].append(new_user_id)
+
+            user_tokens[referrer_id] = user_tokens.get(referrer_id, 0) + 10
+            user_tokens[new_user_id] = user_tokens.get(new_user_id, 0) + 5
+            save_data()
+
+            referrer_text = 'You have been credited with 10 AffinyCoin for inviting a new user.'
+            new_user_text = 'Thank you for registering! You have been credited with 5 AffinyCoin.\nYour referrer has been credited with 10 AffinyCoin.'
+            await update.message.reply_text(new_user_text)
+            await context.bot.send_message(chat_id=referrer_id, text=referrer_text)
+        else:
+            # Если пользователь уже был приглашен, то коины не начисляем
+            await update.message.reply_text("You have already registered using a referral link.")
     else:
         if referrer_id == new_user_id:
             error_text = 'You cannot use your own referral link.'
@@ -173,7 +192,7 @@ async def show_menu(update, context, user_id=None):
         [InlineKeyboardButton("My Balance", callback_data='balance')],
         [InlineKeyboardButton("Referral Link", callback_data='create_referral')],
         [InlineKeyboardButton("Consent Link", callback_data='create_consent')],
-        [InlineKeyboardButton("Open App", web_app=WebAppInfo(url="https://d6ce-2a0b-4140-a2e0-00-2.ngrok-free.app/mini_app"))]
+        [InlineKeyboardButton("Open App", web_app=WebAppInfo(url=f"{URL}/mini_app"))]
     ]
 
     text = 'Please choose:'
@@ -254,6 +273,38 @@ def run_bot():
 
     # Синхронный запуск поллинга (создаёт свой event loop внутри)
     application.run_polling()
+
+
+@app.route('/get_friends', methods=['POST'])
+def get_friends():
+    data = request.json
+    if 'user_id' not in data:
+        return jsonify({'error': 'user_id is required'}), 400
+
+    user_id = str(data['user_id'])
+    if user_id not in referrals:
+        return jsonify({'friends': []})
+
+    friends_data = [{"user_id": friend_id, "coins": user_tokens.get(friend_id, 0)} for friend_id in referrals[user_id]]
+
+    return jsonify({'friends': friends_data})
+
+
+@app.route('/delete_friend', methods=['POST'])
+def delete_friend():
+    data = request.json
+    if 'user_id' not in data or 'friend_id' not in data:
+        return jsonify({'error': 'user_id and friend_id are required'}), 400
+
+    user_id = str(data['user_id'])
+    friend_id = str(data['friend_id'])
+
+    if user_id in referrals and friend_id in referrals[user_id]:
+        referrals[user_id].remove(friend_id)
+        save_data()
+        return jsonify({'success': True})
+
+    return jsonify({'error': 'Friend not found'}), 400
 
 
 if __name__ == '__main__':
