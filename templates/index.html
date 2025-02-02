@@ -15,38 +15,40 @@
             background-color: #9789A3;
             color: #e8e6d9;
             font-family: Arial, sans-serif;
+            height: 100vh;
             margin: 0;
-            padding: 1px 0 0 0;
+            /* padding: 0 0 0 0; */
         }
 
         /* ----- Верхняя часть (шапка) ----- */
         header {
             width: 100%;
-            text-align: center; /* Заголовок по центру */
-            padding: 10px 0;
+            height: 12%;
+            /* text-align: center; Заголовок по центру */
+            /* padding: 10px 0; */
         }
 
-        header h1 {
+        /* header h1 {
             margin: 0;
             font-size: 2em;
-        }
+        } */
 
-        /* Контейнер аватара, ника, коинов и кнопки настроек */
+        /*  ----- Контейнер аватара, ника, коинов и кнопки настроек -----  */
         .top-bar {
             position: relative;
             width: 100%;
             display: flex;
-            align-items: center;
             justify-content: space-between; 
             padding: 0 10px;
+            height: auto;
             margin-top: 10px; 
         }
 
         /* Левая секция (аватар, никнейм, коins) */
         .left-section {
             display: flex;
+            height: auto;
             align-items: center;
-            margin-top: 30px;
         }
 
         .left-section img {
@@ -61,6 +63,7 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
+            height: auto;
         }
 
         .user-details p {
@@ -77,11 +80,31 @@
             border: none;
             font-size: 24px;
             color: #e8e6d9;
-            padding: 40px 10px;
+            align-items: center;
+            /* height: auto; */
         }
 
         .settings-btn:hover {
             color: #fff;
+        }
+        
+        /* ----- Страницы (для переключения контента) ----- */
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            height: 80%; 
+            align-self: stretch;
+        }
+
+        .page {
+            display: none;
+            width: 100%;            
+            align-items: center;
+        }
+
+        .page.active {
+            display: block; 
         }
 
         /* ----- Центр экрана: кнопки Referral Link, Consent Link ----- */
@@ -89,7 +112,8 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            margin-top: 100px;
+            justify-content: center;
+            height: 60%;
         }
 
         .center-content button {
@@ -111,11 +135,11 @@
 
         /* ----- Кнопка SOS (круглая), расположена над навбаром ----- */
         .sos-container {
-            margin: 0; /* отступ над навигационной панелью */
-            padding: 0 0 30px 0;
             width: 100%;
             display: flex;
             justify-content: center;
+            align-items: center;
+            height: 40%;
         }
 
         .sos-button {
@@ -123,8 +147,8 @@
             color: #8d799c;
             border: none;
             border-radius: 50%;
-            width: 100px;
-            height: 100px;
+            width: 60px;
+            height: 60px;
             font-size: 20px;
             font-weight: bold;
             display: flex;
@@ -140,7 +164,7 @@
         .nav-bar {
             position: fixed;
             bottom: 0;
-            left: 0;
+            /* left: 0; */
             width: 100%;
             display: flex;
             justify-content: space-around;
@@ -148,6 +172,7 @@
             padding: 10px 0;
             color: #8d799c;
             box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
+            height: 8%;
         }
 
         .nav-bar button {
@@ -158,7 +183,7 @@
             background: none;
             border: none;
             color: inherit;
-            padding: 10px;
+            padding: 0px;
             font-size: 14px;
         }
 
@@ -170,17 +195,6 @@
 
         .nav-bar button.active span{
             color: #f48b81;
-        }
-
-        /* ----- Страницы (для переключения контента) ----- */
-        .page {
-            display: none;
-            width: 100%;
-            padding-top: 10px;
-        }
-
-        .page.active {
-            display: block; 
         }
 
         /* ----- Модальное окно (Referral) ----- */
@@ -493,10 +507,9 @@
     </script>
 </head>
 <body>
-
     <!-- Шапка сайта: заголовок по центру, под ним аватар+ник+коины слева и кнопка настроек справа -->
     <header>
-        <h1>Affinia</h1>
+        <!-- <h1>Affinia</h1> -->
         <div class="top-bar">
             <div class="left-section">
                 <img id="user-avatar" src="https://via.placeholder.com/80" alt="User Avatar">
@@ -510,41 +523,44 @@
         </div>
     </header>
 
-    <!-- Страница Main -->
-    <div id="main-page" class="page">
-        <div class="center-content">
-            <button onclick="showReferralModal()">Referral Link</button>
-            <button onclick="getConsentLink()">Consent Link</button>
-        </div>
+    <!-- Контейнер для страниц (основного контента) -->
+    <div class="main-content">
+        <!-- Страница Main -->
+        <div id="main-page" class="page">
+            <div class="center-content">
+                <button onclick="showReferralModal()">Referral Link</button>
+                <button onclick="getConsentLink()">Consent Link</button>
+            </div>
             <!-- Контейнер для кнопки SOS, фиксированно над навбаром -->
             <div class="sos-container">
                 <button class="sos-button" onclick="window.location.href='tel:112';">SOS</button>
-              </div>                          
-    </div>
+            </div>                          
+        </div>
 
-    <!-- Страница Friends -->
-    <div id="friends-page" class="page">
-        <h2 style="text-align:center;">Friends</h2>
-        <div id="friends-list">
-            <p>Loading...</p>
-        </div>        
-    </div>
+        <!-- Страница Friends -->
+        <div id="friends-page" class="page">
+            <h2 style="text-align:center;">Friends</h2>
+            <div id="friends-list">
+                <p>Loading...</p>
+            </div>        
+        </div>
 
-    <!-- Страница b3 -->
-    <div id="beloved-page" class="page">
-        <h2 style="text-align:center;">Beloved</h2>
-        <!-- Контент для beloved -->
-    </div>
+        <!-- Страница b3 -->
+        <div id="beloved-page" class="page">
+            <h2 style="text-align:center;">Beloved</h2>
+            <!-- Контент для beloved -->
+        </div>
 
-    <!-- Страница b4 -->
-    <div id="wallet-page" class="page">
-        <h2 style="text-align:center;">Wallet</h2>
-        <!-- Контент для wallet -->
-    </div>
-    <!-- Страница mission -->
-    <div id="mission-page" class="page">
-        <h2 style="text-align:center;">Mission</h2>
-        <!-- Контент для mission -->
+        <!-- Страница b4 -->
+        <div id="wallet-page" class="page">
+            <h2 style="text-align:center;">Wallet</h2>
+            <!-- Контент для wallet -->
+        </div>
+        <!-- Страница mission -->
+        <div id="mission-page" class="page">
+            <h2 style="text-align:center;">Mission</h2>
+            <!-- Контент для mission -->
+        </div>
     </div>
 
     <!-- Навигационная панель снизу с 4 кнопками -->
