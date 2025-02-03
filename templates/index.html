@@ -234,7 +234,7 @@
         #close-referral-modal:hover {
             color: #000;
         }
-
+        
         /* ----- Элементы списка друзей ----- */        
         #friends-list .friend-info {
             position: relative;
@@ -295,6 +295,8 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script>
         Telegram.WebApp.ready();
+
+        const BOT_USERNAME = 'AffiniaBot';
 
         function updateUserInfo() {
             const user = Telegram.WebApp.initDataUnsafe?.user;
@@ -395,9 +397,10 @@
             if (pageId === 'friends-page') {
                 updateFriendsList();
             }
-
+            if (pageId === 'beloved-page') {
+                updateBelovedList();
         }
-
+    }
         async function fetchTelegramUserData(userId) {
             BOT_TOKEN = "REDACTED_BOT_TOKEN"
             try {
@@ -494,16 +497,150 @@
             .catch(error => console.error('Error:', error));
         }
 
+        async function updateBelovedList() {
+    try {
+        const response = await fetch('/get_beloved', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe?.user?.id })
+        });
+        const data = await response.json();
+        const belovedList = document.getElementById('beloved-list');
+        belovedList.innerHTML = '';  // очищаем содержимое контейнера
+
+        if (!data.beloved || data.beloved.length === 0) {
+            belovedList.innerHTML = '<p>No beloved yet.</p>';
+            return;
+        }
+
+        for (const item of data.beloved) {
+            // Получаем данные пользователя (аватар, никнейм и т.п.)
+            const userInfo = await fetchTelegramUserData(item.user_id);
+            const div = document.createElement('div');
+            div.classList.add('friend-info');  // используем тот же класс, что и для friends
+            div.innerHTML = `
+                <div class="friend-left-section">
+                    <img src="${userInfo.avatar}" alt="Avatar">
+                    <div class="friend-details">
+                        <p>${userInfo.username}</p>
+                    </div>
+                </div>
+                <button class="delete-btn" onclick="deleteBeloved('${item.user_id}')">Delete</button>
+            `;
+            belovedList.appendChild(div);
+        }
+    } catch (error) {
+        console.error('Error fetching beloved list:', error);
+    }
+}
+
+
+function deleteBeloved(belovedId) {
+    fetch('/delete_beloved', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            user_id: Telegram.WebApp.initDataUnsafe?.user?.id,
+            beloved_id: belovedId 
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateBelovedList();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
 
         window.onload = function () {
-            updateUserInfo();
-            updateCounter();
-            showPage('main-page'); // Показываем страницу Main по умолчанию
-        };
+    updateUserInfo();
+    updateCounter();
+    showPage('main-page'); // Показываем страницу Main по умолчанию
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const consentParam = urlParams.get('consent');
+    if (consentParam) {
+        window.consentRequesterId = consentParam;
+        // Показываем модальное окно для выбора ответа
+        document.getElementById('consent-response-modal').style.display = 'flex';
+    }
+};
+
 
         function getConsentLink() {
-            alert('Здесь будет логика для Consent Link');
+    fetch('/generate_consent_qr', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe?.user?.id })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            document.getElementById('consent-qr-code').src = `data:image/png;base64,${data.qr_code}`;
+            document.getElementById('consent-link').setAttribute('data-link', data.consent_link);
+            document.getElementById('consent-link').textContent = '';
+            document.getElementById('consent-modal').style.display = 'flex';
         }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+function closeConsentModal() {
+    document.getElementById('consent-modal').style.display = 'none';
+}
+
+function sendConsentLink() {
+    const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
+    if (userId) {
+        // Формируем ссылку вида: https://t.me/AffiniaBot?start=consent_<userId>
+        const consentLink = `https://t.me/${BOT_USERNAME}?start=consent_${userId}`;
+        const shareLink = `https://t.me/share/url?url=${encodeURIComponent(consentLink)}`;
+        Telegram.WebApp.openTelegramLink(shareLink);
+        Telegram.WebApp.close();
+    } else {
+        alert('Consent link not found.');
+    }
+}
+
+function sendConsentResponse(decision) {
+    const referrer_id = window.consentRequesterId; // ID отправителя consent-ссылки (из URL)
+    const new_user_id = Telegram.WebApp.initDataUnsafe?.user?.id;
+    if (!referrer_id || !new_user_id) {
+        alert("Missing data");
+        return;
+    }
+
+    fetch('/consent_response', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            referrer_id: referrer_id,
+            new_user_id: new_user_id,
+            decision: decision
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Просто закрываем модальное окно без уведомления
+            document.getElementById('consent-response-modal').style.display = 'none';
+            // Обновляем список beloved на странице
+            updateBelovedList();
+        } else {
+            alert("Error: " + data.error);
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
     </script>
 </head>
 <body>
@@ -548,7 +685,9 @@
         <!-- Страница b3 -->
         <div id="beloved-page" class="page">
             <h2 style="text-align:center;">Beloved</h2>
-            <!-- Контент для beloved -->
+            <div id="beloved-list">
+                <p>No beloved yet.</p>
+            </div>
         </div>
 
         <!-- Страница b4 -->
@@ -598,5 +737,27 @@
             <button onclick="sendReferralLink()">Send</button>
         </div>
     </div>
+
+    <!-- Consent Modal (для создания consent-ссылки) -->
+<div id="consent-modal" style="display: none; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+    <div id="consent-modal-content" style="background-color: #fff; padding: 20px; border-radius: 10px; text-align: center; width: 300px; position: relative; color: #000;">
+        <button id="close-consent-modal" onclick="closeConsentModal()" style="position: absolute; top: 10px; right: 10px; font-size: 18px; font-weight: bold; color: #888; border: none; background: none;">×</button>
+        <h3>Your Consent Link</h3>
+        <img id="consent-qr-code" src="" alt="QR Code" style="width:200px; height:200px;">
+        <!-- Скрытый элемент для хранения ссылки -->
+        <p id="consent-link" style="visibility: hidden;"></p>
+        <button onclick="sendConsentLink()">Send</button>
+    </div>
+</div>
+
+<!-- Consent Response Modal -->
+<div id="consent-response-modal" style="display: none; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+    <div id="consent-response-content" style="background-color: #fff; padding: 20px; border-radius: 10px; text-align: center; width: 300px; position: relative; color: #000;">
+        <h3>Please choose</h3>
+        <button onclick="sendConsentResponse('consent')">Consent</button>
+        <button onclick="sendConsentResponse('decline')">Decline</button>
+    </div>
+</div>
+
 </body>
 </html>
