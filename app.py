@@ -7,7 +7,7 @@ import qrcode
 from io import BytesIO
 from base64 import b64encode
 from flask import Flask, render_template, request, jsonify, send_from_directory
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo,Bot
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo, Bot
 from telegram.ext import Application, CommandHandler, CallbackContext, CallbackQueryHandler
 from json.decoder import JSONDecodeError
 
@@ -23,58 +23,47 @@ data_lock = threading.Lock()
 API_TOKEN = os.getenv('API_TOKEN', 'REDACTED_BOT_TOKEN')
 BOT_USERNAME = os.getenv('BOT_USERNAME', 'AffiniaBot')
 bot = Bot(token=API_TOKEN)
-URL = "https://c728-46-29-238-134.ngrok-free.app"
+URL = "https://aba6-193-23-118-229.ngrok-free.app"
 
 # Создаём приложение бота
 application = Application.builder().token(API_TOKEN).build()
 
-def load_beloveds():
-    global beloveds
-    try:
-        with open('beloveds.json', 'r') as f:
-            data = json.load(f)
-            beloveds = data.get('beloveds', {})
-            print("Loaded beloveds:", beloveds)
-    except (FileNotFoundError, JSONDecodeError):
-        beloveds = {}
-        print("No beloveds data found, starting with empty dictionary.")
-    except Exception as e:
-        logging.error("Error loading beloveds: " + str(e))
-        beloveds = {}
-
-def save_beloveds():
-    try:
-        with open('beloveds.json', 'w') as f:
-            json.dump({'beloveds': beloveds}, f)
-    except Exception as e:
-        logging.error("Error saving beloveds: " + str(e))
 
 def load_data():
-    global user_tokens, referrals
-
+    global user_tokens, referrals, beloveds
     try:
         with open('user_tokens.json', 'r') as f:
             data = json.load(f)
             user_tokens = data.get('user_tokens', {})
             referrals = data.get('referrals', {})
-            print(f"Loaded data: {user_tokens}, {referrals}")
+            beloveds = data.get('beloveds', {})
+            print(f"Loaded data: {user_tokens}, {referrals}, {beloveds}")
     except FileNotFoundError:
         user_tokens = {}
+        referrals = {}
+        beloveds = {}
         print("Data file not found, starting with an empty dictionary")
     except JSONDecodeError:
         logging.error('Error decoding JSON from user_tokens.json. Starting with empty data.')
         user_tokens = {}
+        referrals = {}
+        beloveds = {}
     except Exception as e:
         logging.error(f"Unexpected error while loading data: {e}")
         user_tokens = {}
+        referrals = {}
+        beloveds = {}
 
 
 def save_data():
     try:
         with data_lock:
             with open('user_tokens.json', 'w') as f:
-                json.dump({'user_tokens': user_tokens, 'referrals': referrals}, f)
-        print(f"Saved data: {user_tokens}, {referrals}")
+                json.dump({'user_tokens': user_tokens,
+                           'referrals': referrals,
+                           'beloveds': beloveds
+                           }, f)
+        print(f"Saved data: {user_tokens}, {referrals}, {beloveds}")
     except Exception as e:
         logging.error(f"Unexpected error while saving data: {e}")
 
@@ -84,17 +73,22 @@ def save_data():
 def mini_app():
     return render_template('index.html')
 
+
 @app.route('/favicon.ico')
 def favicon():
-    return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico', mimetype='image/vnd.microsoft.icon')
+    return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico',
+                               mimetype='image/vnd.microsoft.icon')
+
 
 @app.route('/static/manifest.json')
 def serve_manifest():
     return send_from_directory('static', 'manifest.json', mimetype='application/json')
 
+
 @app.route('/static/<path:filename>')
 def static_files(filename):
     return send_from_directory('static', filename, mimetype='application/json')
+
 
 @app.route('/get_balance', methods=['POST'])
 def get_balance():
@@ -106,6 +100,7 @@ def get_balance():
         balance = user_tokens.get(user_id, 0)
     return jsonify({'balance': balance})
 
+
 @app.route('/create_referral_link', methods=['POST'])
 def create_referral_link():
     data = request.json
@@ -114,6 +109,7 @@ def create_referral_link():
     user_id = str(data['user_id'])
     referral_link = f"https://t.me/{BOT_USERNAME}?start={user_id}"
     return jsonify({'link': referral_link})
+
 
 @app.route('/generate_referral_qr', methods=['POST'])
 def generate_referral_qr():
@@ -140,6 +136,7 @@ def generate_referral_qr():
     qr_code_base64 = b64encode(buffered.getvalue()).decode('utf-8')
     return jsonify({'referral_link': referral_link, 'qr_code': qr_code_base64})
 
+
 # Например, в эндпоинте /create_consent_link:
 @app.route('/create_consent_link', methods=['POST'])
 def create_consent_link():
@@ -161,7 +158,7 @@ def generate_consent_qr():
     user_id = str(data['user_id'])
     # Ссылка ведёт прямо в мини-приложение с GET-параметром consent
     consent_link = f"{URL}/mini_app?consent={user_id}"
-    
+
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -175,6 +172,7 @@ def generate_consent_qr():
     img.save(buffered, format="PNG")
     qr_code_base64 = b64encode(buffered.getvalue()).decode('utf-8')
     return jsonify({'consent_link': consent_link, 'qr_code': qr_code_base64})
+
 
 @app.route('/consent_response', methods=['POST'])
 def consent_response():
@@ -197,8 +195,7 @@ def consent_response():
         if referrer_id not in beloveds[new_user_id]:
             beloveds[new_user_id].append(referrer_id)
 
-        # Сохраняем обновлённые данные
-        save_beloveds()
+        save_data()
 
         # Отправляем уведомление отправителю через бота, чтобы он знал, что связь установлена
         try:
@@ -218,6 +215,7 @@ def consent_response():
     else:
         return jsonify({'error': 'Invalid decision'}), 400
 
+
 @app.route('/get_beloved', methods=['POST'])
 def get_beloved():
     data = request.json
@@ -228,6 +226,7 @@ def get_beloved():
         return jsonify({'beloved': []})
     beloved_data = [{"user_id": b_id} for b_id in beloveds[user_id]]
     return jsonify({'beloved': beloved_data})
+
 
 @app.route('/delete_beloved', methods=['POST'])
 def delete_beloved():
@@ -242,6 +241,7 @@ def delete_beloved():
         beloveds[user_id].remove(beloved_id)
         if beloved_id in beloveds and user_id in beloveds[beloved_id]:
             beloveds[beloved_id].remove(user_id)
+        save_data()
         return jsonify({'success': True})
     return jsonify({'error': 'Beloved not found'}), 400
 
@@ -262,7 +262,7 @@ async def start(update: Update, context: CallbackContext) -> None:
 
 async def referral_start(update: Update, context: CallbackContext, referrer_id: str) -> None:
     new_user_id = str(update.message.from_user.id)
-    
+
     if not referrer_id:
         await update.message.reply_text("Invalid referral link.")
         await show_menu(update, context, new_user_id)
@@ -274,21 +274,21 @@ async def referral_start(update: Update, context: CallbackContext, referrer_id: 
     else:
         if referrer_id not in referrals:
             referrals[referrer_id] = []
-        
+
         if new_user_id not in referrals[referrer_id]:
             # Добавляем нового пользователя в список друзей рефери
             referrals[referrer_id].append(new_user_id)
-            
+
             # Обратная связь: добавляем рефери в список друзей нового пользователя
             if new_user_id not in referrals:
                 referrals[new_user_id] = []
             if referrer_id not in referrals[new_user_id]:
                 referrals[new_user_id].append(referrer_id)
-            
+
             user_tokens[referrer_id] = user_tokens.get(referrer_id, 0) + 10
             user_tokens[new_user_id] = user_tokens.get(new_user_id, 0) + 5
             save_data()
-            
+
             referrer_text = 'You have been credited with 10 AffinyCoin for inviting a new user.'
             new_user_text = ('Thank you for registering! You have been credited with 5 AffinyCoin.\n'
                              'Your referrer has been credited with 10 AffinyCoin.')
@@ -301,13 +301,12 @@ async def referral_start(update: Update, context: CallbackContext, referrer_id: 
     await show_menu(update, context, new_user_id)
 
 
-
 async def handle_consent(update: Update, context: CallbackContext, referrer_id: str) -> None:
     new_user_id = str(update.message.from_user.id)
     # Формируем URL мини-приложения с GET-параметром consent,
     # где referrer_id – это ID пользователя, отправившего consent-запрос.
     open_app_url = f"{URL}/mini_app?consent={referrer_id}"
-    
+
     keyboard = [
         [InlineKeyboardButton("Open App", web_app=WebAppInfo(url=open_app_url))]
     ]
@@ -335,12 +334,13 @@ async def show_menu(update, context, user_id=None):
     else:
         await update.edit_message_text(text, reply_markup=reply_markup)
 
+
 async def button_handler(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     await query.answer()
     command = query.data
     user_id = str(query.from_user.id)
-    
+
     if command == 'balance':
         await balance(query, context, callback_query=True)
     elif command == 'create_referral':
@@ -352,6 +352,7 @@ async def button_handler(update: Update, context: CallbackContext) -> None:
     elif command.startswith('decline_'):
         await process_decline(query, context, command)
 
+
 async def balance(update: Update, context: CallbackContext, callback_query=False) -> None:
     user_id = str(update.message.from_user.id if not callback_query else update.from_user.id)
     bal = user_tokens.get(user_id, 0)
@@ -362,12 +363,14 @@ async def balance(update: Update, context: CallbackContext, callback_query=False
         await update.message.reply_text(text)
     await show_menu(update, context, user_id)
 
+
 async def create_referral_link_btn(update: Update, context: CallbackContext) -> None:
     user_id = str(update.from_user.id)
     referral_link = f"https://t.me/{BOT_USERNAME}?start={user_id}"
     text = f'Share this link to invite friends and earn tokens: {referral_link}'
     await update.edit_message_text(text)
     await show_menu(update, context, user_id)
+
 
 async def create_consent_link_btn(update: Update, context: CallbackContext) -> None:
     user_id = str(update.from_user.id)
@@ -382,12 +385,14 @@ async def create_consent_link_btn(update: Update, context: CallbackContext) -> N
     await update.edit_message_text(text)
     await show_menu(update, context, user_id)
 
+
 async def process_consent(query, context, command):
     _, referrer_id, new_user_id = command.split('_')
     referrer_text = 'Congratulations, you have been given consent for intimacy.'
     await context.bot.send_message(chat_id=referrer_id, text=referrer_text)
     await query.edit_message_text(text="You have given consent.")
     await show_menu(query, context, new_user_id)
+
 
 async def process_decline(query, context, command):
     _, referrer_id, new_user_id = command.split('_')
@@ -445,6 +450,7 @@ def delete_friend():
 
 if __name__ == '__main__':
     load_data()
+    # load_beloveds()
 
     # Flask в отдельном потоке
     flask_thread = threading.Thread(
