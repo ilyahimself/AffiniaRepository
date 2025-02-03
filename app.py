@@ -17,16 +17,37 @@ app = Flask(__name__)
 
 user_tokens = {}
 referrals = {}
+beloveds = {}
 data_lock = threading.Lock()
 
 API_TOKEN = os.getenv('API_TOKEN', 'REDACTED_BOT_TOKEN')
 BOT_USERNAME = os.getenv('BOT_USERNAME', 'AffiniaBot')
 bot = Bot(token=API_TOKEN)
-URL = "https://d7c3-109-176-207-179.ngrok-free.app"
+URL = "https://c728-46-29-238-134.ngrok-free.app"
 
 # Создаём приложение бота
 application = Application.builder().token(API_TOKEN).build()
 
+def load_beloveds():
+    global beloveds
+    try:
+        with open('beloveds.json', 'r') as f:
+            data = json.load(f)
+            beloveds = data.get('beloveds', {})
+            print("Loaded beloveds:", beloveds)
+    except (FileNotFoundError, JSONDecodeError):
+        beloveds = {}
+        print("No beloveds data found, starting with empty dictionary.")
+    except Exception as e:
+        logging.error("Error loading beloveds: " + str(e))
+        beloveds = {}
+
+def save_beloveds():
+    try:
+        with open('beloveds.json', 'w') as f:
+            json.dump({'beloveds': beloveds}, f)
+    except Exception as e:
+        logging.error("Error saving beloveds: " + str(e))
 
 def load_data():
     global user_tokens, referrals
@@ -119,14 +140,110 @@ def generate_referral_qr():
     qr_code_base64 = b64encode(buffered.getvalue()).decode('utf-8')
     return jsonify({'referral_link': referral_link, 'qr_code': qr_code_base64})
 
+# Например, в эндпоинте /create_consent_link:
 @app.route('/create_consent_link', methods=['POST'])
 def create_consent_link():
     data = request.json
     if 'user_id' not in data:
         return jsonify({'error': 'user_id is required'}), 400
     user_id = str(data['user_id'])
+    # Формируем ссылку, которая ведёт в бот, как в случае с рефералом:
     consent_link = f"https://t.me/{BOT_USERNAME}?start=consent_{user_id}"
     return jsonify({'link': consent_link})
+
+
+@app.route('/generate_consent_qr', methods=['POST'])
+def generate_consent_qr():
+    data = request.json
+    if 'user_id' not in data:
+        return jsonify({'error': 'user_id is required'}), 400
+
+    user_id = str(data['user_id'])
+    # Ссылка ведёт прямо в мини-приложение с GET-параметром consent
+    consent_link = f"{URL}/mini_app?consent={user_id}"
+    
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(consent_link)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    qr_code_base64 = b64encode(buffered.getvalue()).decode('utf-8')
+    return jsonify({'consent_link': consent_link, 'qr_code': qr_code_base64})
+
+@app.route('/consent_response', methods=['POST'])
+def consent_response():
+    data = request.json
+    required_fields = ['referrer_id', 'new_user_id', 'decision']
+    if not all(field in data for field in required_fields):
+        return jsonify({'error': 'Missing parameters'}), 400
+
+    referrer_id = str(data['referrer_id'])
+    new_user_id = str(data['new_user_id'])
+    decision = data['decision']
+
+    if decision == 'consent':
+        if referrer_id not in beloveds:
+            beloveds[referrer_id] = []
+        if new_user_id not in beloveds:
+            beloveds[new_user_id] = []
+        if new_user_id not in beloveds[referrer_id]:
+            beloveds[referrer_id].append(new_user_id)
+        if referrer_id not in beloveds[new_user_id]:
+            beloveds[new_user_id].append(referrer_id)
+
+        # Сохраняем обновлённые данные
+        save_beloveds()
+
+        # Отправляем уведомление отправителю через бота, чтобы он знал, что связь установлена
+        try:
+            bot.send_message(
+                chat_id=referrer_id,
+                text='Your consent request has been accepted. Check your Beloved page for the new connection.'
+            )
+        except Exception as e:
+            logging.error(f"Error sending bot message: {e}")
+        return jsonify({'success': True})
+    elif decision == 'decline':
+        try:
+            bot.send_message(chat_id=referrer_id, text='Your consent request has been declined.')
+        except Exception as e:
+            logging.error(f"Error sending message: {e}")
+        return jsonify({'success': True})
+    else:
+        return jsonify({'error': 'Invalid decision'}), 400
+
+@app.route('/get_beloved', methods=['POST'])
+def get_beloved():
+    data = request.json
+    if 'user_id' not in data:
+        return jsonify({'error': 'user_id is required'}), 400
+    user_id = str(data['user_id'])
+    if user_id not in beloveds:
+        return jsonify({'beloved': []})
+    beloved_data = [{"user_id": b_id} for b_id in beloveds[user_id]]
+    return jsonify({'beloved': beloved_data})
+
+@app.route('/delete_beloved', methods=['POST'])
+def delete_beloved():
+    data = request.json
+    if 'user_id' not in data or 'beloved_id' not in data:
+        return jsonify({'error': 'user_id and beloved_id are required'}), 400
+
+    user_id = str(data['user_id'])
+    beloved_id = str(data['beloved_id'])
+
+    if user_id in beloveds and beloved_id in beloveds[user_id]:
+        beloveds[user_id].remove(beloved_id)
+        if beloved_id in beloveds and user_id in beloveds[beloved_id]:
+            beloveds[beloved_id].remove(user_id)
+        return jsonify({'success': True})
+    return jsonify({'error': 'Beloved not found'}), 400
 
 
 # ===== Хендлеры бота =====
@@ -145,44 +262,59 @@ async def start(update: Update, context: CallbackContext) -> None:
 
 async def referral_start(update: Update, context: CallbackContext, referrer_id: str) -> None:
     new_user_id = str(update.message.from_user.id)
-    if referrer_id and referrer_id != new_user_id:
+    
+    if not referrer_id:
+        await update.message.reply_text("Invalid referral link.")
+        await show_menu(update, context, new_user_id)
+        return
+
+    if referrer_id == new_user_id:
+        error_text = 'You cannot use your own referral link.'
+        await update.message.reply_text(error_text)
+    else:
         if referrer_id not in referrals:
             referrals[referrer_id] = []
-
-        # Проверяем, не был ли уже добавлен этот друг
+        
         if new_user_id not in referrals[referrer_id]:
+            # Добавляем нового пользователя в список друзей рефери
             referrals[referrer_id].append(new_user_id)
-
+            
+            # Обратная связь: добавляем рефери в список друзей нового пользователя
+            if new_user_id not in referrals:
+                referrals[new_user_id] = []
+            if referrer_id not in referrals[new_user_id]:
+                referrals[new_user_id].append(referrer_id)
+            
             user_tokens[referrer_id] = user_tokens.get(referrer_id, 0) + 10
             user_tokens[new_user_id] = user_tokens.get(new_user_id, 0) + 5
             save_data()
-
+            
             referrer_text = 'You have been credited with 10 AffinyCoin for inviting a new user.'
-            new_user_text = 'Thank you for registering! You have been credited with 5 AffinyCoin.\nYour referrer has been credited with 10 AffinyCoin.'
+            new_user_text = ('Thank you for registering! You have been credited with 5 AffinyCoin.\n'
+                             'Your referrer has been credited with 10 AffinyCoin.')
             await update.message.reply_text(new_user_text)
             await context.bot.send_message(chat_id=referrer_id, text=referrer_text)
         else:
-            # Если пользователь уже был приглашен, то коины не начисляем
-            await update.message.reply_text("You have already registered using a referral link.")
-    else:
-        if referrer_id == new_user_id:
-            error_text = 'You cannot use your own referral link.'
-        else:
-            error_text = 'Invalid referral link.'
-        await update.message.reply_text(error_text)
+            error_text = "You have already registered using a referral link."
+            await update.message.reply_text(error_text)
+
     await show_menu(update, context, new_user_id)
+
+
 
 async def handle_consent(update: Update, context: CallbackContext, referrer_id: str) -> None:
     new_user_id = str(update.message.from_user.id)
-    consent_text = "Consent"
-    decline_text = "Decline"
+    # Формируем URL мини-приложения с GET-параметром consent,
+    # где referrer_id – это ID пользователя, отправившего consent-запрос.
+    open_app_url = f"{URL}/mini_app?consent={referrer_id}"
+    
     keyboard = [
-        [InlineKeyboardButton(consent_text, callback_data=f'consent_{referrer_id}_{new_user_id}'),
-         InlineKeyboardButton(decline_text, callback_data=f'decline_{referrer_id}_{new_user_id}')]
+        [InlineKeyboardButton("Open App", web_app=WebAppInfo(url=open_app_url))]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    choice_text = 'Please choose:'
-    await update.message.reply_text(choice_text, reply_markup=reply_markup)
+    text = "To respond to the consent request, please open the app."
+    await update.message.reply_text(text, reply_markup=reply_markup)
+
 
 async def show_menu(update, context, user_id=None):
     if user_id is None:
@@ -300,7 +432,11 @@ def delete_friend():
     friend_id = str(data['friend_id'])
 
     if user_id in referrals and friend_id in referrals[user_id]:
+        # Удаляем друга у пользователя
         referrals[user_id].remove(friend_id)
+        # Удаляем пользователя у друга, если связь существует
+        if friend_id in referrals and user_id in referrals[friend_id]:
+            referrals[friend_id].remove(user_id)
         save_data()
         return jsonify({'success': True})
 
