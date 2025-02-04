@@ -7,8 +7,12 @@ import qrcode
 from io import BytesIO
 from base64 import b64encode
 from flask import Flask, render_template, request, jsonify, send_from_directory
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo, Bot
-from telegram.ext import Application, CommandHandler, CallbackContext, CallbackQueryHandler
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo, Bot, LabeledPrice
+from telegram.ext import (Application, CommandHandler, CallbackContext, CallbackQueryHandler, PreCheckoutQueryHandler, MessageHandler, filters)
+from concurrent.futures import TimeoutError
+import asyncio
+bot_loop = None
+
 from json.decoder import JSONDecodeError
 
 logging.basicConfig(level=logging.INFO)
@@ -18,52 +22,58 @@ app = Flask(__name__)
 user_tokens = {}
 referrals = {}
 beloveds = {}
+user_stars = {}
 data_lock = threading.Lock()
 
 API_TOKEN = os.getenv('API_TOKEN', 'REDACTED_BOT_TOKEN')
 BOT_USERNAME = os.getenv('BOT_USERNAME', 'AffiniaBot')
 bot = Bot(token=API_TOKEN)
-URL = "https://aba6-193-23-118-229.ngrok-free.app"
+URL = "https://bcd4-5-44-42-108.ngrok-free.app"
 
 # Создаём приложение бота
-application = Application.builder().token(API_TOKEN).build()
+application = Application.builder().token(API_TOKEN).connection_pool_size(50).build()
 
 
 def load_data():
-    global user_tokens, referrals, beloveds
+    global user_tokens, referrals, beloveds, user_stars
     try:
         with open('user_tokens.json', 'r') as f:
             data = json.load(f)
             user_tokens = data.get('user_tokens', {})
             referrals = data.get('referrals', {})
             beloveds = data.get('beloveds', {})
-            print(f"Loaded data: {user_tokens}, {referrals}, {beloveds}")
+            user_stars = data.get('user_stars', {})  # Новая строка
+            print(f"Loaded data: {user_tokens}, {referrals}, {beloveds}, {user_stars}")
     except FileNotFoundError:
         user_tokens = {}
         referrals = {}
         beloveds = {}
+        user_stars = {}  # Новая строка
         print("Data file not found, starting with an empty dictionary")
     except JSONDecodeError:
         logging.error('Error decoding JSON from user_tokens.json. Starting with empty data.')
         user_tokens = {}
         referrals = {}
         beloveds = {}
+        user_stars = {}  # Новая строка
     except Exception as e:
         logging.error(f"Unexpected error while loading data: {e}")
         user_tokens = {}
         referrals = {}
         beloveds = {}
-
+        user_stars = {}  # Новая строка
 
 def save_data():
     try:
         with data_lock:
             with open('user_tokens.json', 'w') as f:
-                json.dump({'user_tokens': user_tokens,
-                           'referrals': referrals,
-                           'beloveds': beloveds
-                           }, f)
-        print(f"Saved data: {user_tokens}, {referrals}, {beloveds}")
+                json.dump({
+                    'user_tokens': user_tokens,
+                    'referrals': referrals,
+                    'beloveds': beloveds,
+                    'user_stars': user_stars  # Новая строка
+                }, f)
+        print(f"Saved data: {user_tokens}, {referrals}, {beloveds}, {user_stars}")
     except Exception as e:
         logging.error(f"Unexpected error while saving data: {e}")
 
@@ -245,6 +255,34 @@ def delete_beloved():
         return jsonify({'success': True})
     return jsonify({'error': 'Beloved not found'}), 400
 
+@app.route('/get_donate_link', methods=['POST'])
+def get_donate_link():
+    data = request.json
+    if 'user_id' not in data:
+        return jsonify({'error': 'user_id is required'}), 400
+
+    user_id = str(data['user_id'])
+    amount = 100  # 100 звезд
+
+    # Запускаем корутину в event loop, сохранённом в bot_loop
+    future = asyncio.run_coroutine_threadsafe(
+        bot.create_invoice_link(
+            title="Support the App",
+            description="Donate using Telegram Stars!",
+            payload=f"donation_{user_id}",
+            provider_token="",  # Если для XTR требуется оставить пустым, иначе вставьте нужный токен
+            currency="XTR",     # Проверьте, поддерживается ли валюта "XTR"
+            prices=[LabeledPrice(label="Donation", amount=amount)]
+        ),
+        bot_loop  # Используем сохранённый event loop
+    )
+
+    try:
+        invoice_link = future.result(timeout=10)
+        return jsonify({'success': True, 'invoice_link': invoice_link})
+    except Exception as e:
+        logging.error(f"Error creating invoice: {e}")
+        return jsonify({'error': f'Failed to create donation invoice: {e}'}), 500
 
 # ===== Хендлеры бота =====
 
@@ -404,12 +442,56 @@ async def process_decline(query, context, command):
 
 # Главное: запускаем бота СИНХРОННО без asyncio.run(...)
 def run_bot():
-    # Регистрируем хендлеры
+    global bot_loop
+    # Получаем event loop, который будет использоваться для polling
+    bot_loop = asyncio.get_event_loop()
+    
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(button_handler))
-
-    # Синхронный запуск поллинга (создаёт свой event loop внутри)
+    application.add_handler(CommandHandler("donate", send_invoice))
+    application.add_handler(PreCheckoutQueryHandler(precheckout_callback))
+    application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_callback))
+    
     application.run_polling()
+
+async def send_invoice(update: Update, context: CallbackContext) -> None:
+    chat_id = update.message.chat_id
+    title = "Support the App"
+    description = "Donate using Telegram Stars!"
+    payload = f"donation_{chat_id}"
+    currency = "XTR"  # Валюта Telegram Stars
+    prices = [LabeledPrice(label="Telegram Stars Donation", amount=100)]  # 100 Звёзд
+    
+    await context.bot.send_invoice(
+        chat_id=chat_id,
+        title=title,
+        description=description,
+        payload=payload,
+        provider_token="",  # Оставляем пустым для Telegram Stars
+        currency=currency,
+        prices=prices,
+        start_parameter="donate",
+        need_name=True,
+        need_email=False,
+        is_flexible=False,
+    )
+
+async def precheckout_callback(update: Update, context: CallbackContext) -> None:
+    query = update.pre_checkout_query
+    if query.invoice_payload.startswith("donation_"):
+        await query.answer(ok=True)
+    else:
+        await query.answer(ok=False, error_message="Something went wrong. Try again!")
+
+async def successful_payment_callback(update: Update, context: CallbackContext) -> None:
+    chat_id = update.message.chat_id
+    user_id = str(chat_id)
+
+    # Обновляем баланс звёзд пользователя
+    user_stars[user_id] = user_stars.get(user_id, 0) + 100
+    save_data()
+
+    await update.message.reply_text("Thank you for your donation! Your stars have been added.")
 
 
 @app.route('/get_friends', methods=['POST'])
