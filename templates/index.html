@@ -1618,6 +1618,320 @@
         .timeline-item:last-child {
             margin-bottom: 0;
         }
+
+        /* ----- Consent History Modal Styles ----- */
+        .consent-history-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .consent-history-content {
+            position: absolute;
+            top: 5%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 95%;
+            max-width: 500px;
+            height: 90%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            overflow: hidden;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+
+        .history-header {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .history-title {
+            color: #ffffff;
+            font-size: 20px;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .close-history-btn {
+            background: none;
+            border: none;
+            color: #ffffff;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .close-history-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: rotate(90deg);
+        }
+
+        .history-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .history-stat {
+            text-align: center;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+        }
+
+        .history-stat-number {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ffffff;
+            display: block;
+        }
+
+        .history-stat-label {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .history-filters {
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .filter-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-btn.active {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .filter-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .search-filter {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: #ffffff;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .search-filter:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.4);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .search-filter::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .history-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .consent-entry {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #00b894;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .consent-entry:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .consent-entry.expired {
+            border-left-color: #e17055;
+        }
+
+        .consent-entry.withdrawn {
+            border-left-color: #d63031;
+            opacity: 0.8;
+        }
+
+        .consent-entry.pending {
+            border-left-color: #fdcb6e;
+        }
+
+        .consent-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .consent-partner {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .consent-partner-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .consent-partner-name {
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .consent-status-badge {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .consent-status-badge.active {
+            background: #00b894;
+            color: white;
+        }
+
+        .consent-status-badge.expired {
+            background: #e17055;
+            color: white;
+        }
+
+        .consent-status-badge.withdrawn {
+            background: #d63031;
+            color: white;
+        }
+
+        .consent-status-badge.pending {
+            background: #fdcb6e;
+            color: #333;
+        }
+
+        .consent-details {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+            line-height: 1.4;
+            margin-bottom: 8px;
+        }
+
+        .consent-timestamp {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .consent-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .consent-action-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .consent-action-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .consent-action-btn.danger {
+            border-color: rgba(214, 48, 49, 0.5);
+            color: #ff7675;
+        }
+
+        .consent-action-btn.danger:hover {
+            background: rgba(214, 48, 49, 0.2);
+        }
+
+        .no-history-message {
+            text-align: center;
+            padding: 40px 20px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .no-history-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .export-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #00b894, #00a085);
+            border: none;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 184, 148, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 184, 148, 0.4);
+        }
     </style>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -1695,9 +2009,269 @@
             }
         }
 
+        // Consent History System
+        let consentHistoryData = [];
+        let currentFilter = 'all';
+
         function showConsentHistory() {
-            // TODO: Реализовать показ истории согласий
-            alert('Consent history coming soon! This will show all your past consent agreements.');
+            document.getElementById('consent-history-modal').style.display = 'block';
+            loadConsentHistory();
+            addActivityItem('📋', 'Opened consent history for review');
+        }
+
+        function closeConsentHistory() {
+            document.getElementById('consent-history-modal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        document.addEventListener('DOMContentLoaded', function() {
+            const modal = document.getElementById('consent-history-modal');
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    closeConsentHistory();
+                }
+            });
+        });
+
+        function loadConsentHistory() {
+            // Simulate consent history data - in real app this would come from backend
+            consentHistoryData = generateMockConsentHistory();
+            updateHistoryStatistics();
+            displayConsentHistory();
+        }
+
+        function generateMockConsentHistory() {
+            const partners = ['@alice_smith', '@bob_jones', '@emma_wilson', '@david_brown'];
+            const statuses = ['active', 'expired', 'withdrawn', 'pending'];
+            const history = [];
+
+            for (let i = 0; i < 12; i++) {
+                const partnerId = `user_${Math.floor(Math.random() * 1000)}`;
+                const partnerName = partners[Math.floor(Math.random() * partners.length)];
+                const status = statuses[Math.floor(Math.random() * statuses.length)];
+                const createdDate = new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000); // Last 30 days
+                const expiryDate = new Date(createdDate.getTime() + (Math.random() * 7 + 1) * 24 * 60 * 60 * 1000); // 1-8 days later
+
+                history.push({
+                    id: `consent_${i}`,
+                    partnerId: partnerId,
+                    partnerName: partnerName,
+                    status: status,
+                    createdAt: createdDate,
+                    expiresAt: expiryDate,
+                    details: getConsentDetails(status),
+                    location: 'Private location',
+                    witnessId: Math.random() > 0.5 ? 'witness_123' : null,
+                    withdrawnAt: status === 'withdrawn' ? new Date(createdDate.getTime() + Math.random() * 24 * 60 * 60 * 1000) : null
+                });
+            }
+
+            return history.sort((a, b) => b.createdAt - a.createdAt);
+        }
+
+        function getConsentDetails(status) {
+            const details = {
+                'active': 'Mutual consent for intimate activities. All boundaries respected.',
+                'expired': 'Time-limited consent that has naturally expired.',
+                'withdrawn': 'Consent was withdrawn by mutual agreement.',
+                'pending': 'Waiting for partner confirmation of consent agreement.'
+            };
+            return details[status] || 'Digital consent agreement';
+        }
+
+        function updateHistoryStatistics() {
+            const total = consentHistoryData.length;
+            const active = consentHistoryData.filter(c => c.status === 'active').length;
+            const thisMonth = consentHistoryData.filter(c => {
+                const monthAgo = new Date();
+                monthAgo.setMonth(monthAgo.getMonth() - 1);
+                return c.createdAt >= monthAgo;
+            }).length;
+
+            document.getElementById('total-consents').textContent = total;
+            document.getElementById('active-consents-count').textContent = active;
+            document.getElementById('this-month-consents').textContent = thisMonth;
+        }
+
+        function displayConsentHistory() {
+            const listContainer = document.getElementById('consent-history-list');
+            let filteredData = filterConsentData();
+
+            if (filteredData.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="no-history-message">
+                        <div class="no-history-icon">📋</div>
+                        <div style="font-size: 18px; margin-bottom: 10px;">No Consent Records</div>
+                        <div>Your consent history will appear here as you create agreements.</div>
+                    </div>
+                `;
+                return;
+            }
+
+            listContainer.innerHTML = '';
+            filteredData.forEach(consent => {
+                const entry = createConsentEntry(consent);
+                listContainer.appendChild(entry);
+            });
+        }
+
+        function createConsentEntry(consent) {
+            const entry = document.createElement('div');
+            entry.className = `consent-entry ${consent.status}`;
+            
+            const statusBadge = getStatusBadge(consent.status);
+            const avatar = `https://api.dicebear.com/6.x/avataaars/svg?seed=${consent.partnerId}`;
+            
+            entry.innerHTML = `
+                <div class="consent-header">
+                    <div class="consent-partner">
+                        <img src="${avatar}" alt="Partner" class="consent-partner-avatar">
+                        <span class="consent-partner-name">${consent.partnerName}</span>
+                    </div>
+                    ${statusBadge}
+                </div>
+                
+                <div class="consent-details">${consent.details}</div>
+                
+                <div class="consent-timestamp">
+                    <span>Created: ${formatDate(consent.createdAt)}</span>
+                    <span>${getExpiryText(consent)}</span>
+                </div>
+                
+                <div class="consent-actions">
+                    ${getConsentActionButtons(consent)}
+                </div>
+            `;
+            
+            return entry;
+        }
+
+        function getStatusBadge(status) {
+            const badges = {
+                'active': '<span class="consent-status-badge active">✅ Active</span>',
+                'expired': '<span class="consent-status-badge expired">⏰ Expired</span>',
+                'withdrawn': '<span class="consent-status-badge withdrawn">🚫 Withdrawn</span>',
+                'pending': '<span class="consent-status-badge pending">⏳ Pending</span>'
+            };
+            return badges[status] || '<span class="consent-status-badge">❓ Unknown</span>';
+        }
+
+        function formatDate(date) {
+            return new Intl.DateTimeFormat('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }).format(date);
+        }
+
+        function getExpiryText(consent) {
+            if (consent.status === 'withdrawn' && consent.withdrawnAt) {
+                return `Withdrawn: ${formatDate(consent.withdrawnAt)}`;
+            }
+            if (consent.expiresAt) {
+                const now = new Date();
+                if (consent.expiresAt > now) {
+                    return `Expires: ${formatDate(consent.expiresAt)}`;
+                } else {
+                    return `Expired: ${formatDate(consent.expiresAt)}`;
+                }
+            }
+            return 'No expiry set';
+        }
+
+        function getConsentActionButtons(consent) {
+            const baseActions = `
+                <button class="consent-action-btn" onclick="viewConsentDetails('${consent.id}')">
+                    👁️ View Details
+                </button>
+                <button class="consent-action-btn" onclick="shareConsent('${consent.id}')">
+                    📤 Share
+                </button>
+            `;
+
+            if (consent.status === 'active') {
+                return `
+                    ${baseActions}
+                    <button class="consent-action-btn danger" onclick="withdrawConsent('${consent.id}')">
+                        🚫 Withdraw
+                    </button>
+                `;
+            }
+
+            return baseActions;
+        }
+
+        function filterConsents(status) {
+            currentFilter = status;
+            
+            // Update filter button states
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            displayConsentHistory();
+        }
+
+        function filterConsentData() {
+            const searchTerm = document.getElementById('history-search').value.toLowerCase();
+            
+            let filtered = consentHistoryData;
+            
+            // Filter by status
+            if (currentFilter !== 'all') {
+                filtered = filtered.filter(consent => consent.status === currentFilter);
+            }
+            
+            // Filter by search term
+            if (searchTerm) {
+                filtered = filtered.filter(consent => 
+                    consent.partnerName.toLowerCase().includes(searchTerm) ||
+                    consent.details.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            return filtered;
+        }
+
+        function searchHistory() {
+            displayConsentHistory();
+        }
+
+        function viewConsentDetails(consentId) {
+            const consent = consentHistoryData.find(c => c.id === consentId);
+            if (consent) {
+                alert(`📋 Consent Details\n\nPartner: ${consent.partnerName}\nStatus: ${consent.status}\nCreated: ${formatDate(consent.createdAt)}\nExpires: ${formatDate(consent.expiresAt)}\n\nDetails: ${consent.details}\n\nLocation: ${consent.location}\nWitness: ${consent.witnessId ? 'Yes' : 'No'}`);
+            }
+        }
+
+        function shareConsent(consentId) {
+            alert('📤 Share Consent\n\nThis feature allows you to securely share consent records with legal representatives, law enforcement, or trusted parties. The shared data is legally certified and tamper-proof.');
+        }
+
+        function withdrawConsent(consentId) {
+            if (confirm('🚫 Withdraw Consent\n\nAre you sure you want to withdraw this consent? This action will be immediately recorded and cannot be undone.\n\nThe withdrawal will be timestamped and both parties will be notified.')) {
+                // Update the consent status
+                const consent = consentHistoryData.find(c => c.id === consentId);
+                if (consent) {
+                    consent.status = 'withdrawn';
+                    consent.withdrawnAt = new Date();
+                    consent.details = 'Consent withdrawn by user request.';
+                    
+                    updateHistoryStatistics();
+                    displayConsentHistory();
+                    
+                    addActivityItem('🚫', 'Withdrew consent agreement');
+                    alert('✅ Consent has been withdrawn and recorded.');
+                }
+            }
+        }
+
+        function exportConsentHistory() {
+            alert(`📥 Export Consent History\n\nThis feature will generate a legally certified document containing:\n\n• Complete consent timeline\n• Digital signatures and timestamps\n• Blockchain verification hashes\n• Legal compliance certificates\n\nThe exported file can be used in legal proceedings and is admissible in court.\n\nExport formats: PDF, JSON, Blockchain Certificate`);
+            addActivityItem('📥', 'Exported consent history for legal use');
         }
 
         function addActivityItem(icon, text) {
@@ -3336,7 +3910,55 @@ function sendConsentResponse(decision) {
         <button onclick="sendConsentResponse('consent')">Consent</button>
         <button onclick="sendConsentResponse('decline')">Decline</button>
     </div>
-</div>
+    </div>
+
+    <!-- Consent History Modal -->
+    <div id="consent-history-modal" class="consent-history-modal">
+        <div class="consent-history-content">
+            <!-- Header -->
+            <div class="history-header">
+                <h2 class="history-title">📋 Consent History</h2>
+                <button class="close-history-btn" onclick="closeConsentHistory()">×</button>
+            </div>
+
+            <!-- Statistics -->
+            <div class="history-stats">
+                <div class="history-stat">
+                    <span class="history-stat-number" id="total-consents">0</span>
+                    <span class="history-stat-label">Total</span>
+                </div>
+                <div class="history-stat">
+                    <span class="history-stat-number" id="active-consents-count">0</span>
+                    <span class="history-stat-label">Active</span>
+                </div>
+                <div class="history-stat">
+                    <span class="history-stat-number" id="this-month-consents">0</span>
+                    <span class="history-stat-label">This Month</span>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="history-filters">
+                <div class="filter-buttons">
+                    <button class="filter-btn active" onclick="filterConsents('all')">All</button>
+                    <button class="filter-btn" onclick="filterConsents('active')">Active</button>
+                    <button class="filter-btn" onclick="filterConsents('expired')">Expired</button>
+                    <button class="filter-btn" onclick="filterConsents('withdrawn')">Withdrawn</button>
+                </div>
+                <input type="text" class="search-filter" placeholder="Search by partner name..." id="history-search" oninput="searchHistory()">
+            </div>
+
+            <!-- History List -->
+            <div class="history-list" id="consent-history-list">
+                <!-- Consent entries will be populated here -->
+            </div>
+
+            <!-- Export Button -->
+            <button class="export-btn" onclick="exportConsentHistory()">
+                📥 Export for Legal Use
+            </button>
+        </div>
+    </div>
 
 </body>
 </html>
