@@ -261,17 +261,33 @@ def get_donate_link():
         return jsonify({'error': 'user_id is required'}), 400
 
     user_id = str(data['user_id'])
-    amount = 100  # 100 звезд
+    
+    # Получаем сумму из запроса или используем 100 по умолчанию
+    amount = data.get('amount', 100)
+    
+    # Валидация суммы
+    if not isinstance(amount, int) or amount < 50 or amount > 10000:
+        return jsonify({'error': 'Amount must be between 50 and 10000 stars'}), 400
+
+    # Создаем описание в зависимости от суммы
+    if amount <= 100:
+        tier = "Basic Support"
+    elif amount <= 500:
+        tier = "Premium Support"
+    elif amount <= 1000:
+        tier = "VIP Support"
+    else:
+        tier = "Elite Support"
 
     # Запускаем корутину в event loop, сохранённом в bot_loop
     future = asyncio.run_coroutine_threadsafe(
         bot.create_invoice_link(
-            title="Support the App",
-            description="Donate using Telegram Stars!",
-            payload=f"donation_{user_id}",
-            provider_token="",  # Если для XTR требуется оставить пустым, иначе вставьте нужный токен
-            currency="XTR",     # Проверьте, поддерживается ли валюта "XTR"
-            prices=[LabeledPrice(label="Donation", amount=amount)]
+            title=f"Support Affinia - {tier}",
+            description=f"Thank you for supporting our app with {amount} Telegram Stars! 💖",
+            payload=f"donation_{user_id}_{amount}",
+            provider_token="",  # Для Telegram Stars оставляем пустым
+            currency="XTR",     # Валюта Telegram Stars
+            prices=[LabeledPrice(label=f"{tier} ({amount} Stars)", amount=amount)]
         ),
         bot_loop  # Используем сохранённый event loop
     )
@@ -485,12 +501,32 @@ async def precheckout_callback(update: Update, context: CallbackContext) -> None
 async def successful_payment_callback(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat_id
     user_id = str(chat_id)
+    
+    # Получаем сумму из payload
+    payload = update.message.successful_payment.invoice_payload
+    try:
+        # Payload формата: "donation_userid_amount"
+        parts = payload.split('_')
+        if len(parts) >= 3:
+            amount = int(parts[2])
+        else:
+            amount = 100  # Значение по умолчанию для старых платежей
+    except (ValueError, IndexError):
+        amount = 100
 
     # Обновляем баланс звёзд пользователя
-    user_stars[user_id] = user_stars.get(user_id, 0) + 100
+    user_stars[user_id] = user_stars.get(user_id, 0) + amount
     save_data()
 
-    await update.message.reply_text("Thank you for your donation! Your stars have been added.")
+    # Отправляем персонализированное сообщение
+    if amount >= 1000:
+        message = f"🌟 WOW! Thank you for your amazing {amount} stars donation! You're now our VIP supporter! 💎"
+    elif amount >= 500:
+        message = f"⭐ Thank you for your generous {amount} stars donation! You're awesome! 🎉"
+    else:
+        message = f"💖 Thank you for your {amount} stars donation! Every star helps us improve! ✨"
+
+    await update.message.reply_text(message)
 
 
 @app.route('/get_friends', methods=['POST'])
@@ -527,6 +563,17 @@ def delete_friend():
         return jsonify({'success': True})
 
     return jsonify({'error': 'Friend not found'}), 400
+
+
+@app.route('/get_telegram_stars', methods=['POST'])
+def get_telegram_stars():
+    data = request.json
+    if 'user_id' not in data:
+        return jsonify({'error': 'user_id is required'}), 400
+    
+    user_id = str(data['user_id'])
+    stars = user_stars.get(user_id, 0)
+    return jsonify({'telegram_stars': stars})
 
 
 if __name__ == '__main__':

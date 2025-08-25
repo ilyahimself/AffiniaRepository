@@ -357,6 +357,180 @@
         .delete-btn:active {
             transform: translateY(0);
         }
+
+        /* ----- Wallet Page Styles ----- */
+        .wallet-container {
+            padding: 20px;
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .stars-balance-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .stars-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .stars-icon {
+            width: 50px;
+            height: 50px;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+        }
+
+        .stars-details h3 {
+            margin: 0;
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .stars-count {
+            color: #ffd700;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .donation-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .donation-title {
+            text-align: center;
+            color: #ffffff;
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .amount-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .amount-option {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 15px 10px;
+            text-align: center;
+            color: #ffffff;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .amount-option:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .amount-option.selected {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-color: rgba(255, 255, 255, 0.5);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .amount-option.selected::before {
+            content: '✓';
+            position: absolute;
+            top: 5px;
+            right: 8px;
+            font-size: 14px;
+            color: #ffffff;
+            font-weight: bold;
+        }
+
+        .custom-amount-container {
+            margin-bottom: 20px;
+        }
+
+        .custom-amount-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 15px;
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 500;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .custom-amount-input:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .custom-amount-input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .donate-button {
+            width: 100%;
+            background: linear-gradient(135deg, #ffd700, #ffb347);
+            border: none;
+            border-radius: 16px;
+            padding: 16px;
+            color: #333;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 24px rgba(255, 215, 0, 0.3);
+            letter-spacing: 0.5px;
+        }
+
+        .donate-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px rgba(255, 215, 0, 0.4);
+            background: linear-gradient(135deg, #ffed4e, #ffa500);
+        }
+
+        .donate-button:active {
+            transform: translateY(0);
+        }
+
+        .donate-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .amount-description {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
     </style>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -417,32 +591,105 @@
         }
 
 
-        function openDonateMenu() {
+        // Переменная для хранения выбранной суммы
+        let selectedDonationAmount = 0;
+
+        function selectAmount(amount) {
+            selectedDonationAmount = amount;
+            
+            // Убираем выделение со всех опций
+            document.querySelectorAll('.amount-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            // Выделяем выбранную опцию
+            document.querySelector(`[data-amount="${amount}"]`).classList.add('selected');
+            
+            // Очищаем кастомное поле
+            document.getElementById('custom-amount').value = '';
+            
+            // Обновляем кнопку
+            updateDonateButton();
+        }
+
+        function selectCustomAmount(amount) {
+            const numAmount = parseInt(amount);
+            
+            if (amount === '' || isNaN(numAmount)) {
+                selectedDonationAmount = 0;
+            } else if (numAmount < 50) {
+                selectedDonationAmount = 0;
+            } else if (numAmount > 10000) {
+                selectedDonationAmount = 10000;
+                document.getElementById('custom-amount').value = 10000;
+            } else {
+                selectedDonationAmount = numAmount;
+            }
+            
+            // Убираем выделение с preset опций
+            document.querySelectorAll('.amount-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            updateDonateButton();
+        }
+
+        function updateDonateButton() {
+            const button = document.getElementById('donate-btn');
+            
+            if (selectedDonationAmount > 0) {
+                button.disabled = false;
+                button.textContent = `Donate ⭐ ${selectedDonationAmount} Stars`;
+            } else {
+                button.disabled = true;
+                button.textContent = 'Select Amount to Donate';
+            }
+        }
+
+        function processDonation() {
+            if (selectedDonationAmount <= 0) {
+                alert("Please select a donation amount.");
+                return;
+            }
+
             const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
-    
             if (!userId) {
                 alert("User not found.");
                 return;
-    }  
+            }
+
+            // Показываем индикатор загрузки
+            const button = document.getElementById('donate-btn');
+            const originalText = button.textContent;
+            button.textContent = 'Creating invoice...';
+            button.disabled = true;
 
             fetch('/get_donate_link', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId })
+                body: JSON.stringify({ 
+                    user_id: userId,
+                    amount: selectedDonationAmount 
+                })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success && data.invoice_link) {
-                     Telegram.WebApp.openInvoice(data.invoice_link);
-                 } else {
+                    Telegram.WebApp.openInvoice(data.invoice_link);
+                } else {
                     alert("Error: " + (data.error || "Failed to create an invoice."));
-                 }
-     })
+                }
+            })
             .catch(error => {
                 console.error('Error:', error);
                 alert("An error occurred while processing the donation.");
-    });
-}
+            })
+            .finally(() => {
+                // Восстанавливаем кнопку
+                button.textContent = originalText;
+                button.disabled = selectedDonationAmount <= 0;
+            });
+        }
 
 
 
@@ -809,17 +1056,73 @@ function sendConsentResponse(decision) {
             </div>
         </div>
 
-        <!-- Страница b4 -->
+        <!-- Страница Wallet -->
         <div id="wallet-page" class="page">
-            <h2 style="text-align:center;">Wallet</h2>
-            <div id="telegram-stars" style="display: flex; align-items: center; justify-content: space-between; padding: 10px; border: 1px solid #ccc; border-radius: 10px; margin: 10px;">
-                <div style="display: flex; align-items: center;">
-                    <img src="/static/telegram-stars-icon.png" alt="Telegram Stars Icon" style="width: 40px; height: 40px; margin-right: 10px;">
-                    <span>Telegram Stars</span>
+            <div class="wallet-container">
+                <!-- Карточка баланса Telegram Stars -->
+                <div class="stars-balance-card">
+                    <div class="stars-info">
+                        <img src="/static/telegram-stars-icon.png" alt="Telegram Stars" class="stars-icon">
+                        <div class="stars-details">
+                            <h3>Telegram Stars</h3>
+                        </div>
+                    </div>
+                    <div class="stars-count" id="stars-count">0</div>
                 </div>
-                <span id="stars-count">0</span>
-                <button onclick="openDonateMenu()" style="padding: 5px 10px;">Donate</button>
 
+                <!-- Секция доната -->
+                <div class="donation-section">
+                    <h2 class="donation-title">💖 Support the App</h2>
+                    <div class="amount-description">
+                        Choose an amount to support our development and get premium features!
+                    </div>
+                    
+                    <!-- Сетка с суммами -->
+                    <div class="amount-grid">
+                        <div class="amount-option" data-amount="50" onclick="selectAmount(50)">
+                            <div>⭐ 50</div>
+                            <small>Basic</small>
+                        </div>
+                        <div class="amount-option" data-amount="100" onclick="selectAmount(100)">
+                            <div>⭐ 100</div>
+                            <small>Popular</small>
+                        </div>
+                        <div class="amount-option" data-amount="250" onclick="selectAmount(250)">
+                            <div>⭐ 250</div>
+                            <small>Premium</small>
+                        </div>
+                        <div class="amount-option" data-amount="500" onclick="selectAmount(500)">
+                            <div>⭐ 500</div>
+                            <small>Pro</small>
+                        </div>
+                        <div class="amount-option" data-amount="1000" onclick="selectAmount(1000)">
+                            <div>⭐ 1000</div>
+                            <small>VIP</small>
+                        </div>
+                        <div class="amount-option" data-amount="2500" onclick="selectAmount(2500)">
+                            <div>⭐ 2500</div>
+                            <small>Elite</small>
+                        </div>
+                    </div>
+
+                    <!-- Поле для кастомной суммы -->
+                    <div class="custom-amount-container">
+                        <input 
+                            type="number" 
+                            class="custom-amount-input" 
+                            id="custom-amount" 
+                            placeholder="Enter custom amount (50-10000)" 
+                            min="50" 
+                            max="10000"
+                            oninput="selectCustomAmount(this.value)"
+                        >
+                    </div>
+
+                    <!-- Кнопка доната -->
+                    <button class="donate-button" id="donate-btn" onclick="processDonation()" disabled>
+                        Select Amount to Donate
+                    </button>
+                </div>
             </div>
         </div>        
 
