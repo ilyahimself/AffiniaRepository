@@ -1260,6 +1260,364 @@
             font-size: 14px;
             line-height: 1.4;
         }
+
+        /* ----- Beloved (Partners) Page Styles ----- */
+        .beloved-container {
+            padding: 20px;
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .beloved-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .beloved-title {
+            color: #ffffff;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #ff6b7d, #ff8a95);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .beloved-subtitle {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 16px;
+            line-height: 1.4;
+        }
+
+        .partners-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        .partner-stat-card {
+            background: linear-gradient(135deg, rgba(255, 107, 125, 0.15), rgba(255, 138, 149, 0.1));
+            border-radius: 16px;
+            padding: 15px;
+            text-align: center;
+            border: 1px solid rgba(255, 107, 125, 0.2);
+            box-shadow: 0 8px 32px rgba(255, 107, 125, 0.1);
+        }
+
+        .stat-number-pink {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ff6b7d;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .stat-label-pink {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .add-partner-section {
+            background: linear-gradient(135deg, rgba(255, 107, 125, 0.12), rgba(255, 138, 149, 0.08));
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 25px;
+            text-align: center;
+            border: 1px solid rgba(255, 107, 125, 0.2);
+        }
+
+        .add-partner-title {
+            color: #ff6b7d;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .add-partner-description {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+
+        .partner-search-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 107, 125, 0.3);
+            border-radius: 12px;
+            padding: 12px 15px;
+            color: #ffffff;
+            font-size: 16px;
+            margin-bottom: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .partner-search-input:focus {
+            outline: none;
+            border-color: rgba(255, 107, 125, 0.5);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .partner-search-input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .add-partner-btn {
+            background: linear-gradient(135deg, #ff6b7d, #ff8a95);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(255, 107, 125, 0.3);
+        }
+
+        .add-partner-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(255, 107, 125, 0.4);
+        }
+
+        .partners-categories {
+            display: grid;
+            gap: 20px;
+        }
+
+        .partner-category {
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .category-header-beloved {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 107, 125, 0.2);
+        }
+
+        .category-icon-beloved {
+            font-size: 24px;
+        }
+
+        .category-title-beloved {
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .category-count {
+            background: rgba(255, 107, 125, 0.2);
+            color: #ff6b7d;
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: auto;
+        }
+
+        .partners-grid {
+            display: grid;
+            gap: 15px;
+        }
+
+        .partner-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 18px;
+            border: 1px solid rgba(255, 107, 125, 0.15);
+            box-shadow: 0 6px 24px rgba(255, 107, 125, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .partner-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(135deg, #ff6b7d, #ff8a95);
+        }
+
+        .partner-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(255, 107, 125, 0.15);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.08));
+        }
+
+        .partner-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .partner-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: 3px solid rgba(255, 107, 125, 0.3);
+            box-shadow: 0 4px 12px rgba(255, 107, 125, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .partner-card:hover .partner-avatar {
+            border-color: rgba(255, 107, 125, 0.5);
+            transform: scale(1.05);
+        }
+
+        .partner-info {
+            flex: 1;
+        }
+
+        .partner-name {
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0 0 5px 0;
+        }
+
+        .partner-status {
+            background: linear-gradient(135deg, #ff6b7d, #ff8a95);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .partner-status.potential {
+            background: linear-gradient(135deg, #fdcb6e, #e17055);
+        }
+
+        .partner-status.past {
+            background: rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .consent-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+        }
+
+        .consent-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #00b894;
+            box-shadow: 0 0 8px rgba(0, 184, 148, 0.5);
+        }
+
+        .consent-indicator.expired {
+            background: #e17055;
+            box-shadow: 0 0 8px rgba(225, 112, 85, 0.5);
+        }
+
+        .consent-indicator.none {
+            background: rgba(255, 255, 255, 0.3);
+            box-shadow: none;
+        }
+
+        .consent-text {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+            flex: 1;
+        }
+
+        .consent-time {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 12px;
+        }
+
+        .partner-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .partner-action-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 107, 125, 0.3);
+            border-radius: 10px;
+            padding: 10px 15px;
+            color: #ffffff;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .partner-action-btn.primary {
+            background: linear-gradient(135deg, #ff6b7d, #ff8a95);
+            border-color: transparent;
+            box-shadow: 0 4px 12px rgba(255, 107, 125, 0.3);
+        }
+
+        .partner-action-btn:hover {
+            background: rgba(255, 107, 125, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .partner-action-btn.primary:hover {
+            background: linear-gradient(135deg, #ff5a6f, #ff7a8b);
+            box-shadow: 0 6px 16px rgba(255, 107, 125, 0.4);
+        }
+
+        .no-partners-message {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 16px;
+            padding: 60px 20px;
+            background: linear-gradient(135deg, rgba(255, 107, 125, 0.05), rgba(255, 138, 149, 0.03));
+            border-radius: 16px;
+            margin: 20px 0;
+            border: 2px dashed rgba(255, 107, 125, 0.2);
+        }
+
+        .heart-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            color: #ff6b7d;
+        }
+
+        .relationship-timeline {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            border-left: 3px solid #ff6b7d;
+        }
+
+        .timeline-item {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 5px;
+        }
+
+        .timeline-item:last-child {
+            margin-bottom: 0;
+        }
     </style>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -2039,41 +2397,214 @@
         }
 
         async function updateBelovedList() {
-    try {
-        const response = await fetch('/get_beloved', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe?.user?.id })
-        });
-        const data = await response.json();
-        const belovedList = document.getElementById('beloved-list');
-        belovedList.innerHTML = '';  // очищаем содержимое контейнера
+            try {
+                const response = await fetch('/get_beloved', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe?.user?.id })
+                });
+                const data = await response.json();
+                
+                // Organize partners by relationship status
+                const beloved = data.beloved || [];
+                const currentPartners = beloved.filter(p => p.relationship_status === 'current');
+                const potentialPartners = beloved.filter(p => p.relationship_status === 'potential');
+                const pastPartners = beloved.filter(p => p.relationship_status === 'past');
+                
+                // Update statistics
+                document.getElementById('current-partners').textContent = currentPartners.length;
+                document.getElementById('potential-partners').textContent = potentialPartners.length;
+                document.getElementById('active-consents').textContent = calculateActiveConsents(beloved);
 
-        if (!data.beloved || data.beloved.length === 0) {
-            belovedList.innerHTML = '<p>No beloved yet.</p>';
-            return;
+                // Update category counts
+                document.getElementById('current-count').textContent = currentPartners.length;
+                document.getElementById('potential-count').textContent = potentialPartners.length;
+                document.getElementById('past-count').textContent = pastPartners.length;
+
+                // Clear all lists
+                document.getElementById('current-partners-list').innerHTML = '';
+                document.getElementById('potential-partners-list').innerHTML = '';
+                document.getElementById('past-partners-list').innerHTML = '';
+
+                // Show/hide no partners message
+                if (beloved.length === 0) {
+                    document.getElementById('no-partners-message').style.display = 'block';
+                    return;
+                } else {
+                    document.getElementById('no-partners-message').style.display = 'none';
+                }
+
+                // Populate each category
+                await populatePartnerCategory('current-partners-list', currentPartners, 'current');
+                await populatePartnerCategory('potential-partners-list', potentialPartners, 'potential');
+                await populatePartnerCategory('past-partners-list', pastPartners, 'past');
+
+            } catch (error) {
+                console.error('Error fetching beloved list:', error);
+            }
         }
 
-        for (const item of data.beloved) {
-            // Получаем данные пользователя (аватар, никнейм и т.п.)
-            const userInfo = await fetchTelegramUserData(item.user_id);
-            const div = document.createElement('div');
-            div.classList.add('friend-info');  // используем тот же класс, что и для friends
-            div.innerHTML = `
-                <div class="friend-left-section">
-                    <img src="${userInfo.avatar}" alt="Avatar">
-                    <div class="friend-details">
-                        <p>${userInfo.username}</p>
+        function calculateActiveConsents(partners) {
+            // Simulate active consents calculation
+            return partners.filter(p => p.relationship_status === 'current').length;
+        }
+
+        async function populatePartnerCategory(containerId, partners, category) {
+            const container = document.getElementById(containerId);
+            
+            if (partners.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: rgba(255,255,255,0.5); padding: 20px; font-size: 14px;">No partners in this category</div>';
+                return;
+            }
+
+            for (const partner of partners) {
+                const userInfo = await fetchTelegramUserData(partner.user_id);
+                const partnerCard = createPartnerCard(partner, userInfo, category);
+                container.appendChild(partnerCard);
+            }
+        }
+
+        function createPartnerCard(partner, userInfo, category) {
+            const card = document.createElement('div');
+            card.className = 'partner-card';
+            
+            const consentStatus = getConsentStatus(partner);
+            const relationshipStatus = getRelationshipStatusBadge(category);
+            
+            card.innerHTML = `
+                <div class="partner-header">
+                    <img src="${userInfo.avatar}" alt="Avatar" class="partner-avatar">
+                    <div class="partner-info">
+                        <h4 class="partner-name">${userInfo.username}</h4>
+                        ${relationshipStatus}
                     </div>
                 </div>
-                <button class="delete-btn" onclick="deleteBeloved('${item.user_id}')">Delete</button>
+                
+                <div class="consent-status">
+                    <div class="consent-indicator ${consentStatus.class}"></div>
+                    <div class="consent-text">${consentStatus.text}</div>
+                    <div class="consent-time">${consentStatus.time}</div>
+                </div>
+
+                <div class="relationship-timeline">
+                    <div class="timeline-item">💝 Added to partners: ${getTimeAgo(partner.added_date || Date.now())}</div>
+                    <div class="timeline-item">🔐 Last consent: ${consentStatus.lastConsent || 'Never'}</div>
+                </div>
+
+                <div class="partner-actions">
+                    ${getPartnerActionButtons(partner, category)}
+                </div>
             `;
-            belovedList.appendChild(div);
+            
+            return card;
         }
-    } catch (error) {
-        console.error('Error fetching beloved list:', error);
-    }
-}
+
+        function getConsentStatus(partner) {
+            // Simulate consent status - in real app this would come from backend
+            const statuses = [
+                { class: 'active', text: 'Active consent', time: '2 hours ago', lastConsent: '2 hours ago' },
+                { class: 'expired', text: 'Consent expired', time: '1 day ago', lastConsent: '1 day ago' },
+                { class: 'none', text: 'No active consent', time: 'Never', lastConsent: 'Never' }
+            ];
+            
+            return statuses[Math.floor(Math.random() * statuses.length)];
+        }
+
+        function getRelationshipStatusBadge(category) {
+            switch(category) {
+                case 'current':
+                    return '<span class="partner-status">💕 Current</span>';
+                case 'potential':
+                    return '<span class="partner-status potential">💫 Potential</span>';
+                case 'past':
+                    return '<span class="partner-status past">📚 Past</span>';
+                default:
+                    return '<span class="partner-status">💕 Partner</span>';
+            }
+        }
+
+        function getPartnerActionButtons(partner, category) {
+            const baseActions = `
+                <button class="partner-action-btn" onclick="viewPartnerHistory('${partner.user_id}')">
+                    📋 History
+                </button>
+                <button class="partner-action-btn" onclick="removePartner('${partner.user_id}')">
+                    🗑️ Remove
+                </button>
+            `;
+
+            if (category === 'current') {
+                return `
+                    <button class="partner-action-btn primary" onclick="createConsentForPartner('${partner.user_id}')">
+                        🔐 New Consent
+                    </button>
+                    <button class="partner-action-btn" onclick="sendMessageToPartner('${partner.user_id}')">
+                        💬 Message
+                    </button>
+                `;
+            } else if (category === 'potential') {
+                return `
+                    <button class="partner-action-btn primary" onclick="promoteToPartner('${partner.user_id}')">
+                        💕 Make Partner
+                    </button>
+                    <button class="partner-action-btn" onclick="sendMessageToPartner('${partner.user_id}')">
+                        💬 Message
+                    </button>
+                `;
+            }
+
+            return baseActions;
+        }
+
+        function getTimeAgo(timestamp) {
+            const now = Date.now();
+            const diff = now - timestamp;
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const days = Math.floor(hours / 24);
+            
+            if (days > 0) return `${days} days ago`;
+            if (hours > 0) return `${hours} hours ago`;
+            return 'Recently';
+        }
+
+        // Partner management functions
+        function searchPartners() {
+            const searchTerm = document.getElementById('partner-search').value.trim();
+            if (!searchTerm) {
+                alert('Please enter a username or phone number to search.');
+                return;
+            }
+            
+            alert(`💖 Searching for "${searchTerm}"... This will search for potential partners and send them an invitation.`);
+            // TODO: Implement actual partner search functionality
+        }
+
+        function createConsentForPartner(partnerId) {
+            alert('🔐 Creating consent for partner... This will open a specialized consent form for intimate partners with customizable boundaries and time limits.');
+            addActivityItem('💖', 'Created intimate consent with partner');
+            // TODO: Implement partner-specific consent creation
+        }
+
+        function sendMessageToPartner(partnerId) {
+            alert('💬 Opening private chat... This feature will enable encrypted messaging with your partner for discussing boundaries and consent.');
+            // TODO: Implement private messaging
+        }
+
+        function promoteToPartner(partnerId) {
+            alert('💕 Promoting to current partner... This will change their status and unlock additional features for your relationship.');
+            // TODO: Implement partner promotion
+        }
+
+        function viewPartnerHistory(partnerId) {
+            alert('📋 Viewing relationship history... This shows your complete timeline of consents, messages, and important moments together.');
+            // TODO: Implement history view
+        }
+
+        function removePartner(partnerId) {
+            if (confirm('Are you sure you want to remove this partner? This action cannot be undone, but your consent history will be preserved for legal protection.')) {
+                deleteBeloved(partnerId);
+            }
+        }
 
 
 function deleteBeloved(belovedId) {
@@ -2594,11 +3125,89 @@ function sendConsentResponse(decision) {
             </div>
         </div>
 
-        <!-- Страница b3 -->
+        <!-- Beloved (Partners) Page -->
         <div id="beloved-page" class="page">
-            <h2 style="text-align:center;">Beloved</h2>
-            <div id="beloved-list">
-                <p>No beloved yet.</p>
+            <div class="beloved-container">
+                <!-- Beloved Header -->
+                <div class="beloved-header">
+                    <div class="beloved-title">💖 Intimate Partners</div>
+                    <div class="beloved-subtitle">Manage your relationships and consent with care and respect</div>
+                </div>
+
+                <!-- Partners Statistics -->
+                <div class="partners-stats">
+                    <div class="partner-stat-card">
+                        <span class="stat-number-pink" id="current-partners">0</span>
+                        <span class="stat-label-pink">Current</span>
+                    </div>
+                    <div class="partner-stat-card">
+                        <span class="stat-number-pink" id="potential-partners">0</span>
+                        <span class="stat-label-pink">Potential</span>
+                    </div>
+                    <div class="partner-stat-card">
+                        <span class="stat-number-pink" id="active-consents">0</span>
+                        <span class="stat-label-pink">Active Consents</span>
+                    </div>
+                </div>
+
+                <!-- Add Partner Section -->
+                <div class="add-partner-section">
+                    <div class="add-partner-title">💕 Add New Partner</div>
+                    <div class="add-partner-description">
+                        Connect with someone special. They'll receive an invitation to join your trusted relationship circle.
+                    </div>
+                    <input type="text" class="partner-search-input" placeholder="Search by username or phone..." id="partner-search">
+                    <button class="add-partner-btn" onclick="searchPartners()">
+                        💖 Find Partner
+                    </button>
+                </div>
+
+                <!-- Partners Categories -->
+                <div class="partners-categories">
+                    
+                    <!-- Current Partners -->
+                    <div class="partner-category">
+                        <div class="category-header-beloved">
+                            <span class="category-icon-beloved">💑</span>
+                            <h3 class="category-title-beloved">Current Partners</h3>
+                            <span class="category-count" id="current-count">0</span>
+                        </div>
+                        <div class="partners-grid" id="current-partners-list">
+                            <!-- Current partners will be populated here -->
+                        </div>
+                    </div>
+
+                    <!-- Potential Partners -->
+                    <div class="partner-category">
+                        <div class="category-header-beloved">
+                            <span class="category-icon-beloved">💫</span>
+                            <h3 class="category-title-beloved">Potential Partners</h3>
+                            <span class="category-count" id="potential-count">0</span>
+                        </div>
+                        <div class="partners-grid" id="potential-partners-list">
+                            <!-- Potential partners will be populated here -->
+                        </div>
+                    </div>
+
+                    <!-- Past Partners -->
+                    <div class="partner-category">
+                        <div class="category-header-beloved">
+                            <span class="category-icon-beloved">📚</span>
+                            <h3 class="category-title-beloved">Past Partners</h3>
+                            <span class="category-count" id="past-count">0</span>
+                        </div>
+                        <div class="partners-grid" id="past-partners-list">
+                            <!-- Past partners will be populated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- No partners message -->
+                <div id="no-partners-message" class="no-partners-message" style="display: none;">
+                    <div class="heart-icon">💖</div>
+                    <div style="font-size: 18px; margin-bottom: 10px;">Your Heart is Open</div>
+                    <div>Start building meaningful connections by adding partners to your circle of trust.</div>
+                </div>
             </div>
         </div>
 
@@ -2683,8 +3292,8 @@ function sendConsentResponse(decision) {
             <span>Trust</span>
         </button>
         <button data-page="beloved-page" onclick="showPage('beloved-page')">
-            <img src="/static/beloved-passive.png" alt="Beloved">
-            <span>Beloved</span>
+            <img src="/static/beloved-passive.png" alt="Partners">
+            <span>Partners</span>
         </button>
         <button data-page="mission-page" onclick="showPage('mission-page')">
             <img src="/static/mission-passive.png" alt="Mission">
