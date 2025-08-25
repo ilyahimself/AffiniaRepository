@@ -982,6 +982,284 @@
             border-radius: 16px;
             margin: 20px 0;
         }
+
+        /* ----- Mission (Verification) Page Styles ----- */
+        .mission-container {
+            padding: 20px;
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .mission-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .mission-title {
+            color: #ffffff;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .mission-subtitle {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 16px;
+            line-height: 1.4;
+        }
+
+        .verification-progress {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+        }
+
+        .progress-header {
+            display: flex;
+            align-items: center;
+            justify-content: between;
+            margin-bottom: 15px;
+        }
+
+        .progress-title {
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .progress-score {
+            color: #ffd700;
+            font-size: 32px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar-container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            height: 12px;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            background: linear-gradient(135deg, #00b894, #00a085);
+            height: 100%;
+            border-radius: 12px;
+            transition: width 0.5s ease;
+        }
+
+        .progress-description {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .mission-categories {
+            display: grid;
+            gap: 20px;
+        }
+
+        .mission-category {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .category-icon {
+            font-size: 24px;
+        }
+
+        .category-title {
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .category-missions {
+            display: grid;
+            gap: 12px;
+        }
+
+        .mission-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .mission-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        .mission-item.completed {
+            background: linear-gradient(135deg, rgba(0, 184, 148, 0.2), rgba(0, 160, 133, 0.1));
+            border-color: rgba(0, 184, 148, 0.3);
+        }
+
+        .mission-item.locked {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .mission-item.locked:hover {
+            transform: none;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .mission-header-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .mission-name {
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .mission-reward {
+            background: linear-gradient(135deg, #ffd700, #ffb347);
+            color: #333;
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .mission-description {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+            line-height: 1.4;
+            margin-bottom: 10px;
+        }
+
+        .mission-status {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-badge.completed {
+            background: linear-gradient(135deg, #00b894, #00a085);
+            color: white;
+        }
+
+        .status-badge.available {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .status-badge.locked {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .mission-button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .mission-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .mission-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .achievement-showcase {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 179, 71, 0.15));
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+        }
+
+        .achievement-title {
+            color: #ffd700;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .achievement-badges {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .achievement-badge {
+            background: linear-gradient(135deg, #ffd700, #ffb347);
+            color: #333;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+        }
+
+        .legal-info {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .legal-title {
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .legal-text {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+            line-height: 1.4;
+        }
     </style>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -1282,6 +1560,9 @@
             if (pageId === 'wallet-page') {
                 updateTelegramStars();  // Новый вызов обновления для Wallet
             }
+            if (pageId === 'mission-page') {
+                initializeMissionSystem();  // Initialize mission system
+            }
         }
     
 
@@ -1488,6 +1769,253 @@
         function testEmergencyContact(friendId) {
             // TODO: Send test emergency notification
             alert('🚨 Test emergency alert sent! This feature will notify your emergency contact with your location and status.');
+        }
+
+        // Mission System Functions
+        const missionData = {
+            completed: [], // Will store completed mission IDs
+            achievements: [] // Will store earned achievements
+        };
+
+        function startMission(missionId) {
+            switch(missionId) {
+                case 'phone_verify':
+                    alert('📱 Phone Verification\n\nThis will open a form to verify your phone number via SMS. Feature coming soon!');
+                    break;
+                case 'email_verify':
+                    alert('📧 Email Verification\n\nThis will open a form to verify your email address. Feature coming soon!');
+                    break;
+                case 'id_document':
+                    alert('🆔 ID Document Verification\n\nThis will open a secure form to upload your government ID. Premium feature coming soon!');
+                    break;
+                case 'consent_basics':
+                    showEducationalContent('consent_basics');
+                    break;
+                case 'legal_rights':
+                    showEducationalContent('legal_rights');
+                    break;
+                case 'emergency_protocols':
+                    showEducationalContent('emergency_protocols');
+                    break;
+                case 'first_referral':
+                    showReferralModal();
+                    addActivityItem('🎁', 'Started first referral mission');
+                    break;
+                case 'trust_network':
+                    showPage('friends-page');
+                    addActivityItem('🤝', 'Started building trust network');
+                    break;
+                case 'witness_training':
+                    alert('👥 Witness Training\n\nThis comprehensive course will teach you how to be a trusted witness for consent verification. Coming soon!');
+                    break;
+                case 'first_donation':
+                    showPage('wallet-page');
+                    addActivityItem('⭐', 'Started first donation mission');
+                    break;
+                case 'blockchain_verify':
+                    alert('🚀 Blockchain Verification\n\nThis feature will be available when AFN token launches on blockchain!');
+                    break;
+                default:
+                    alert('Mission not implemented yet!');
+            }
+        }
+
+        function showEducationalContent(courseId) {
+            let title, content;
+            
+            switch(courseId) {
+                case 'consent_basics':
+                    title = '📚 Consent Basics Course';
+                    content = `
+                        Welcome to Consent Basics!
+
+                        Key Points:
+                        • Consent must be freely given, specific, informed and unambiguous
+                        • Digital consent provides legal protection for both parties
+                        • You can withdraw consent at any time
+                        • Affinia creates tamper-proof records with timestamps
+                        • All data is encrypted and stored securely
+
+                        This course helps you understand your rights and how to stay safe.
+                        
+                        Complete this mission to earn 15 AFN!
+                    `;
+                    break;
+                case 'legal_rights':
+                    title = '⚖️ Know Your Rights';
+                    content = `
+                        Your Legal Rights:
+
+                        • Right to clear communication about consent
+                        • Right to withdraw consent at any time
+                        • Right to access your data and consent history
+                        • Right to legal protection through verified records
+                        • Right to privacy and data security
+
+                        Digital consent is legally recognized in many jurisdictions.
+                        Affinia helps ensure your consent is valid and enforceable.
+                        
+                        Complete this mission to earn 20 AFN!
+                    `;
+                    break;
+                case 'emergency_protocols':
+                    title = '🆘 Emergency Protocols';
+                    content = `
+                        Safety Features:
+
+                        • SOS button for immediate help (calls emergency services)
+                        • Emergency contacts get automatic notifications
+                        • Location sharing with trusted friends
+                        • Safe check-in reminders
+                        • Crisis center connections
+
+                        Set up your emergency network in the Trust section.
+                        
+                        Complete this mission to earn 25 AFN!
+                    `;
+                    break;
+            }
+
+            if (confirm(title + '\n\n' + content + '\n\nMark this course as completed?')) {
+                completeMission(courseId, courseId === 'consent_basics' ? 15 : courseId === 'legal_rights' ? 20 : 25);
+            }
+        }
+
+        function completeMission(missionId, reward) {
+            if (missionData.completed.includes(missionId)) {
+                alert('Mission already completed!');
+                return;
+            }
+
+            // Mark mission as completed
+            missionData.completed.push(missionId);
+            
+            // Update mission UI
+            const missionElement = document.querySelector(`[data-mission="${missionId}"]`);
+            if (missionElement) {
+                missionElement.classList.add('completed');
+                missionElement.classList.remove('locked');
+                
+                const statusBadge = missionElement.querySelector('.status-badge');
+                statusBadge.className = 'status-badge completed';
+                statusBadge.textContent = '✅ Completed';
+                
+                const button = missionElement.querySelector('.mission-button');
+                button.textContent = 'Done';
+                button.disabled = true;
+            }
+
+            // Award AFN (simulate for now)
+            if (typeof reward === 'number') {
+                alert(`🎉 Mission completed! You earned ${reward} AFN!`);
+                addActivityItem('🏆', `Completed mission and earned ${reward} AFN`);
+            } else {
+                alert(`🎉 Mission completed! You earned: ${reward}!`);
+                addActivityItem('🏆', `Completed mission and earned ${reward}`);
+            }
+
+            // Update verification progress
+            updateVerificationProgress();
+            
+            // Check for achievements
+            checkAchievements();
+            
+            // Update counter (AFN balance)
+            updateCounter();
+        }
+
+        function updateVerificationProgress() {
+            const completedCount = missionData.completed.length;
+            const totalMissions = 11; // Total number of missions
+            const percentage = Math.round((completedCount / totalMissions) * 100);
+            
+            document.getElementById('verification-score').textContent = percentage + '%';
+            document.getElementById('verification-progress-bar').style.width = percentage + '%';
+            
+            let description = 'Start verifying to unlock premium features';
+            if (percentage >= 80) {
+                description = 'Expert level! You are a trusted community member';
+            } else if (percentage >= 60) {
+                description = 'Advanced verification! Premium features unlocked';
+            } else if (percentage >= 40) {
+                description = 'Good progress! More features becoming available';
+            } else if (percentage >= 20) {
+                description = 'Making progress! Keep going to unlock more features';
+            }
+            
+            document.getElementById('verification-description').textContent = description;
+        }
+
+        function checkAchievements() {
+            const newAchievements = [];
+            
+            // First mission achievement
+            if (missionData.completed.length >= 1 && !missionData.achievements.includes('first_mission')) {
+                newAchievements.push({ id: 'first_mission', name: '🥇 First Steps', description: 'Completed first mission' });
+            }
+            
+            // Education enthusiast
+            const educationMissions = ['consent_basics', 'legal_rights', 'emergency_protocols'];
+            const completedEducation = educationMissions.filter(m => missionData.completed.includes(m));
+            if (completedEducation.length >= 3 && !missionData.achievements.includes('education_complete')) {
+                newAchievements.push({ id: 'education_complete', name: '🎓 Safety Scholar', description: 'Completed all education courses' });
+            }
+            
+            // Verification master
+            if (missionData.completed.length >= 8 && !missionData.achievements.includes('verification_master')) {
+                newAchievements.push({ id: 'verification_master', name: '🛡️ Verification Master', description: 'Completed most missions' });
+            }
+
+            // Add new achievements
+            newAchievements.forEach(achievement => {
+                missionData.achievements.push(achievement.id);
+                showAchievementUnlocked(achievement);
+            });
+
+            // Update achievement showcase
+            updateAchievementShowcase();
+        }
+
+        function showAchievementUnlocked(achievement) {
+            alert(`🏆 ACHIEVEMENT UNLOCKED!\n\n${achievement.name}\n${achievement.description}`);
+            addActivityItem('🏆', `Unlocked achievement: ${achievement.name}`);
+        }
+
+        function updateAchievementShowcase() {
+            const showcase = document.getElementById('achievement-showcase');
+            const badges = document.getElementById('achievement-badges');
+            
+            if (missionData.achievements.length > 0) {
+                showcase.style.display = 'block';
+                badges.innerHTML = '';
+                
+                missionData.achievements.forEach(achievementId => {
+                    const badge = document.createElement('div');
+                    badge.className = 'achievement-badge';
+                    
+                    switch(achievementId) {
+                        case 'first_mission':
+                            badge.textContent = '🥇 First Steps';
+                            break;
+                        case 'education_complete':
+                            badge.textContent = '🎓 Safety Scholar';
+                            break;
+                        case 'verification_master':
+                            badge.textContent = '🛡️ Verification Master';
+                            break;
+                    }
+                    
+                    badges.appendChild(badge);
+                });
+            } else {
+                showcase.style.display = 'none';
+            }
+        }
+
+        // Initialize mission system when page loads
+        function initializeMissionSystem() {
+            updateVerificationProgress();
+            updateAchievementShowcase();
         }
 
         function deleteFriend(userId) {
@@ -1851,6 +2379,217 @@ function sendConsentResponse(decision) {
                     <div style="font-size: 48px; margin-bottom: 15px;">🤝</div>
                     <div style="font-size: 18px; margin-bottom: 10px;">No Trust Network Yet</div>
                     <div>Start building your network by inviting friends or searching for people you know!</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mission (Verification) Page -->
+        <div id="mission-page" class="page">
+            <div class="mission-container">
+                <!-- Mission Header -->
+                <div class="mission-header">
+                    <div class="mission-title">🛡️ Safety & Verification</div>
+                    <div class="mission-subtitle">Complete missions to enhance your account security and build trust in the Affinia community</div>
+                </div>
+
+                <!-- Verification Progress -->
+                <div class="verification-progress">
+                    <div class="progress-title">Verification Level</div>
+                    <div class="progress-score" id="verification-score">0%</div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="verification-progress-bar" style="width: 0%"></div>
+                    </div>
+                    <div class="progress-description" id="verification-description">Start verifying to unlock premium features</div>
+                </div>
+
+                <!-- Achievement Showcase -->
+                <div class="achievement-showcase" id="achievement-showcase" style="display: none;">
+                    <div class="achievement-title">🏆 Your Achievements</div>
+                    <div class="achievement-badges" id="achievement-badges">
+                        <!-- Achievement badges will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Mission Categories -->
+                <div class="mission-categories">
+                    
+                    <!-- Identity Verification -->
+                    <div class="mission-category">
+                        <div class="category-header">
+                            <span class="category-icon">🆔</span>
+                            <h3 class="category-title">Identity Verification</h3>
+                        </div>
+                        <div class="category-missions">
+                            <div class="mission-item" data-mission="phone_verify">
+                                <div class="mission-header-info">
+                                    <h4 class="mission-name">Phone Verification</h4>
+                                    <span class="mission-reward">+10 AFN</span>
+                                </div>
+                                <p class="mission-description">Verify your phone number to increase account security and enable SMS notifications.</p>
+                                <div class="mission-status">
+                                    <span class="status-badge available">Available</span>
+                                    <button class="mission-button" onclick="startMission('phone_verify')">Start</button>
+                                </div>
+                            </div>
+
+                            <div class="mission-item" data-mission="email_verify">
+                                <div class="mission-header-info">
+                                    <h4 class="mission-name">Email Verification</h4>
+                                    <span class="mission-reward">+10 AFN</span>
+                                </div>
+                                <p class="mission-description">Link your email for account recovery and important security notifications.</p>
+                                <div class="mission-status">
+                                    <span class="status-badge available">Available</span>
+                                    <button class="mission-button" onclick="startMission('email_verify')">Start</button>
+                                </div>
+                            </div>
+
+                            <div class="mission-item locked" data-mission="id_document">
+                                <div class="mission-header-info">
+                                    <h4 class="mission-name">ID Document Scan</h4>
+                                    <span class="mission-reward">+50 AFN</span>
+                                </div>
+                                <p class="mission-description">Upload government ID for premium verification. Enables witness mode and legal protection.</p>
+                                <div class="mission-status">
+                                    <span class="status-badge locked">🔒 Requires phone + email</span>
+                                    <button class="mission-button" disabled>Locked</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Safety & Education -->
+                    <div class="mission-category">
+                        <div class="category-header">
+                            <span class="category-icon">📚</span>
+                            <h3 class="category-title">Safety Education</h3>
+                        </div>
+                        <div class="category-missions">
+                            <div class="mission-item" data-mission="consent_basics">
+                                <div class="mission-header-info">
+                                    <h4 class="mission-name">Consent Basics Course</h4>
+                                    <span class="mission-reward">+15 AFN</span>
+                                </div>
+                                <p class="mission-description">Learn the fundamentals of digital consent and how Affinia protects you.</p>
+                                <div class="mission-status">
+                                    <span class="status-badge available">Available</span>
+                                    <button class="mission-button" onclick="startMission('consent_basics')">Learn</button>
+                                </div>
+                            </div>
+
+                            <div class="mission-item" data-mission="legal_rights">
+                                <div class="mission-header-info">
+                                    <h4 class="mission-name">Know Your Rights</h4>
+                                    <span class="mission-reward">+20 AFN</span>
+                                </div>
+                                <p class="mission-description">Understand your legal rights and how digital consent is recognized by law.</p>
+                                <div class="mission-status">
+                                    <span class="status-badge available">Available</span>
+                                    <button class="mission-button" onclick="startMission('legal_rights')">Learn</button>
+                                </div>
+                            </div>
+
+                            <div class="mission-item" data-mission="emergency_protocols">
+                                <div class="mission-header-info">
+                                    <h4 class="mission-name">Emergency Protocols</h4>
+                                    <span class="mission-reward">+25 AFN</span>
+                                </div>
+                                <p class="mission-description">Learn how to use emergency features and set up your safety network.</p>
+                                <div class="mission-status">
+                                    <span class="status-badge available">Available</span>
+                                    <button class="mission-button" onclick="startMission('emergency_protocols')">Learn</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Community Building -->
+                    <div class="mission-category">
+                        <div class="category-header">
+                            <span class="category-icon">🤝</span>
+                            <h3 class="category-title">Community Building</h3>
+                        </div>
+                        <div class="category-missions">
+                            <div class="mission-item" data-mission="first_referral">
+                                <div class="mission-header-info">
+                                    <h4 class="mission-name">First Referral</h4>
+                                    <span class="mission-reward">+30 AFN</span>
+                                </div>
+                                <p class="mission-description">Invite your first friend to Affinia and help grow our safety community.</p>
+                                <div class="mission-status">
+                                    <span class="status-badge available">Available</span>
+                                    <button class="mission-button" onclick="startMission('first_referral')">Invite</button>
+                                </div>
+                            </div>
+
+                            <div class="mission-item" data-mission="trust_network">
+                                <div class="mission-header-info">
+                                    <h4 class="mission-name">Build Trust Network</h4>
+                                    <span class="mission-reward">+40 AFN</span>
+                                </div>
+                                <p class="mission-description">Add 3 verified friends to your trust network for enhanced security.</p>
+                                <div class="mission-status">
+                                    <span class="status-badge available">Available</span>
+                                    <button class="mission-button" onclick="startMission('trust_network')">Start</button>
+                                </div>
+                            </div>
+
+                            <div class="mission-item" data-mission="witness_training">
+                                <div class="mission-header-info">
+                                    <h4 class="mission-name">Witness Training</h4>
+                                    <span class="mission-reward">+60 AFN</span>
+                                </div>
+                                <p class="mission-description">Complete training to become a trusted witness for consent verification.</p>
+                                <div class="mission-status">
+                                    <span class="status-badge available">Available</span>
+                                    <button class="mission-button" onclick="startMission('witness_training')">Train</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Premium Features -->
+                    <div class="mission-category">
+                        <div class="category-header">
+                            <span class="category-icon">⭐</span>
+                            <h3 class="category-title">Premium Unlock</h3>
+                        </div>
+                        <div class="category-missions">
+                            <div class="mission-item" data-mission="first_donation">
+                                <div class="mission-header-info">
+                                    <h4 class="mission-name">Support Development</h4>
+                                    <span class="mission-reward">Premium Badge</span>
+                                </div>
+                                <p class="mission-description">Make your first donation to support Affinia development and unlock premium features.</p>
+                                <div class="mission-status">
+                                    <span class="status-badge available">Available</span>
+                                    <button class="mission-button" onclick="startMission('first_donation')">Donate</button>
+                                </div>
+                            </div>
+
+                            <div class="mission-item locked" data-mission="blockchain_verify">
+                                <div class="mission-header-info">
+                                    <h4 class="mission-name">Blockchain Verification</h4>
+                                    <span class="mission-reward">🚀 Future Feature</span>
+                                </div>
+                                <p class="mission-description">Get your identity verified on blockchain for maximum security (Coming with AFN token launch).</p>
+                                <div class="mission-status">
+                                    <span class="status-badge locked">🚀 Coming Soon</span>
+                                    <button class="mission-button" disabled>Soon</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Legal Information -->
+                <div class="legal-info">
+                    <div class="legal-title">⚖️ Legal Protection</div>
+                    <div class="legal-text">
+                        All completed verifications and consents are stored with legal-grade security. 
+                        Your verified identity helps ensure consent validity and provides protection in legal scenarios.
+                        Data is encrypted and stored according to GDPR and privacy regulations.
+                    </div>
                 </div>
             </div>
         </div>
