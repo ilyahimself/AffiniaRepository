@@ -27,7 +27,7 @@ data_lock = threading.Lock()
 API_TOKEN = os.getenv('API_TOKEN', 'REDACTED_BOT_TOKEN')
 BOT_USERNAME = os.getenv('BOT_USERNAME', 'AffiniaBot')
 bot = Bot(token=API_TOKEN)
-URL = os.getenv('WEBAPP_URL', "https://d673-195-133-94-131.ngrok-free.app")
+URL = os.getenv('WEBAPP_URL', "https://affinia-f56170a22b09.herokuapp.com")
 
 # Создаём приложение бота
 application = Application.builder().token(API_TOKEN).connection_pool_size(50).build()
