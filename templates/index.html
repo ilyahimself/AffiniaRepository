@@ -531,6 +531,209 @@
             margin-bottom: 15px;
             line-height: 1.4;
         }
+
+        /* ----- Main Page Redesign Styles ----- */
+        .main-container {
+            padding: 20px;
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .safety-status-card {
+            background: linear-gradient(135deg, #00b894, #00a085);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 184, 148, 0.3);
+            text-align: center;
+            color: white;
+        }
+
+        .safety-status-card.warning {
+            background: linear-gradient(135deg, #fdcb6e, #e17055);
+            box-shadow: 0 8px 32px rgba(253, 203, 110, 0.3);
+        }
+
+        .safety-status-card.danger {
+            background: linear-gradient(135deg, #e17055, #d63031);
+            box-shadow: 0 8px 32px rgba(225, 112, 85, 0.3);
+        }
+
+        .status-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .status-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .status-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .action-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .action-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .action-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .action-title {
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .action-subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 12px;
+        }
+
+        .afn-balance-card {
+            background: linear-gradient(135deg, #ffd700, #ffb347);
+            border-radius: 16px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 8px 24px rgba(255, 215, 0, 0.3);
+        }
+
+        .afn-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .afn-icon {
+            font-size: 24px;
+            color: #333;
+        }
+
+        .afn-details h4 {
+            margin: 0;
+            color: #333;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .afn-details p {
+            margin: 0;
+            color: #555;
+            font-size: 12px;
+        }
+
+        .afn-amount {
+            color: #333;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .recent-activity {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .activity-title {
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .activity-icon {
+            margin-right: 10px;
+            font-size: 16px;
+        }
+
+        .activity-text {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .primary-consent-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 20px;
+            padding: 20px;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
+            margin-bottom: 15px;
+            letter-spacing: 0.5px;
+        }
+
+        .primary-consent-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(102, 126, 234, 0.5);
+        }
+
+        .crypto-roadmap {
+            background: linear-gradient(135deg, #fd79a8, #fdcb6e);
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .crypto-title {
+            color: #333;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .crypto-subtitle {
+            color: #555;
+            font-size: 11px;
+        }
     </style>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -569,8 +772,72 @@
             .then(response => response.json())
             .then(data => {
                 document.getElementById('counter').textContent = data.balance + ' AFN';
+                // Также обновляем баланс на главной странице
+                if (document.getElementById('main-afn-balance')) {
+                    document.getElementById('main-afn-balance').textContent = data.balance;
+                }
+                // Обновляем статус безопасности
+                updateSafetyStatus(data.balance);
             })
             .catch(error => console.error('Error:', error));
+        }
+
+        function updateSafetyStatus(balance) {
+            const statusCard = document.getElementById('safety-status');
+            const statusIcon = statusCard.querySelector('.status-icon');
+            const statusTitle = statusCard.querySelector('.status-title');
+            const statusSubtitle = statusCard.querySelector('.status-subtitle');
+
+            // Удаляем все классы статуса
+            statusCard.classList.remove('warning', 'danger');
+
+            if (balance >= 50) {
+                // Зеленый статус - все хорошо
+                statusIcon.textContent = '🛡️';
+                statusTitle.textContent = 'Safety Active';
+                statusSubtitle.textContent = 'Your digital consent protection is fully enabled';
+            } else if (balance >= 10) {
+                // Желтый статус - предупреждение
+                statusCard.classList.add('warning');
+                statusIcon.textContent = '⚠️';
+                statusTitle.textContent = 'Low AFN Balance';
+                statusSubtitle.textContent = 'Consider earning more AFN for better protection';
+            } else {
+                // Красный статус - критично
+                statusCard.classList.add('danger');
+                statusIcon.textContent = '🚨';
+                statusTitle.textContent = 'Insufficient AFN';
+                statusSubtitle.textContent = 'Invite friends to earn AFN for consent creation';
+            }
+        }
+
+        function showConsentHistory() {
+            // TODO: Реализовать показ истории согласий
+            alert('Consent history coming soon! This will show all your past consent agreements.');
+        }
+
+        function addActivityItem(icon, text) {
+            const activityList = document.getElementById('activity-list');
+            if (activityList) {
+                const newItem = document.createElement('div');
+                newItem.className = 'activity-item';
+                newItem.innerHTML = `
+                    <span class="activity-icon">${icon}</span>
+                    <span class="activity-text">${text}</span>
+                `;
+                
+                // Добавляем в начало списка
+                if (activityList.children.length > 0) {
+                    activityList.insertBefore(newItem, activityList.firstChild);
+                } else {
+                    activityList.appendChild(newItem);
+                }
+
+                // Ограничиваем количество элементов до 3
+                while (activityList.children.length > 3) {
+                    activityList.removeChild(activityList.lastChild);
+                }
+            }
         }
 
         function updateTelegramStars() {
@@ -656,7 +923,7 @@
             if (!userId) {
                 alert("User not found.");
                 return;
-            }
+    }  
 
             // Показываем индикатор загрузки
             const button = document.getElementById('donate-btn');
@@ -675,11 +942,11 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success && data.invoice_link) {
-                    Telegram.WebApp.openInvoice(data.invoice_link);
-                } else {
+                     Telegram.WebApp.openInvoice(data.invoice_link);
+                 } else {
                     alert("Error: " + (data.error || "Failed to create an invoice."));
-                }
-            })
+                 }
+     })
             .catch(error => {
                 console.error('Error:', error);
                 alert("An error occurred while processing the donation.");
@@ -688,8 +955,8 @@
                 // Восстанавливаем кнопку
                 button.textContent = originalText;
                 button.disabled = selectedDonationAmount <= 0;
-            });
-        }
+    });
+}
 
 
 
@@ -714,6 +981,9 @@
                     // Скрываем текст ссылки
                     document.getElementById('referral-link').textContent = '';
                     document.getElementById('referral-modal').style.display = 'flex';
+                    
+                    // Добавляем активность
+                    addActivityItem('🎁', 'Created referral link to earn AFN');
                 }
             })
             .catch(error => console.error('Error:', error));
@@ -954,6 +1224,12 @@ function deleteBeloved(belovedId) {
             document.getElementById('consent-link').setAttribute('data-link', data.consent_link);
             document.getElementById('consent-link').textContent = '';
             document.getElementById('consent-modal').style.display = 'flex';
+            
+            // Добавляем активность
+            addActivityItem('🔐', 'Created new consent link for partner');
+            
+            // Обновляем баланс
+            updateCounter();
         }
     })
     .catch(error => console.error('Error:', error));
@@ -1030,13 +1306,76 @@ function sendConsentResponse(decision) {
     <div class="main-content">
         <!-- Страница Main -->
         <div id="main-page" class="page">
-            <div class="center-content">
-                <button onclick="showReferralModal()">Referral Link</button>
-                <button onclick="getConsentLink()">Consent Link</button>
+            <div class="main-container">
+                <!-- Статус безопасности -->
+                <div class="safety-status-card" id="safety-status">
+                    <span class="status-icon">🛡️</span>
+                    <div class="status-title">Safety Active</div>
+                    <div class="status-subtitle">Your digital consent protection is enabled</div>
             </div>
-            <!-- Контейнер для кнопки SOS, фиксированно над навбаром -->
+
+                <!-- Баланс AFN -->
+                <div class="afn-balance-card">
+                    <div class="afn-info">
+                        <span class="afn-icon">💎</span>
+                        <div class="afn-details">
+                            <h4>AFN Balance</h4>
+                            <p>Future crypto token</p>
+                        </div>
+                    </div>
+                    <div class="afn-amount" id="main-afn-balance">0</div>
+                </div>
+
+                <!-- Основная кнопка согласия -->
+                <button class="primary-consent-btn" onclick="getConsentLink()">
+                    🔐 Create Consent Link
+                </button>
+
+                <!-- Быстрые действия -->
+                <div class="quick-actions">
+                    <div class="action-card" onclick="showReferralModal()">
+                        <span class="action-icon">🎁</span>
+                        <div class="action-title">Invite Friends</div>
+                        <div class="action-subtitle">Earn AFN rewards</div>
+                    </div>
+                    <div class="action-card" onclick="showPage('beloved-page')">
+                        <span class="action-icon">💖</span>
+                        <div class="action-title">Partners</div>
+                        <div class="action-subtitle">Manage trusted ones</div>
+                    </div>
+                    <div class="action-card" onclick="showPage('wallet-page')">
+                        <span class="action-icon">⭐</span>
+                        <div class="action-title">Premium</div>
+                        <div class="action-subtitle">Unlock features</div>
+                    </div>
+                    <div class="action-card" onclick="showConsentHistory()">
+                        <span class="action-icon">📋</span>
+                        <div class="action-title">History</div>
+                        <div class="action-subtitle">Past consents</div>
+                    </div>
+                </div>
+
+                <!-- Недавняя активность -->
+                <div class="recent-activity">
+                    <div class="activity-title">Recent Activity</div>
+                    <div id="activity-list">
+                        <div class="activity-item">
+                            <span class="activity-icon">🆕</span>
+                            <span class="activity-text">Welcome to Affinia! Create your first consent.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Crypto Roadmap тизер -->
+                <div class="crypto-roadmap">
+                    <div class="crypto-title">🚀 AFN Token Coming Soon</div>
+                    <div class="crypto-subtitle">Your AFN will become a real cryptocurrency with blockchain protection</div>
+                </div>
+
+                <!-- Контейнер для кнопки SOS -->
             <div class="sos-container">
                 <button class="sos-button" onclick="window.location.href='tel:112';">SOS</button>
+                </div>
             </div>                          
         </div>
 
@@ -1065,7 +1404,7 @@ function sendConsentResponse(decision) {
                         <img src="/static/telegram-stars-icon.png" alt="Telegram Stars" class="stars-icon">
                         <div class="stars-details">
                             <h3>Telegram Stars</h3>
-                        </div>
+                </div>
                     </div>
                     <div class="stars-count" id="stars-count">0</div>
                 </div>
