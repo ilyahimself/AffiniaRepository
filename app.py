@@ -10,7 +10,6 @@ from flask import Flask, render_template, request, jsonify, send_from_directory
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo, Bot, LabeledPrice
 from telegram.ext import (Application, CommandHandler, CallbackContext, CallbackQueryHandler, PreCheckoutQueryHandler, MessageHandler, filters)
 from concurrent.futures import TimeoutError
-import asyncio
 bot_loop = None
 
 from json.decoder import JSONDecodeError
@@ -28,7 +27,7 @@ data_lock = threading.Lock()
 API_TOKEN = os.getenv('API_TOKEN', 'REDACTED_BOT_TOKEN')
 BOT_USERNAME = os.getenv('BOT_USERNAME', 'AffiniaBot')
 bot = Bot(token=API_TOKEN)
-URL = "https://bcd4-5-44-42-108.ngrok-free.app"
+URL = os.getenv('WEBAPP_URL', "https://d673-195-133-94-131.ngrok-free.app")
 
 # Создаём приложение бота
 application = Application.builder().token(API_TOKEN).connection_pool_size(50).build()
