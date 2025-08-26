@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import logging
 import threading
@@ -14,9 +15,43 @@ bot_loop = None
 
 from json.decoder import JSONDecodeError
 
-logging.basicConfig(level=logging.INFO)
+# Настройка логирования с безопасностью
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('affinia.log')
+    ]
+)
+
+# Отключаем логирование чувствительной информации
+logging.getLogger('telegram').setLevel(logging.WARNING)
+logging.getLogger('httpx').setLevel(logging.WARNING)
 
 app = Flask(__name__)
+
+# Простой rate limiting
+from collections import defaultdict
+from time import time
+
+request_counts = defaultdict(list)
+RATE_LIMIT = 100  # Максимум 100 запросов
+RATE_WINDOW = 3600  # В час (3600 секунд)
+
+def check_rate_limit(user_id):
+    """Проверка rate limit для пользователя"""
+    now = time()
+    user_requests = request_counts[str(user_id)]
+    
+    # Удаляем старые запросы
+    user_requests[:] = [req_time for req_time in user_requests if now - req_time < RATE_WINDOW]
+    
+    if len(user_requests) >= RATE_LIMIT:
+        return False
+    
+    user_requests.append(now)
+    return True
 
 user_tokens = {}
 referrals = {}
@@ -24,13 +59,36 @@ beloveds = {}
 user_stars = {}
 data_lock = threading.Lock()
 
-API_TOKEN = os.getenv('API_TOKEN', 'REDACTED_BOT_TOKEN')
-BOT_USERNAME = os.getenv('BOT_USERNAME', 'AffiniaBot')
-bot = Bot(token=API_TOKEN)
-URL = os.getenv('WEBAPP_URL', "https://affinia-f56170a22b09.herokuapp.com")
+# Безопасная загрузка конфигурации
+API_TOKEN = os.getenv('API_TOKEN')
+BOT_USERNAME = os.getenv('BOT_USERNAME')
+WEBAPP_URL = os.getenv('WEBAPP_URL')
 
-# Создаём приложение бота
-application = Application.builder().token(API_TOKEN).connection_pool_size(50).build()
+# Проверка обязательных переменных окружения
+if not API_TOKEN:
+    logging.error('❌ CRITICAL: API_TOKEN environment variable is not set!')
+    logging.error('Please set API_TOKEN in your environment variables.')
+    sys.exit(1)
+
+if not BOT_USERNAME:
+    logging.error('❌ CRITICAL: BOT_USERNAME environment variable is not set!')
+    logging.error('Please set BOT_USERNAME in your environment variables.')
+    sys.exit(1)
+
+if not WEBAPP_URL:
+    logging.warning('⚠️ WARNING: WEBAPP_URL not set, using default Heroku URL')
+    WEBAPP_URL = "https://affinia-f56170a22b09.herokuapp.com"
+
+# Инициализация бота с проверкой токена
+try:
+    bot = Bot(token=API_TOKEN)
+    application = Application.builder().token(API_TOKEN).connection_pool_size(50).build()
+    logging.info(f'✅ Bot initialized successfully with username: @{BOT_USERNAME}')
+except Exception as e:
+    logging.error(f'❌ Failed to initialize bot: {e}')
+    sys.exit(1)
+
+URL = WEBAPP_URL
 
 
 def load_data():
@@ -104,9 +162,18 @@ def get_balance():
     data = request.json
     if 'user_id' not in data:
         return jsonify({'error': 'user_id is required'}), 400
+    
     user_id = str(data['user_id'])
+    
+    # Rate limiting
+    if not check_rate_limit(user_id):
+        logging.warning(f'Rate limit exceeded for user {user_id}')
+        return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
+    
     with data_lock:
         balance = user_tokens.get(user_id, 0)
+    
+    logging.info(f'Balance requested for user {user_id}: {balance} AFN')
     return jsonify({'balance': balance})
 
 
@@ -115,8 +182,16 @@ def create_referral_link():
     data = request.json
     if 'user_id' not in data:
         return jsonify({'error': 'user_id is required'}), 400
+    
     user_id = str(data['user_id'])
+    
+    # Rate limiting
+    if not check_rate_limit(user_id):
+        logging.warning(f'Rate limit exceeded for user {user_id} (referral link)')
+        return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
+    
     referral_link = f"https://t.me/{BOT_USERNAME}?start={user_id}"
+    logging.info(f'Referral link created for user {user_id}')
     return jsonify({'link': referral_link})
 
 
@@ -262,11 +337,17 @@ def get_donate_link():
 
     user_id = str(data['user_id'])
     
+    # Rate limiting для донатов (более строгий)
+    if not check_rate_limit(f"donate_{user_id}"):
+        logging.warning(f'Donation rate limit exceeded for user {user_id}')
+        return jsonify({'error': 'Too many donation requests. Please wait before trying again.'}), 429
+    
     # Получаем сумму из запроса или используем 100 по умолчанию
     amount = data.get('amount', 100)
     
     # Валидация суммы
     if not isinstance(amount, int) or amount < 50 or amount > 10000:
+        logging.warning(f'Invalid donation amount from user {user_id}: {amount}')
         return jsonify({'error': 'Amount must be between 50 and 10000 stars'}), 400
 
     # Создаем описание в зависимости от суммы
@@ -294,9 +375,10 @@ def get_donate_link():
 
     try:
         invoice_link = future.result(timeout=10)
+        logging.info(f'Donation invoice created for user {user_id}: {amount} stars, tier: {tier}')
         return jsonify({'success': True, 'invoice_link': invoice_link})
     except Exception as e:
-        logging.error(f"Error creating invoice: {e}")
+        logging.error(f"Error creating invoice for user {user_id}: {e}")
         return jsonify({'error': f'Failed to create donation invoice: {e}'}), 500
 
 # ===== Хендлеры бота =====
