@@ -540,40 +540,75 @@
         }
 
         .safety-status-card {
-            background: linear-gradient(135deg, #00b894, #00a085);
-            border-radius: 20px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 8px 32px rgba(0, 184, 148, 0.3);
-            text-align: center;
-            color: white;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-bottom: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .safety-status-card:hover {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
+            transform: translateY(-1px);
         }
 
         .safety-status-card.warning {
-            background: linear-gradient(135deg, #fdcb6e, #e17055);
-            box-shadow: 0 8px 32px rgba(253, 203, 110, 0.3);
+            background: linear-gradient(135deg, rgba(253, 203, 110, 0.2), rgba(225, 112, 85, 0.1));
+            border-color: rgba(253, 203, 110, 0.3);
         }
 
         .safety-status-card.danger {
-            background: linear-gradient(135deg, #e17055, #d63031);
-            box-shadow: 0 8px 32px rgba(225, 112, 85, 0.3);
+            background: linear-gradient(135deg, rgba(225, 112, 85, 0.2), rgba(214, 48, 49, 0.1));
+            border-color: rgba(225, 112, 85, 0.3);
         }
 
-        .status-icon {
-            font-size: 48px;
-            margin-bottom: 10px;
-            display: block;
+        .safety-status-content {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .safety-status-icon {
+            font-size: 20px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .safety-status-text {
+            flex: 1;
         }
 
         .status-title {
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 8px;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 0;
+            line-height: 1.2;
         }
 
         .status-subtitle {
-            font-size: 14px;
-            opacity: 0.9;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 11px;
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        .safety-status-arrow {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 16px;
+            transition: transform 0.3s ease;
+        }
+
+        .safety-status-card:hover .safety-status-arrow {
+            transform: translateX(3px);
         }
 
         .quick-actions {
@@ -696,23 +731,127 @@
 
         .primary-consent-btn {
             width: 100%;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
             border: none;
             border-radius: 20px;
             padding: 20px;
             color: white;
             font-size: 20px;
-            font-weight: bold;
+            font-weight: 700;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 12px 40px rgba(255, 107, 107, 0.4);
             margin-bottom: 15px;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .primary-consent-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .primary-consent-btn:hover::before {
+            left: 100%;
         }
 
         .primary-consent-btn:hover {
             transform: translateY(-3px);
-            box-shadow: 0 12px 40px rgba(102, 126, 234, 0.5);
+            box-shadow: 0 16px 50px rgba(255, 107, 107, 0.5);
+            background: linear-gradient(135deg, #ff5252, #d84315);
+        }
+
+        .primary-consent-btn:active {
+            transform: translateY(-1px);
+        }
+
+        /* Three dots menu */
+        .three-dots-menu {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        .three-dots-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .three-dots-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        .three-dots-dropdown {
+            position: absolute;
+            top: 50px;
+            right: 0;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(20px);
+            border-radius: 12px;
+            padding: 8px 0;
+            min-width: 200px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .three-dots-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .dropdown-item {
+            padding: 12px 16px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+        }
+
+        .dropdown-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .dropdown-item:first-child {
+            border-radius: 12px 12px 0 0;
+        }
+
+        .dropdown-item:last-child {
+            border-radius: 0 0 12px 12px;
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 4px 0;
         }
 
         .crypto-roadmap {
@@ -1940,6 +2079,9 @@
 
         const BOT_USERNAME = 'AffiniaBot';
 
+        // Check for consent link on app start
+        checkForConsentLink();
+
         function updateUserInfo() {
             const user = Telegram.WebApp.initDataUnsafe?.user;
 
@@ -1982,7 +2124,7 @@
 
         function updateSafetyStatus(balance) {
             const statusCard = document.getElementById('safety-status');
-            const statusIcon = statusCard.querySelector('.status-icon');
+            const statusIcon = statusCard.querySelector('.safety-status-icon');
             const statusTitle = statusCard.querySelector('.status-title');
             const statusSubtitle = statusCard.querySelector('.status-subtitle');
 
@@ -2272,6 +2414,99 @@
         function exportConsentHistory() {
             alert(`📥 Export Consent History\n\nThis feature will generate a legally certified document containing:\n\n• Complete consent timeline\n• Digital signatures and timestamps\n• Blockchain verification hashes\n• Legal compliance certificates\n\nThe exported file can be used in legal proceedings and is admissible in court.\n\nExport formats: PDF, JSON, Blockchain Certificate`);
             addActivityItem('📥', 'Exported consent history for legal use');
+        }
+
+        // Three dots menu functions
+        function toggleThreeDotsMenu() {
+            const dropdown = document.getElementById('three-dots-dropdown');
+            dropdown.classList.toggle('show');
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function closeDropdown(e) {
+                if (!e.target.closest('.three-dots-menu')) {
+                    dropdown.classList.remove('show');
+                    document.removeEventListener('click', closeDropdown);
+                }
+            });
+        }
+
+        function showSettings() {
+            alert('⚙️ Settings\n\n• Notification preferences\n• Privacy controls\n• Language selection\n• Theme options\n• Data export settings');
+            addActivityItem('⚙️', 'Opened settings menu');
+        }
+
+        function showPrivacyPolicy() {
+            alert('🔒 Privacy Policy\n\nYour privacy is our top priority:\n\n• All data is encrypted end-to-end\n• No personal information is shared\n• You control your data completely\n• GDPR compliant\n• Anonymous analytics only');
+            addActivityItem('🔒', 'Viewed privacy policy');
+        }
+
+        function showHelp() {
+            alert('❓ Help & Support\n\n• FAQ and tutorials\n• Contact support team\n• Emergency resources\n• Safety guidelines\n• Legal information');
+            addActivityItem('❓', 'Opened help menu');
+        }
+
+        function showAbout() {
+            alert('ℹ️ About Affinia\n\nAffinia is a revolutionary consent management platform:\n\n• Digital active consent\n• Legal protection\n• Trust network\n• Future AFN cryptocurrency\n• Making intimacy safer');
+            addActivityItem('ℹ️', 'Viewed about information');
+        }
+
+        function showFeedback() {
+            alert('💬 Send Feedback\n\nWe value your input:\n\n• Feature requests\n• Bug reports\n• General feedback\n• Suggestions for improvement\n• Your experience matters!');
+            addActivityItem('💬', 'Opened feedback form');
+        }
+
+        function showSafetyDetails() {
+            alert('🛡️ Safety Status Details\n\nYour current safety status:\n\n• Digital consent protection: ACTIVE\n• Emergency contacts: Configured\n• Trust network: Connected\n• Legal backup: Enabled\n• 24/7 monitoring: Active');
+            addActivityItem('🛡️', 'Viewed safety details');
+        }
+
+        // Auto-add partner when consent link is used
+        function addPartnerFromConsent(consentId) {
+            const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
+            if (!userId) return;
+
+            // Parse consent ID to get referrer ID
+            const parts = consentId.split('_');
+            if (parts.length >= 2) {
+                const referrerId = parts[1];
+                
+                // Add to partners list
+                if (!window.partners) window.partners = [];
+                
+                const newPartner = {
+                    id: referrerId,
+                    name: `Partner from consent`,
+                    status: 'potential',
+                    addedAt: new Date(),
+                    consentId: consentId
+                };
+                
+                // Check if partner already exists
+                const existingPartner = window.partners.find(p => p.id === referrerId);
+                if (!existingPartner) {
+                    window.partners.push(newPartner);
+                    addActivityItem('👥', 'New partner added from consent link');
+                    
+                    // Update partners list if on partners page
+                    if (document.getElementById('beloved-page').classList.contains('active')) {
+                        updateBelovedList();
+                    }
+                }
+            }
+        }
+
+        // Check for consent link on app start
+        function checkForConsentLink() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const startParam = urlParams.get('start');
+            
+            if (startParam && startParam.startsWith('consent_')) {
+                addPartnerFromConsent(startParam);
+                // Show welcome message
+                setTimeout(() => {
+                    alert('👋 Welcome! You\'ve been invited to join a consent agreement.\n\nThis person will now appear in your Partners list.\n\nPlease review the consent details and respond accordingly.');
+                }, 1000);
+            }
         }
 
         function addActivityItem(icon, text) {
@@ -3218,21 +3453,19 @@ function deleteBeloved(belovedId) {
 
 
         function getConsentLink() {
-    fetch('/generate_consent_qr', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe?.user?.id })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            alert(data.error);
-        } else {
-            document.getElementById('consent-qr-code').src = `data:image/png;base64,${data.qr_code}`;
-            document.getElementById('consent-link').setAttribute('data-link', data.consent_link);
-            document.getElementById('consent-link').textContent = '';
+            const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
+            if (!userId) {
+                alert('User ID not found. Please restart the app.');
+                return;
+            }
+
+            // Создаем уникальную ссылку для согласия
+            const uniqueConsentId = `consent_${userId}_${Date.now()}`;
+            const consentLink = `https://t.me/${BOT_USERNAME}?start=${uniqueConsentId}`;
+            
+            // Показываем модальное окно с ссылкой
+            document.getElementById('consent-link').setAttribute('data-link', consentLink);
+            document.getElementById('consent-link').textContent = consentLink;
             document.getElementById('consent-modal').style.display = 'flex';
             
             // Добавляем активность
@@ -3241,26 +3474,21 @@ function deleteBeloved(belovedId) {
             // Обновляем баланс
             updateCounter();
         }
-    })
-    .catch(error => console.error('Error:', error));
-}
 
 function closeConsentModal() {
     document.getElementById('consent-modal').style.display = 'none';
 }
 
-function sendConsentLink() {
-    const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
-    if (userId) {
-        // Формируем ссылку вида: https://t.me/AffiniaBot?start=consent_<userId>
-        const consentLink = `https://t.me/${BOT_USERNAME}?start=consent_${userId}`;
-        const shareLink = `https://t.me/share/url?url=${encodeURIComponent(consentLink)}`;
-        Telegram.WebApp.openTelegramLink(shareLink);
-        Telegram.WebApp.close();
-    } else {
-        alert('Consent link not found.');
-    }
-}
+        function sendConsentLink() {
+            const consentLink = document.getElementById('consent-link').getAttribute('data-link');
+            if (consentLink) {
+                const shareLink = `https://t.me/share/url?url=${encodeURIComponent(consentLink)}`;
+                Telegram.WebApp.openTelegramLink(shareLink);
+                addActivityItem('📤', 'Shared consent link with partner');
+            } else {
+                alert('Consent link not found. Please create a new one.');
+            }
+        }
 
 function sendConsentResponse(decision) {
     const referrer_id = window.consentRequesterId; // ID отправителя consent-ссылки (из URL)
@@ -3317,12 +3545,40 @@ function sendConsentResponse(decision) {
         <!-- Страница Main -->
         <div id="main-page" class="page">
             <div class="main-container">
+                <!-- Three dots menu -->
+                <div class="three-dots-menu">
+                    <div class="three-dots-btn" onclick="toggleThreeDotsMenu()">⋯</div>
+                    <div class="three-dots-dropdown" id="three-dots-dropdown">
+                        <div class="dropdown-item" onclick="showSettings()">
+                            ⚙️ Settings
+                        </div>
+                        <div class="dropdown-item" onclick="showPrivacyPolicy()">
+                            🔒 Privacy Policy
+                        </div>
+                        <div class="dropdown-item" onclick="showHelp()">
+                            ❓ Help & Support
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-item" onclick="showAbout()">
+                            ℹ️ About Affinia
+                        </div>
+                        <div class="dropdown-item" onclick="showFeedback()">
+                            💬 Send Feedback
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Статус безопасности -->
-                <div class="safety-status-card" id="safety-status">
-                    <span class="status-icon">🛡️</span>
-                    <div class="status-title">Safety Active</div>
-                    <div class="status-subtitle">Your digital consent protection is enabled</div>
-            </div>
+                <div class="safety-status-card" id="safety-status" onclick="showSafetyDetails()">
+                    <div class="safety-status-content">
+                        <span class="safety-status-icon">🛡️</span>
+                        <div class="safety-status-text">
+                            <div class="status-title">Safety Active</div>
+                            <div class="status-subtitle">Your digital consent protection is enabled</div>
+                        </div>
+                    </div>
+                    <span class="safety-status-arrow">→</span>
+                </div>
 
                 <!-- Баланс AFN -->
                 <div class="afn-balance-card">
