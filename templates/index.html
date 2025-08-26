@@ -2604,7 +2604,7 @@
             }
 
             for (const friend of friends) {
-                const userInfo = await fetchTelegramUserData(friend.user_id);
+                    const userInfo = await fetchTelegramUserData(friend.user_id);
                 const friendCard = createEnhancedFriendCard(friend, userInfo);
                 container.appendChild(friendCard);
             }
@@ -2623,8 +2623,8 @@
                         <div class="friend-name-info">
                             <h4>${userInfo.username}</h4>
                             <div class="friend-afn">${friend.coins} AFN</div>
+                            </div>
                         </div>
-                    </div>
                     ${trustBadge}
                 </div>
                 <div class="friend-actions">
@@ -2971,13 +2971,13 @@
         }
 
         async function updateBelovedList() {
-            try {
-                const response = await fetch('/get_beloved', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe?.user?.id })
-                });
-                const data = await response.json();
+    try {
+        const response = await fetch('/get_beloved', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe?.user?.id })
+        });
+        const data = await response.json();
                 
                 // Organize partners by relationship status
                 const beloved = data.beloved || [];
@@ -3003,7 +3003,7 @@
                 // Show/hide no partners message
                 if (beloved.length === 0) {
                     document.getElementById('no-partners-message').style.display = 'block';
-                    return;
+            return;
                 } else {
                     document.getElementById('no-partners-message').style.display = 'none';
                 }
@@ -3177,8 +3177,8 @@
         function removePartner(partnerId) {
             if (confirm('Are you sure you want to remove this partner? This action cannot be undone, but your consent history will be preserved for legal protection.')) {
                 deleteBeloved(partnerId);
-            }
-        }
+    }
+}
 
 
 function deleteBeloved(belovedId) {
@@ -3474,10 +3474,10 @@ function sendConsentResponse(decision) {
                         <span>👋</span>
                         <span>Friends</span>
                     </div>
-                    <div id="friends-list">
+            <div id="friends-list">
                         <!-- Regular friends will be populated here -->
-                    </div>
-                </div>
+            </div>        
+        </div>
 
                 <!-- No friends message -->
                 <div id="no-friends-message" class="no-friends-message" style="display: none;">
@@ -3721,8 +3721,8 @@ function sendConsentResponse(decision) {
                     <div class="partner-stat-card">
                         <span class="stat-number-pink" id="active-consents">0</span>
                         <span class="stat-label-pink">Active Consents</span>
-                    </div>
-                </div>
+            </div>
+        </div>
 
                 <!-- Add Partner Section -->
                 <div class="add-partner-section">
@@ -3957,8 +3957,8 @@ function sendConsentResponse(decision) {
             <button class="export-btn" onclick="exportConsentHistory()">
                 📥 Export for Legal Use
             </button>
-        </div>
     </div>
+</div>
 
 </body>
 </html>
