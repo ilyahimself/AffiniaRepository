@@ -75,19 +75,7 @@
             text-align: left;
         }
 
-        /* Кнопка настроек (вертикальные три точки) */
-        .settings-btn {
-            background: none;
-            border: none;
-            font-size: 24px;
-            color: #e8e6d9;
-            align-items: center;
-            /* height: auto; */
-        }
 
-        .settings-btn:hover {
-            color: #fff;
-        }
         
         /* ----- Страницы (для переключения контента) ----- */
         .main-content {
@@ -3535,8 +3523,7 @@ function sendConsentResponse(decision) {
                     <p id="counter">Loading...</p>
                 </div>
             </div>
-            <!-- Кнопка настроек (вертикальные три точки) -->
-            <button class="settings-btn">⋮</button>
+
         </div>
     </header>
 
@@ -3547,7 +3534,7 @@ function sendConsentResponse(decision) {
             <div class="main-container">
                 <!-- Three dots menu -->
                 <div class="three-dots-menu">
-                    <div class="three-dots-btn" onclick="toggleThreeDotsMenu()">⋯</div>
+                    <div class="three-dots-btn" onclick="toggleThreeDotsMenu()">⋮</div>
                     <div class="three-dots-dropdown" id="three-dots-dropdown">
                         <div class="dropdown-item" onclick="showSettings()">
                             ⚙️ Settings
