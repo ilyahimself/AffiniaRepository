@@ -537,23 +537,10 @@ async def process_decline(query, context, command):
     await show_menu(query, context, new_user_id)
 
 
-# Webhook endpoint для Heroku
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    try:
-        json_string = request.get_data().decode('utf-8')
-        update = Update.de_json(json.loads(json_string), bot)
-        
-        # Обрабатываем обновление асинхронно
-        asyncio.run(application.process_update(update))
-        return 'OK', 200
-    except Exception as e:
-        logging.error(f"Webhook error: {e}")
-        return 'Error', 500
-
-# Функция для настройки бота
-def setup_bot():
+# Главное: запускаем бота СИНХРОННО без asyncio.run(...)
+def run_bot():
     global bot_loop
+    # Получаем event loop, который будет использоваться для polling
     bot_loop = asyncio.get_event_loop()
     
     application.add_handler(CommandHandler("start", start))
@@ -561,10 +548,7 @@ def setup_bot():
     application.add_handler(CommandHandler("donate", send_invoice))
     application.add_handler(PreCheckoutQueryHandler(precheckout_callback))
     application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_callback))
-
-# Функция для запуска бота локально (polling)
-def run_bot():
-    setup_bot()
+    
     application.run_polling()
 
 async def send_invoice(update: Update, context: CallbackContext) -> None:
@@ -676,36 +660,19 @@ def get_telegram_stars():
 
 if __name__ == '__main__':
     load_data()
-    
-    # Определяем окружение
-    IS_HEROKU = os.getenv('IS_HEROKU', 'False').lower() == 'true'
-    
-    if IS_HEROKU:
-        # На Heroku: настраиваем бота и запускаем только Flask
-        setup_bot()
-        logging.info('🚀 Starting Affinia on Heroku with webhook mode')
-        
-        # Устанавливаем webhook
-        try:
-            webhook_url = f"{WEBAPP_URL}/webhook"
-            asyncio.run(bot.set_webhook(url=webhook_url))
-            logging.info(f'✅ Webhook set to: {webhook_url}')
-        except Exception as e:
-            logging.error(f'❌ Failed to set webhook: {e}')
-        
-        # Запускаем Flask
-        app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=False)
-    else:
-        # Локально: Flask в отдельном потоке, бот в основном
-        flask_thread = threading.Thread(
-            target=lambda: app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=False),
-            daemon=True
-        )
-        flask_thread.start()
-        
-        # Запускаем бота в polling режиме
-        try:
-            run_bot()
-        except KeyboardInterrupt:
-            print("Bot stopped by user (Ctrl+C)")
-            flask_thread.join()
+    # load_beloveds()
+
+    # Flask в отдельном потоке
+    flask_thread = threading.Thread(
+        target=lambda: app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=False),
+        daemon=True
+    )
+    flask_thread.start()
+
+    # Запускаем бота в основном потоке синхронно
+    try:
+        run_bot()
+    except KeyboardInterrupt:
+        print("Bot stopped by user (Ctrl+C)")
+        # Если надо - дожидаемся Flask
+        flask_thread.join()
