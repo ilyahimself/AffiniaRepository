@@ -540,8 +540,9 @@ async def process_decline(query, context, command):
 # Главное: запускаем бота СИНХРОННО без asyncio.run(...)
 def run_bot():
     global bot_loop
-    # Получаем event loop, который будет использоваться для polling
-    bot_loop = asyncio.get_event_loop()
+    # Создаем новый event loop для polling (современный способ)
+    bot_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(bot_loop)
     
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(button_handler))
