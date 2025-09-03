@@ -63,6 +63,7 @@ data_lock = threading.Lock()
 API_TOKEN = os.getenv('API_TOKEN')
 BOT_USERNAME = os.getenv('BOT_USERNAME')
 WEBAPP_URL = os.getenv('WEBAPP_URL')
+USE_WEBHOOK = os.getenv('USE_WEBHOOK', 'False').lower() == 'true'  # Переключатель webhook
 
 # Проверка обязательных переменных окружения
 if not API_TOKEN:
@@ -537,20 +538,42 @@ async def process_decline(query, context, command):
     await show_menu(query, context, new_user_id)
 
 
-# Главное: запускаем бота СИНХРОННО без asyncio.run(...)
-def run_bot():
-    global bot_loop
-    # Создаем новый event loop для polling (современный способ)
-    bot_loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(bot_loop)
-    
+# Инициализация обработчиков (общая для polling и webhook)
+def setup_handlers():
+    """Настройка обработчиков бота"""
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(button_handler))
     application.add_handler(CommandHandler("donate", send_invoice))
     application.add_handler(PreCheckoutQueryHandler(precheckout_callback))
     application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_callback))
+    logging.info('✅ Bot handlers registered')
+
+
+# Polling mode (текущий рабочий способ)
+def run_bot_polling():
+    """Запуск бота в режиме polling"""
+    global bot_loop
+    # Создаем новый event loop для polling (современный способ)
+    bot_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(bot_loop)
     
+    setup_handlers()
+    logging.info('🔄 Starting bot in POLLING mode...')
     application.run_polling()
+
+
+# Webhook mode (для будущего использования)
+async def run_bot_webhook():
+    """Запуск бота в режиме webhook"""
+    setup_handlers()
+    
+    # Удаляем старый webhook (на всякий случай)
+    await remove_webhook()
+    
+    # Устанавливаем новый webhook
+    await setup_webhook()
+    
+    logging.info('🌐 Bot started in WEBHOOK mode')
 
 async def send_invoice(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat_id
@@ -659,21 +682,92 @@ def get_telegram_stars():
     return jsonify({'telegram_stars': stars})
 
 
+# =====  WEBHOOK ПОДДЕРЖКА (готова, но не активна) =====
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    """Webhook endpoint для будущего использования"""
+    if not USE_WEBHOOK:
+        return jsonify({'error': 'Webhook not enabled'}), 400
+    
+    try:
+        json_data = request.get_json()
+        update = Update.de_json(json_data, bot)
+        
+        # Обрабатываем update в отдельной задаче
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(application.process_update(update))
+        loop.close()
+        
+        return jsonify({'ok': True})
+    except Exception as e:
+        logging.error(f'❌ Webhook error: {e}')
+        return jsonify({'error': str(e)}), 500
+
+
+# Функция для настройки webhook
+async def setup_webhook():
+    """Настройка webhook (для будущего использования)"""
+    webhook_url = f"{WEBAPP_URL}/webhook"
+    try:
+        await bot.set_webhook(webhook_url)
+        logging.info(f'✅ Webhook set to: {webhook_url}')
+    except Exception as e:
+        logging.error(f'❌ Failed to set webhook: {e}')
+        raise
+
+
+# Функция для удаления webhook
+async def remove_webhook():
+    """Удаление webhook"""
+    try:
+        await bot.delete_webhook()
+        logging.info('✅ Webhook removed')
+    except Exception as e:
+        logging.error(f'❌ Failed to remove webhook: {e}')
+
+
 if __name__ == '__main__':
     load_data()
     # load_beloveds()
 
-    # Flask в отдельном потоке
-    flask_thread = threading.Thread(
-        target=lambda: app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=False),
-        daemon=True
-    )
-    flask_thread.start()
-
-    # Запускаем бота в основном потоке синхронно
-    try:
-        run_bot()
-    except KeyboardInterrupt:
-        print("Bot stopped by user (Ctrl+C)")
-        # Если надо - дожидаемся Flask
-        flask_thread.join()
+    logging.info(f'🚀 Starting Affinia Bot (USE_WEBHOOK: {USE_WEBHOOK})')
+    
+    if USE_WEBHOOK:
+        # WEBHOOK MODE: Flask и бот в одном процессе
+        logging.info('🌐 Using WEBHOOK mode')
+        
+        # Настраиваем webhook асинхронно
+        async def init_webhook():
+            await run_bot_webhook()
+        
+        # Запускаем webhook setup
+        import asyncio
+        webhook_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(webhook_loop)
+        webhook_loop.run_until_complete(init_webhook())
+        webhook_loop.close()
+        
+        # Flask запускается синхронно (будет принимать webhook calls)
+        logging.info('🌐 Starting Flask server for webhook...')
+        app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=False)
+        
+    else:
+        # POLLING MODE: Flask в отдельном потоке, бот в основном
+        logging.info('🔄 Using POLLING mode (current stable setup)')
+        
+        # Flask в отдельном потоке
+        flask_thread = threading.Thread(
+            target=lambda: app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=False),
+            daemon=True
+        )
+        flask_thread.start()
+        
+        # Запускаем бота в основном потоке синхронно
+        try:
+            run_bot_polling()
+        except KeyboardInterrupt:
+            print("Bot stopped by user (Ctrl+C)")
+            # Если надо - дожидаемся Flask
+            flask_thread.join()
