@@ -407,10 +407,21 @@ async def start(update: Update, context: CallbackContext) -> None:
     args = context.args
     user_id = str(update.message.from_user.id)
     if args:
-        if args[0].startswith("consent_"):
-            await handle_consent(update, context, args[0].split("_")[1])
+        arg = args[0]
+        # Проверяем тип приглашения
+        if arg.startswith("friend_"):
+            # Это приглашение в друзья - открываем мини-апп с параметром
+            await handle_friend_invitation(update, context, arg)
+        elif arg.startswith("consent_"):
+            # Проверяем формат - новый или старый
+            parts = arg.split("_")
+            if len(parts) >= 3:  # Новый формат: consent_userId_timestamp
+                await handle_consent_invitation(update, context, arg)
+            else:  # Старый формат: consent_userId
+                await handle_consent(update, context, parts[1])
         else:
-            await referral_start(update, context, args[0])
+            # Обычная реферальная ссылка
+            await referral_start(update, context, arg)
     else:
         await show_menu(update, context, user_id)
 
@@ -467,6 +478,45 @@ async def handle_consent(update: Update, context: CallbackContext, referrer_id: 
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     text = "To respond to the consent request, please open the app."
+    await update.message.reply_text(text, reply_markup=reply_markup)
+
+
+async def handle_friend_invitation(update: Update, context: CallbackContext, invite_id: str) -> None:
+    """Обработка приглашения в друзья"""
+    user_id = str(update.message.from_user.id)
+    inviter_id = invite_id.split('_')[1] if '_' in invite_id else ''
+    
+    # Формируем URL мини-приложения с параметром приглашения
+    open_app_url = f"{URL}/mini_app?invite={invite_id}"
+    
+    text = f"🌟 You've been invited to become friends in Affinia!\n\n" \
+           f"Click the button below to open the app and respond to the invitation."
+    
+    keyboard = [
+        [InlineKeyboardButton("🚀 Open Affinia", web_app=WebAppInfo(url=open_app_url))]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(text, reply_markup=reply_markup)
+
+
+async def handle_consent_invitation(update: Update, context: CallbackContext, invite_id: str) -> None:
+    """Обработка приглашения для партнерства"""
+    user_id = str(update.message.from_user.id)
+    inviter_id = invite_id.split('_')[1] if '_' in invite_id else ''
+    
+    # Формируем URL мини-приложения с параметром приглашения
+    open_app_url = f"{URL}/mini_app?invite={invite_id}"
+    
+    text = f"💕 You've been invited to establish an intimate connection in Affinia!\n\n" \
+           f"This is a special invitation to become partners. " \
+           f"Click the button below to open the app and respond."
+    
+    keyboard = [
+        [InlineKeyboardButton("💕 Open Affinia", web_app=WebAppInfo(url=open_app_url))]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
     await update.message.reply_text(text, reply_markup=reply_markup)
 
 
@@ -713,8 +763,8 @@ def send_friend_invite():
         pending_friend_requests[user_id] = []
     pending_friend_requests[user_id].append(invite_id)
     
-    # Создаем ссылку на мини-апп с параметром приглашения
-    invite_link = f"https://t.me/{BOT_USERNAME}/affinia?startapp={invite_id}"
+    # Создаем ссылку на бот с параметром для обработки
+    invite_link = f"https://t.me/{BOT_USERNAME}?start={invite_id}"
     
     save_data()
     
@@ -818,8 +868,8 @@ def send_consent_invite():
         pending_consent_requests[user_id] = []
     pending_consent_requests[user_id].append(invite_id)
     
-    # Создаем ссылку на мини-апп с параметром приглашения
-    invite_link = f"https://t.me/{BOT_USERNAME}/affinia?startapp={invite_id}"
+    # Создаем ссылку на бот с параметром для обработки
+    invite_link = f"https://t.me/{BOT_USERNAME}?start={invite_id}"
     
     save_data()
     
