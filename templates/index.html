@@ -2139,6 +2139,31 @@
             initializeApp();
         }, 1000);
 
+        function initializeActivity() {
+            console.log('Initializing activity history...');
+            const activityList = document.getElementById('activity-list');
+            
+            if (!activityList) {
+                console.warn('Activity list element not found');
+                return;
+            }
+            
+            // Очищаем список активности
+            activityList.innerHTML = '';
+            
+            // Добавляем приветственное сообщение только один раз при первом запуске
+            const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
+            if (userId) {
+                // Проверяем, есть ли уже активность для этого пользователя
+                const hasActivity = activityList.children.length > 0;
+                if (!hasActivity) {
+                    addActivityItem('🆕', 'Welcome to Affinia! Start building your trust network.');
+                }
+            } else {
+                addActivityItem('👋', 'Welcome to Affinia! Please authorize to continue.');
+            }
+        }
+
         function initializeApp() {
             console.log('Initializing Affinia app...');
             
@@ -2161,6 +2186,9 @@
             updateFriendsList();
             updateBelovedList();
             
+            // Инициализируем активность с приветственным сообщением
+            initializeActivity();
+            
             console.log('App initialization complete');
         }
 
@@ -2179,9 +2207,8 @@
                     document.getElementById('username').textContent = firstName + (lastName ? ' ' + lastName : '');
                 }
                 
-                // Генерируем аватар на основе user ID
-                const seed = user.id.toString();
-                const avatarUrl = `https://api.dicebear.com/6.x/avataaars/svg?seed=${seed}`;
+                // Используем аватар из Telegram или генерируем fallback
+                const avatarUrl = user.photo_url || `https://api.dicebear.com/6.x/avataaars/svg?seed=${user.id.toString()}`;
                 document.getElementById('user-avatar').src = avatarUrl;
                 
                 // Загружаем баланс
@@ -2879,6 +2906,7 @@
 
             if (pageId === 'friends-page') {
                 updateFriendsList();
+                clearFriendsBadge(); // Убираем значок с цифрой после просмотра
             }
             if (pageId === 'beloved-page') {
                 updateBelovedList();
@@ -3807,6 +3835,7 @@ function sendConsentResponse(decision) {
                     
                     if (decision === 'accept') {
                         showNotification('✅ Friend request accepted!', `You earned ${data.tokens_earned} AFN!`, 'success');
+                        addActivityItem('🤝', `Accepted friend request and earned ${data.tokens_earned} AFN`);
                         updateCounter();
                         updateFriendsList();
                     } else {
@@ -3840,6 +3869,7 @@ function sendConsentResponse(decision) {
                     
                     if (decision === 'accept') {
                         showNotification('💕 Connection established!', `You both earned ${data.tokens_earned} AFN!`, 'success');
+                        addActivityItem('💕', `Established intimate connection and earned ${data.tokens_earned} AFN`);
                         updateCounter();
                         updateBelovedList();
                         updateConsentHistory();
@@ -3903,6 +3933,8 @@ function sendConsentResponse(decision) {
         
         function checkForNotifications() {
             const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
+            console.log('Checking for notifications for user:', userId);
+            
             if (!userId) return;
             
             fetch('/get_notifications', {
@@ -3912,17 +3944,32 @@ function sendConsentResponse(decision) {
             })
             .then(response => response.json())
             .then(data => {
+                console.log('Notifications received:', data);
                 if (data.notifications && data.notifications.length > 0) {
                     data.notifications.forEach(notif => {
                         const type = notif.type.includes('accepted') ? 'success' : 
                                     notif.type.includes('declined') ? 'warning' : 'info';
                         showNotification(notif.message, '', type);
+                        
+                        // Также добавляем в историю активности
+                        if (notif.type === 'friend_accepted') {
+                            addActivityItem('✅', notif.message);
+                        } else if (notif.type === 'friend_declined') {
+                            addActivityItem('❌', notif.message);
+                        } else if (notif.type === 'consent_accepted') {
+                            addActivityItem('💕', notif.message);
+                        } else if (notif.type === 'consent_declined') {
+                            addActivityItem('💔', notif.message);
+                        }
                     });
                 }
+            })
+            .catch(error => {
+                console.error('Error checking notifications:', error);
             });
             
-            // Проверяем уведомления каждые 30 секунд
-            setTimeout(checkForNotifications, 30000);
+            // Проверяем уведомления каждые 15 секунд
+            setTimeout(checkForNotifications, 15000);
         }
         
         function updateFriendBadges() {
@@ -4144,10 +4191,7 @@ function sendConsentResponse(decision) {
                 <div class="recent-activity">
                     <div class="activity-title">Recent Activity</div>
                     <div id="activity-list">
-                        <div class="activity-item">
-                            <span class="activity-icon">🆕</span>
-                            <span class="activity-text">Welcome to Affinia! Create your first consent.</span>
-                        </div>
+                        <!-- Активность будет загружаться динамически -->
                     </div>
                 </div>
 
