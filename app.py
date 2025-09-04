@@ -328,7 +328,28 @@ def get_beloved():
     user_id = str(data['user_id'])
     if user_id not in beloveds:
         return jsonify({'beloved': []})
-    beloved_data = [{"user_id": b_id} for b_id in beloveds[user_id]]
+    
+    # Создаем полную структуру данных для партнеров
+    beloved_data = []
+    for b_id in beloveds[user_id]:
+        # Определяем статус отношений на основе consent_history
+        relationship_status = 'potential'  # по умолчанию
+        
+        if user_id in consent_history:
+            for consent in consent_history[user_id]:
+                if consent.get('partner_id') == b_id and consent.get('status') == 'active':
+                    relationship_status = 'current'
+                    break
+        
+        partner_data = {
+            "user_id": b_id,
+            "relationship_status": relationship_status,
+            "trust_level": "partner",
+            "added_date": int(time()),  # временная метка
+            "consent_type": "intimate"
+        }
+        beloved_data.append(partner_data)
+    
     return jsonify({'beloved': beloved_data})
 
 
