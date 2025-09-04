@@ -2117,60 +2117,155 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script>
         Telegram.WebApp.ready();
+        
+        // Расширяем viewport для полноэкранного режима
+        Telegram.WebApp.expand();
 
         const BOT_USERNAME = 'AffiniaBot';
         
         // Глобальные переменные для хранения информации о приглашениях
         let currentInviteId = null;
         let currentInviterInfo = null;
+        
+        // Добавляем debug логирование
+        console.log('Telegram WebApp initialized');
+        console.log('initData:', Telegram.WebApp.initData);
+        console.log('initDataUnsafe:', Telegram.WebApp.initDataUnsafe);
+        console.log('start_param:', Telegram.WebApp.initDataUnsafe?.start_param);
+        console.log('URL params:', window.location.search);
 
-        // Check for invitations on app start
-        checkForInvitations();
-        // Check for consent link on app start
-        checkForConsentLink();
-        // Check for notifications
-        checkForNotifications();
-        // Update friend badges
-        updateFriendBadges();
+        // Инициализируем приложение после небольшой задержки
+        setTimeout(() => {
+            initializeApp();
+        }, 1000);
+
+        function initializeApp() {
+            console.log('Initializing Affinia app...');
+            
+            // Инициализируем пользовательскую информацию
+            updateUserInfo();
+            
+            // Проверяем приглашения
+            checkForInvitations();
+            
+            // Проверяем consent ссылки
+            checkForConsentLink();
+            
+            // Проверяем уведомления
+            checkForNotifications();
+            
+            // Обновляем значки друзей
+            updateFriendBadges();
+            
+            // Загружаем дополнительные данные
+            updateFriendsList();
+            updateBelovedList();
+            
+            console.log('App initialization complete');
+        }
 
         function updateUserInfo() {
             const user = Telegram.WebApp.initDataUnsafe?.user;
+            console.log('Updating user info for:', user);
 
-            if (user) {
+            if (user && user.id) {
                 // Если у пользователя есть username, добавляем "@", 
                 // иначе используем first_name и last_name
                 if (user.username) {
                     document.getElementById('username').textContent = '@' + user.username;
                 } else {
-                    document.getElementById('username').textContent =
-                        user.first_name + (user.last_name ? ' ' + user.last_name : '');
+                    const firstName = user.first_name || '';
+                    const lastName = user.last_name || '';
+                    document.getElementById('username').textContent = firstName + (lastName ? ' ' + lastName : '');
                 }
-                document.getElementById('user-avatar').src = user.photo_url || 'https://via.placeholder.com/80';
+                
+                // Генерируем аватар на основе user ID
+                const seed = user.id.toString();
+                const avatarUrl = `https://api.dicebear.com/6.x/avataaars/svg?seed=${seed}`;
+                document.getElementById('user-avatar').src = avatarUrl;
+                
+                // Загружаем баланс
+                updateCounter();
             } else {
-                document.getElementById('username').textContent = 'Unknown User';
-                document.getElementById('user-avatar').src = 'https://via.placeholder.com/80';
+                // Fallback для тестирования или проблем с инициализацией
+                console.warn('No user data available, using fallback');
+                document.getElementById('username').textContent = 'Guest User';
+                document.getElementById('user-avatar').src = 'https://api.dicebear.com/6.x/avataaars/svg?seed=guest';
+                
+                // Устанавливаем нулевой баланс
+                const counterElement = document.getElementById('afn-counter');
+                if (counterElement) {
+                    counterElement.textContent = '0';
+                }
             }
         }
 
         function updateCounter() {
+            const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
+            console.log('Updating counter for user ID:', userId);
+            
+            if (!userId) {
+                console.warn('No user ID available, setting balance to 0');
+                setBalanceToZero();
+                return;
+            }
+            
             fetch('/get_balance', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe?.user?.id })
+                body: JSON.stringify({ user_id: userId })
             })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('counter').textContent = data.balance + ' AFN';
-                // Также обновляем баланс на главной странице
-                if (document.getElementById('main-afn-balance')) {
-                    document.getElementById('main-afn-balance').textContent = data.balance;
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                // Обновляем статус безопасности
-                updateSafetyStatus(data.balance);
+                return response.json();
             })
-            .catch(error => console.error('Error:', error));
+            .then(data => {
+                console.log('Balance data received:', data);
+                const balance = data.balance || 0;
+                
+                // Обновляем все элементы с балансом
+                const counterElement = document.getElementById('counter');
+                if (counterElement) {
+                    counterElement.textContent = balance + ' AFN';
+                }
+                
+                const afnCounterElement = document.getElementById('afn-counter');
+                if (afnCounterElement) {
+                    afnCounterElement.textContent = balance;
+                }
+                
+                // Также обновляем баланс на главной странице
+                const mainBalanceElement = document.getElementById('main-afn-balance');
+                if (mainBalanceElement) {
+                    mainBalanceElement.textContent = balance;
+                }
+                
+                // Обновляем статус безопасности
+                updateSafetyStatus(balance);
+            })
+            .catch(error => {
+                console.error('Error fetching balance:', error);
+                setBalanceToZero();
+            });
+        }
+        
+        function setBalanceToZero() {
+            const elements = ['counter', 'afn-counter', 'main-afn-balance'];
+            elements.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    if (id === 'counter') {
+                        element.textContent = '0 AFN';
+                    } else {
+                        element.textContent = '0';
+                    }
+                }
+            });
+            updateSafetyStatus(0);
         }
 
         function updateSafetyStatus(balance) {
@@ -2835,11 +2930,19 @@
 
 
         async function updateFriendsList() {
+            const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
+            console.log('Updating friends list for user:', userId);
+            
+            if (!userId) {
+                console.warn('No user ID available, skipping friends list update');
+                return;
+            }
+            
             try {
                 const response = await fetch('/get_friends', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe?.user?.id })
+                    body: JSON.stringify({ user_id: userId })
                 });
                 const data = await response.json();
                 
@@ -3270,12 +3373,20 @@
         }
 
         async function updateBelovedList() {
-    try {
-        const response = await fetch('/get_beloved', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe?.user?.id })
-        });
+            const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
+            console.log('Updating beloved list for user:', userId);
+            
+            if (!userId) {
+                console.warn('No user ID available, skipping beloved list update');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/get_beloved', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId })
+                });
         const data = await response.json();
                 
                 // Organize partners by relationship status
@@ -3596,43 +3707,80 @@ function sendConsentResponse(decision) {
 
         // Новые функции для обработки приглашений
         function checkForInvitations() {
+            console.log('Checking for invitations...');
+            
             // Проверяем параметры URL
             const urlParams = new URLSearchParams(window.location.search);
             const inviteParam = urlParams.get('invite');
             const startapp = Telegram.WebApp.initDataUnsafe?.start_param;
             
+            console.log('URL invite param:', inviteParam);
+            console.log('Start param:', startapp);
+            
             // Приоритет: сначала проверяем параметр invite из URL, потом start_param
             const inviteId = inviteParam || startapp;
             
             if (inviteId) {
+                console.log('Found invite ID:', inviteId);
+                
                 if (inviteId.startsWith('friend_')) {
+                    console.log('Processing friend invitation');
                     // Это приглашение в друзья
                     currentInviteId = inviteId;
                     const inviterId = inviteId.split('_')[1];
                     
                     // Показываем модальное окно с подтверждением дружбы
-                    document.getElementById('friend-requester-avatar').src = `https://api.dicebear.com/6.x/avataaars/svg?seed=${inviterId}`;
-                    document.getElementById('friend-requester-name').textContent = `User ${inviterId.substring(0, 6)}...`;
+                    const avatarElement = document.getElementById('friend-requester-avatar');
+                    const nameElement = document.getElementById('friend-requester-name');
                     
-                    // Даем время на загрузку интерфейса
-                    setTimeout(() => {
-                        document.getElementById('friend-request-modal').style.display = 'flex';
-                    }, 500);
+                    if (avatarElement && nameElement) {
+                        avatarElement.src = `https://api.dicebear.com/6.x/avataaars/svg?seed=${inviterId}`;
+                        nameElement.textContent = `User ${inviterId.substring(0, 6)}...`;
+                        
+                        // Даем время на загрузку интерфейса
+                        setTimeout(() => {
+                            const modal = document.getElementById('friend-request-modal');
+                            if (modal) {
+                                console.log('Showing friend request modal');
+                                modal.style.display = 'flex';
+                            } else {
+                                console.error('Friend request modal not found');
+                            }
+                        }, 1500);
+                    } else {
+                        console.error('Friend request elements not found');
+                    }
                     
                 } else if (inviteId.startsWith('consent_')) {
+                    console.log('Processing consent invitation');
                     // Это приглашение для партнерства
                     currentInviteId = inviteId;
                     const inviterId = inviteId.split('_')[1];
                     
                     // Показываем модальное окно с подтверждением партнерства
-                    document.getElementById('partner-requester-avatar').src = `https://api.dicebear.com/6.x/avataaars/svg?seed=${inviterId}`;
-                    document.getElementById('partner-requester-name').textContent = `User ${inviterId.substring(0, 6)}...`;
+                    const avatarElement = document.getElementById('partner-requester-avatar');
+                    const nameElement = document.getElementById('partner-requester-name');
                     
-                    // Даем время на загрузку интерфейса
-                    setTimeout(() => {
-                        document.getElementById('partner-request-modal').style.display = 'flex';
-                    }, 500);
+                    if (avatarElement && nameElement) {
+                        avatarElement.src = `https://api.dicebear.com/6.x/avataaars/svg?seed=${inviterId}`;
+                        nameElement.textContent = `User ${inviterId.substring(0, 6)}...`;
+                        
+                        // Даем время на загрузку интерфейса
+                        setTimeout(() => {
+                            const modal = document.getElementById('partner-request-modal');
+                            if (modal) {
+                                console.log('Showing partner request modal');
+                                modal.style.display = 'flex';
+                            } else {
+                                console.error('Partner request modal not found');
+                            }
+                        }, 1500);
+                    } else {
+                        console.error('Partner request elements not found');
+                    }
                 }
+            } else {
+                console.log('No invitation found in parameters');
             }
         }
         
