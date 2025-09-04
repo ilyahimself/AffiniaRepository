@@ -2066,9 +2066,19 @@
         Telegram.WebApp.ready();
 
         const BOT_USERNAME = 'AffiniaBot';
+        
+        // Глобальные переменные для хранения информации о приглашениях
+        let currentInviteId = null;
+        let currentInviterInfo = null;
 
+        // Check for invitations on app start
+        checkForInvitations();
         // Check for consent link on app start
         checkForConsentLink();
+        // Check for notifications
+        checkForNotifications();
+        // Update friend badges
+        updateFriendBadges();
 
         function updateUserInfo() {
             const user = Telegram.WebApp.initDataUnsafe?.user;
@@ -2642,7 +2652,8 @@
 
 
         function showReferralModal() {
-            fetch('/generate_referral_qr', {
+            // Обновленная функция для отправки приглашения друзьям через мини-апп
+            fetch('/send_friend_invite', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -2654,17 +2665,25 @@
                 if (data.error) {
                     alert(data.error);
                 } else {
-                    document.getElementById('qr-code').src = `data:image/png;base64,${data.qr_code}`;
+                    // Генерируем QR-код для ссылки на мини-апп
+                    fetch('/generate_referral_qr', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe?.user?.id })
+                    })
+                    .then(r => r.json())
+                    .then(qrData => {
+                        document.getElementById('qr-code').src = `data:image/png;base64,${qrData.qr_code}`;
+                    });
                     
-                    // Сохраняем ссылку в скрытом атрибуте
-                    document.getElementById('referral-link').setAttribute('data-link', data.referral_link);
-
-                    // Скрываем текст ссылки
+                    // Сохраняем ссылку и сообщение
+                    document.getElementById('referral-link').setAttribute('data-link', data.invite_link);
+                    document.getElementById('referral-link').setAttribute('data-message', data.message);
                     document.getElementById('referral-link').textContent = '';
                     document.getElementById('referral-modal').style.display = 'flex';
                     
                     // Добавляем активность
-                    addActivityItem('🎁', 'Created referral link to earn AFN');
+                    addActivityItem('🎁', 'Created friend invitation link');
                 }
             })
             .catch(error => console.error('Error:', error));
@@ -2676,11 +2695,15 @@
 
         function sendReferralLink() {
             const referralLink = document.getElementById('referral-link').getAttribute('data-link');
-
+            const message = document.getElementById('referral-link').getAttribute('data-message') || "Want to be my friend in Affinia? 🌟";
+            
             if (referralLink) {
-                const shareLink = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}`;
+                // Отправляем сообщение с ссылкой на мини-апп
+                const shareText = `${message}\n\n${referralLink}`;
+                const shareLink = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(message)}`;
                 Telegram.WebApp.openTelegramLink(shareLink);
-                Telegram.WebApp.close();
+                addActivityItem('🎁', 'Sent friend invitation');
+                closeReferralModal();
             } else {
                 alert('Referral link not found.');
             }
@@ -3468,14 +3491,23 @@ function closeConsentModal() {
 }
 
         function sendConsentLink() {
-            const consentLink = document.getElementById('consent-link').getAttribute('data-link');
-            if (consentLink) {
-                const shareLink = `https://t.me/share/url?url=${encodeURIComponent(consentLink)}`;
-                Telegram.WebApp.openTelegramLink(shareLink);
-                addActivityItem('📤', 'Shared consent link with partner');
-            } else {
-                alert('Consent link not found. Please create a new one.');
-            }
+            // Обновленная функция для отправки consent приглашения
+            fetch('/send_consent_invite', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe?.user?.id })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    const shareLink = `https://t.me/share/url?url=${encodeURIComponent(data.invite_link)}&text=${encodeURIComponent(data.message)}`;
+                    Telegram.WebApp.openTelegramLink(shareLink);
+                    addActivityItem('📤', 'Sent intimate connection request');
+                    closeConsentModal();
+                }
+            });
         }
 
 function sendConsentResponse(decision) {
@@ -3508,6 +3540,291 @@ function sendConsentResponse(decision) {
     })
     .catch(error => console.error('Error:', error));
 }
+
+        // Новые функции для обработки приглашений
+        function checkForInvitations() {
+            const startapp = Telegram.WebApp.initDataUnsafe?.start_param;
+            
+            if (startapp) {
+                if (startapp.startsWith('friend_')) {
+                    // Это приглашение в друзья
+                    currentInviteId = startapp;
+                    const inviterId = startapp.split('_')[1];
+                    
+                    // Показываем модальное окно с подтверждением дружбы
+                    document.getElementById('friend-requester-avatar').src = `https://api.dicebear.com/6.x/avataaars/svg?seed=${inviterId}`;
+                    document.getElementById('friend-requester-name').textContent = `User ${inviterId.substring(0, 6)}...`;
+                    document.getElementById('friend-request-modal').style.display = 'flex';
+                    
+                } else if (startapp.startsWith('consent_')) {
+                    // Это приглашение для партнерства
+                    currentInviteId = startapp;
+                    const inviterId = startapp.split('_')[1];
+                    
+                    // Показываем модальное окно с подтверждением партнерства
+                    document.getElementById('partner-requester-avatar').src = `https://api.dicebear.com/6.x/avataaars/svg?seed=${inviterId}`;
+                    document.getElementById('partner-requester-name').textContent = `User ${inviterId.substring(0, 6)}...`;
+                    document.getElementById('partner-request-modal').style.display = 'flex';
+                }
+            }
+        }
+        
+        function handleFriendRequest(decision) {
+            const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
+            if (!userId || !currentInviteId) {
+                alert('Error: Missing user information');
+                return;
+            }
+            
+            fetch('/handle_friend_invite', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    invite_id: currentInviteId,
+                    invitee_id: userId,
+                    decision: decision === 'accept' ? 'accept' : 'decline'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('friend-request-modal').style.display = 'none';
+                    
+                    if (decision === 'accept') {
+                        showNotification('✅ Friend request accepted!', `You earned ${data.tokens_earned} AFN!`, 'success');
+                        updateCounter();
+                        updateFriendsList();
+                    } else {
+                        // Показываем модальное окно с выбором продолжить или удалить профиль
+                        document.getElementById('app-choice-modal').style.display = 'flex';
+                    }
+                }
+            });
+        }
+        
+        function handlePartnerRequest(decision) {
+            const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
+            if (!userId || !currentInviteId) {
+                alert('Error: Missing user information');
+                return;
+            }
+            
+            fetch('/handle_consent_invite', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    invite_id: currentInviteId,
+                    partner_id: userId,
+                    decision: decision === 'accept' ? 'accept' : 'decline'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('partner-request-modal').style.display = 'none';
+                    
+                    if (decision === 'accept') {
+                        showNotification('💕 Connection established!', `You both earned ${data.tokens_earned} AFN!`, 'success');
+                        updateCounter();
+                        updateBelovedList();
+                        updateConsentHistory();
+                    } else {
+                        // Показываем модальное окно с выбором продолжить или удалить профиль
+                        document.getElementById('app-choice-modal').style.display = 'flex';
+                    }
+                }
+            });
+        }
+        
+        function continueUsingApp() {
+            document.getElementById('app-choice-modal').style.display = 'none';
+            showNotification('👍 Welcome back!', 'Continue enjoying Affinia', 'info');
+        }
+        
+        function deleteProfile() {
+            if (confirm('Are you sure you want to delete your profile? This action cannot be undone!')) {
+                // Здесь можно добавить логику удаления профиля
+                alert('Profile deletion is not yet implemented. Contact support for assistance.');
+                document.getElementById('app-choice-modal').style.display = 'none';
+            }
+        }
+        
+        function showNotification(title, message, type = 'info') {
+            const container = document.getElementById('notifications-container');
+            if (!container) return;
+            
+            const notification = document.createElement('div');
+            
+            const colors = {
+                success: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
+                error: 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)',
+                info: 'linear-gradient(135deg, #2196F3 0%, #1976D2 100%)',
+                warning: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)'
+            };
+            
+            notification.style.cssText = `
+                background: ${colors[type]};
+                color: white;
+                padding: 15px;
+                border-radius: 10px;
+                margin-bottom: 10px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                animation: slideInRight 0.3s ease;
+            `;
+            
+            notification.innerHTML = `
+                <div style="font-weight: bold; margin-bottom: 5px;">${title}</div>
+                <div style="font-size: 14px;">${message}</div>
+            `;
+            
+            container.appendChild(notification);
+            
+            // Автоматически удаляем через 5 секунд
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 5000);
+        }
+        
+        function checkForNotifications() {
+            const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
+            if (!userId) return;
+            
+            fetch('/get_notifications', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.notifications && data.notifications.length > 0) {
+                    data.notifications.forEach(notif => {
+                        const type = notif.type.includes('accepted') ? 'success' : 
+                                    notif.type.includes('declined') ? 'warning' : 'info';
+                        showNotification(notif.message, '', type);
+                    });
+                }
+            });
+            
+            // Проверяем уведомления каждые 30 секунд
+            setTimeout(checkForNotifications, 30000);
+        }
+        
+        function updateFriendBadges() {
+            const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
+            if (!userId) return;
+            
+            fetch('/get_new_friends_count', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.new_friends_count > 0) {
+                    // Добавляем значок к кнопке Trust
+                    const trustBtn = document.querySelector('[onclick*="friends-page"]');
+                    if (trustBtn && !trustBtn.querySelector('.badge')) {
+                        const badge = document.createElement('span');
+                        badge.className = 'badge';
+                        badge.style.cssText = `
+                            position: absolute;
+                            top: -5px;
+                            right: -5px;
+                            background: #ff1744;
+                            color: white;
+                            border-radius: 50%;
+                            width: 20px;
+                            height: 20px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 12px;
+                            font-weight: bold;
+                        `;
+                        badge.textContent = data.new_friends_count;
+                        badge.id = 'friends-badge';
+                        trustBtn.style.position = 'relative';
+                        trustBtn.appendChild(badge);
+                    }
+                }
+            });
+        }
+        
+        function clearFriendsBadge() {
+            const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
+            if (!userId) return;
+            
+            const badge = document.getElementById('friends-badge');
+            if (badge) {
+                badge.remove();
+            }
+            
+            fetch('/clear_new_friends', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId })
+            });
+        }
+        
+        function updateConsentHistory() {
+            const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
+            if (!userId) return;
+            
+            fetch('/get_consent_history', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Обновляем счетчики
+                const totalElement = document.getElementById('total-consents');
+                const activeElement = document.getElementById('active-consents');
+                const monthElement = document.getElementById('month-consents');
+                
+                if (totalElement) totalElement.textContent = data.total_consents || 0;
+                if (activeElement) activeElement.textContent = data.active_consents || 0;
+                if (monthElement) monthElement.textContent = data.this_month_consents || 0;
+                
+                // Обновляем историю consent
+                const historyContainer = document.getElementById('consent-history-container');
+                if (historyContainer && data.consent_history) {
+                    historyContainer.innerHTML = '';
+                    
+                    data.consent_history.forEach(consent => {
+                        const consentCard = document.createElement('div');
+                        consentCard.className = 'consent-card';
+                        consentCard.style.cssText = `
+                            background: white;
+                            border-radius: 10px;
+                            padding: 15px;
+                            margin-bottom: 10px;
+                            display: flex;
+                            align-items: center;
+                            gap: 15px;
+                        `;
+                        
+                        const statusColor = consent.status === 'active' ? '#4CAF50' : '#9E9E9E';
+                        const date = new Date(consent.timestamp * 1000).toLocaleDateString();
+                        
+                        consentCard.innerHTML = `
+                            <img src="https://api.dicebear.com/6.x/avataaars/svg?seed=${consent.partner_id}" 
+                                 style="width: 50px; height: 50px; border-radius: 50%;">
+                            <div style="flex: 1;">
+                                <div style="font-weight: bold; color: #333;">Partner ${consent.partner_id.substring(0, 6)}...</div>
+                                <div style="font-size: 12px; color: #666;">Since ${date}</div>
+                            </div>
+                            <div style="padding: 5px 10px; background: ${statusColor}; color: white; border-radius: 5px; font-size: 12px;">
+                                ${consent.status.toUpperCase()}
+                            </div>
+                        `;
+                        
+                        historyContainer.appendChild(consentCard);
+                    });
+                }
+            });
+        }
 
     </script>
 </head>
@@ -4133,6 +4450,55 @@ function sendConsentResponse(decision) {
             <button onclick="sendReferralLink()">Send</button>
         </div>
     </div>
+
+    <!-- Friend Request Modal -->
+    <div id="friend-request-modal" style="display: none; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 10001;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 20px; text-align: center; width: 320px; position: relative; color: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+            <h3 style="margin-bottom: 20px; font-size: 24px;">🌟 Friend Request</h3>
+            <p style="margin-bottom: 10px; font-size: 16px;">You have received a friend request from:</p>
+            <div style="display: flex; align-items: center; justify-content: center; margin: 20px 0;">
+                <img id="friend-requester-avatar" src="" alt="Avatar" style="width: 60px; height: 60px; border-radius: 50%; margin-right: 15px;">
+                <span id="friend-requester-name" style="font-size: 18px; font-weight: bold;"></span>
+            </div>
+            <p style="margin-bottom: 20px; font-size: 14px;">Accept to become friends and earn 25 AFN!</p>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="handleFriendRequest('accept')" style="flex: 1; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 10px; font-size: 16px; cursor: pointer;">Accept ✅</button>
+                <button onclick="handleFriendRequest('decline')" style="flex: 1; padding: 12px; background: #f44336; color: white; border: none; border-radius: 10px; font-size: 16px; cursor: pointer;">Decline ❌</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Partner Request Modal -->
+    <div id="partner-request-modal" style="display: none; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 10001;">
+        <div style="background: linear-gradient(135deg, #ff6b6b 0%, #ff4757 100%); padding: 30px; border-radius: 20px; text-align: center; width: 320px; position: relative; color: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+            <h3 style="margin-bottom: 20px; font-size: 24px;">💕 Intimate Connection Request</h3>
+            <p style="margin-bottom: 10px; font-size: 16px;">You have received an intimate connection request from:</p>
+            <div style="display: flex; align-items: center; justify-content: center; margin: 20px 0;">
+                <img id="partner-requester-avatar" src="" alt="Avatar" style="width: 60px; height: 60px; border-radius: 50%; margin-right: 15px;">
+                <span id="partner-requester-name" style="font-size: 18px; font-weight: bold;"></span>
+            </div>
+            <p style="margin-bottom: 20px; font-size: 14px;">Accept to establish an intimate connection and both earn 100 AFN!</p>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="handlePartnerRequest('accept')" style="flex: 1; padding: 12px; background: #ff1744; color: white; border: none; border-radius: 10px; font-size: 16px; cursor: pointer;">Accept 💕</button>
+                <button onclick="handlePartnerRequest('decline')" style="flex: 1; padding: 12px; background: #424242; color: white; border: none; border-radius: 10px; font-size: 16px; cursor: pointer;">Decline 💔</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Choice Modal (after declining) -->
+    <div id="app-choice-modal" style="display: none; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 10002;">
+        <div style="background: #2c3e50; padding: 30px; border-radius: 20px; text-align: center; width: 320px; position: relative; color: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+            <h3 style="margin-bottom: 20px; font-size: 20px;">Continue using Affinia?</h3>
+            <p style="margin-bottom: 20px; font-size: 14px;">You declined the request. Would you like to continue using Affinia?</p>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="continueUsingApp()" style="flex: 1; padding: 12px; background: #27ae60; color: white; border: none; border-radius: 10px; font-size: 16px; cursor: pointer;">Continue ✅</button>
+                <button onclick="deleteProfile()" style="flex: 1; padding: 12px; background: #e74c3c; color: white; border: none; border-radius: 10px; font-size: 16px; cursor: pointer;">Delete Profile 🗑️</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notifications Container -->
+    <div id="notifications-container" style="position: fixed; top: 20px; right: 20px; z-index: 10000; max-width: 350px;"></div>
 
     <!-- Consent Modal (для создания consent-ссылки) -->
 <div id="consent-modal" style="display: none; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">

@@ -57,6 +57,12 @@ user_tokens = {}
 referrals = {}
 beloveds = {}
 user_stars = {}
+pending_friend_requests = {}  # Хранение ожидающих запросов дружбы
+pending_consent_requests = {}  # Хранение ожидающих запросов партнерства
+user_notifications = {}  # Хранение уведомлений для пользователей
+new_friends_count = {}  # Счетчик новых непросмотренных друзей
+new_partners_count = {}  # Счетчик новых непросмотренных партнеров
+consent_history = {}  # История всех consent связей
 data_lock = threading.Lock()
 
 # Безопасная загрузка конфигурации
@@ -93,14 +99,21 @@ URL = WEBAPP_URL
 
 
 def load_data():
-    global user_tokens, referrals, beloveds, user_stars
+    global user_tokens, referrals, beloveds, user_stars, pending_friend_requests, pending_consent_requests
+    global user_notifications, new_friends_count, new_partners_count, consent_history
     try:
         with open('user_tokens.json', 'r') as f:
             data = json.load(f)
             user_tokens = data.get('user_tokens', {})
             referrals = data.get('referrals', {})
             beloveds = data.get('beloveds', {})
-            user_stars = data.get('user_stars', {})  # Новая строка
+            user_stars = data.get('user_stars', {})
+            pending_friend_requests = data.get('pending_friend_requests', {})
+            pending_consent_requests = data.get('pending_consent_requests', {})
+            user_notifications = data.get('user_notifications', {})
+            new_friends_count = data.get('new_friends_count', {})
+            new_partners_count = data.get('new_partners_count', {})
+            consent_history = data.get('consent_history', {})  # Новая строка
             print(f"Loaded data: {user_tokens}, {referrals}, {beloveds}, {user_stars}")
     except FileNotFoundError:
         user_tokens = {}
@@ -129,7 +142,13 @@ def save_data():
                     'user_tokens': user_tokens,
                     'referrals': referrals,
                     'beloveds': beloveds,
-                    'user_stars': user_stars  # Новая строка
+                    'user_stars': user_stars,
+                    'pending_friend_requests': pending_friend_requests,
+                    'pending_consent_requests': pending_consent_requests,
+                    'user_notifications': user_notifications,
+                    'new_friends_count': new_friends_count,
+                    'new_partners_count': new_partners_count,
+                    'consent_history': consent_history
                 }, f)
         print(f"Saved data: {user_tokens}, {referrals}, {beloveds}, {user_stars}")
     except Exception as e:
@@ -510,14 +529,9 @@ async def create_referral_link_btn(update: Update, context: CallbackContext) -> 
 
 async def create_consent_link_btn(update: Update, context: CallbackContext) -> None:
     user_id = str(update.from_user.id)
-    balance = user_tokens.get(user_id, 0)
-    if balance >= 5:
-        user_tokens[user_id] = balance - 5
-        save_data()
-        consent_link = f"https://t.me/{BOT_USERNAME}?start=consent_{user_id}"
-        text = f'Share this link to request consent: {consent_link}'
-    else:
-        text = 'Insufficient balance to create consent link.'
+    # Больше не списываем токены за создание consent link
+    consent_link = f"https://t.me/{BOT_USERNAME}?start=consent_{user_id}"
+    text = f'Share this link to request consent: {consent_link}'
     await update.edit_message_text(text)
     await show_menu(update, context, user_id)
 
@@ -680,6 +694,305 @@ def get_telegram_stars():
     user_id = str(data['user_id'])
     stars = user_stars.get(user_id, 0)
     return jsonify({'telegram_stars': stars})
+
+
+# Новые эндпоинты для обработки приглашений друзей
+@app.route('/send_friend_invite', methods=['POST'])
+def send_friend_invite():
+    data = request.json
+    if 'user_id' not in data:
+        return jsonify({'error': 'user_id is required'}), 400
+    
+    user_id = str(data['user_id'])
+    
+    # Генерируем уникальный ID приглашения
+    invite_id = f"friend_{user_id}_{int(time())}"
+    
+    # Сохраняем приглашение
+    if user_id not in pending_friend_requests:
+        pending_friend_requests[user_id] = []
+    pending_friend_requests[user_id].append(invite_id)
+    
+    # Создаем ссылку на мини-апп с параметром приглашения
+    invite_link = f"https://t.me/{BOT_USERNAME}/affinia?startapp={invite_id}"
+    
+    save_data()
+    
+    return jsonify({
+        'invite_link': invite_link,
+        'message': "Want to be my friend in Affinia? 🌟"
+    })
+
+
+@app.route('/handle_friend_invite', methods=['POST'])
+def handle_friend_invite():
+    data = request.json
+    required_fields = ['invite_id', 'invitee_id', 'decision']
+    if not all(field in data for field in required_fields):
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    invite_id = data['invite_id']
+    invitee_id = str(data['invitee_id'])
+    decision = data['decision']
+    
+    # Извлекаем ID приглашающего из invite_id
+    if not invite_id.startswith('friend_'):
+        return jsonify({'error': 'Invalid invite ID'}), 400
+    
+    parts = invite_id.split('_')
+    if len(parts) < 3:
+        return jsonify({'error': 'Invalid invite ID format'}), 400
+    
+    inviter_id = parts[1]
+    
+    if decision == 'accept':
+        # Добавляем друзей друг к другу
+        if inviter_id not in referrals:
+            referrals[inviter_id] = []
+        if invitee_id not in referrals:
+            referrals[invitee_id] = []
+        
+        if invitee_id not in referrals[inviter_id]:
+            referrals[inviter_id].append(invitee_id)
+            new_friends_count[inviter_id] = new_friends_count.get(inviter_id, 0) + 1
+        
+        if inviter_id not in referrals[invitee_id]:
+            referrals[invitee_id].append(inviter_id)
+        
+        # Начисляем AFN токены
+        user_tokens[inviter_id] = user_tokens.get(inviter_id, 0) + 50  # 50 AFN приглашающему
+        user_tokens[invitee_id] = user_tokens.get(invitee_id, 0) + 25  # 25 AFN принявшему
+        
+        # Добавляем уведомление для приглашающего
+        if inviter_id not in user_notifications:
+            user_notifications[inviter_id] = []
+        user_notifications[inviter_id].append({
+            'type': 'friend_accepted',
+            'from_user': invitee_id,
+            'timestamp': int(time()),
+            'message': f'User accepted your friend request! 🎉'
+        })
+        
+        save_data()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Friend request accepted!',
+            'tokens_earned': 25
+        })
+    
+    elif decision == 'decline':
+        # Добавляем уведомление для приглашающего о отклонении
+        if inviter_id not in user_notifications:
+            user_notifications[inviter_id] = []
+        user_notifications[inviter_id].append({
+            'type': 'friend_declined',
+            'from_user': invitee_id,
+            'timestamp': int(time()),
+            'message': f'User declined your friend request 😔'
+        })
+        
+        save_data()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Friend request declined'
+        })
+    
+    return jsonify({'error': 'Invalid decision'}), 400
+
+
+@app.route('/send_consent_invite', methods=['POST'])
+def send_consent_invite():
+    data = request.json
+    if 'user_id' not in data:
+        return jsonify({'error': 'user_id is required'}), 400
+    
+    user_id = str(data['user_id'])
+    
+    # Генерируем уникальный ID приглашения
+    invite_id = f"consent_{user_id}_{int(time())}"
+    
+    # Сохраняем приглашение
+    if user_id not in pending_consent_requests:
+        pending_consent_requests[user_id] = []
+    pending_consent_requests[user_id].append(invite_id)
+    
+    # Создаем ссылку на мини-апп с параметром приглашения
+    invite_link = f"https://t.me/{BOT_USERNAME}/affinia?startapp={invite_id}"
+    
+    save_data()
+    
+    return jsonify({
+        'invite_link': invite_link,
+        'message': "Ready to explore an intimate connection? 💕"
+    })
+
+
+@app.route('/handle_consent_invite', methods=['POST'])
+def handle_consent_invite():
+    data = request.json
+    required_fields = ['invite_id', 'partner_id', 'decision']
+    if not all(field in data for field in required_fields):
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    invite_id = data['invite_id']
+    partner_id = str(data['partner_id'])
+    decision = data['decision']
+    
+    # Извлекаем ID приглашающего из invite_id
+    if not invite_id.startswith('consent_'):
+        return jsonify({'error': 'Invalid invite ID'}), 400
+    
+    parts = invite_id.split('_')
+    if len(parts) < 3:
+        return jsonify({'error': 'Invalid invite ID format'}), 400
+    
+    inviter_id = parts[1]
+    
+    if decision == 'accept':
+        # Добавляем партнеров друг к другу
+        if inviter_id not in beloveds:
+            beloveds[inviter_id] = []
+        if partner_id not in beloveds:
+            beloveds[partner_id] = []
+        
+        if partner_id not in beloveds[inviter_id]:
+            beloveds[inviter_id].append(partner_id)
+            new_partners_count[inviter_id] = new_partners_count.get(inviter_id, 0) + 1
+        
+        if inviter_id not in beloveds[partner_id]:
+            beloveds[partner_id].append(inviter_id)
+        
+        # Начисляем AFN токены обоим
+        user_tokens[inviter_id] = user_tokens.get(inviter_id, 0) + 100  # 100 AFN обоим
+        user_tokens[partner_id] = user_tokens.get(partner_id, 0) + 100
+        
+        # Добавляем в историю consent
+        timestamp = int(time())
+        if inviter_id not in consent_history:
+            consent_history[inviter_id] = []
+        if partner_id not in consent_history:
+            consent_history[partner_id] = []
+        
+        consent_record = {
+            'partner_id': partner_id,
+            'timestamp': timestamp,
+            'status': 'active',
+            'type': 'intimate'
+        }
+        consent_history[inviter_id].append(consent_record)
+        
+        consent_record_partner = {
+            'partner_id': inviter_id,
+            'timestamp': timestamp,
+            'status': 'active',
+            'type': 'intimate'
+        }
+        consent_history[partner_id].append(consent_record_partner)
+        
+        # Добавляем уведомление для приглашающего
+        if inviter_id not in user_notifications:
+            user_notifications[inviter_id] = []
+        user_notifications[inviter_id].append({
+            'type': 'consent_accepted',
+            'from_user': partner_id,
+            'timestamp': timestamp,
+            'message': f'Your intimate connection request was accepted! 💕'
+        })
+        
+        save_data()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Consent request accepted!',
+            'tokens_earned': 100
+        })
+    
+    elif decision == 'decline':
+        # Добавляем уведомление для приглашающего о отклонении
+        if inviter_id not in user_notifications:
+            user_notifications[inviter_id] = []
+        user_notifications[inviter_id].append({
+            'type': 'consent_declined',
+            'from_user': partner_id,
+            'timestamp': int(time()),
+            'message': f'Your intimate connection request was declined 💔'
+        })
+        
+        save_data()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Consent request declined'
+        })
+    
+    return jsonify({'error': 'Invalid decision'}), 400
+
+
+@app.route('/get_notifications', methods=['POST'])
+def get_notifications():
+    data = request.json
+    if 'user_id' not in data:
+        return jsonify({'error': 'user_id is required'}), 400
+    
+    user_id = str(data['user_id'])
+    notifications = user_notifications.get(user_id, [])
+    
+    # Очищаем уведомления после отправки
+    if user_id in user_notifications:
+        user_notifications[user_id] = []
+        save_data()
+    
+    return jsonify({'notifications': notifications})
+
+
+@app.route('/get_new_friends_count', methods=['POST'])
+def get_new_friends_count():
+    data = request.json
+    if 'user_id' not in data:
+        return jsonify({'error': 'user_id is required'}), 400
+    
+    user_id = str(data['user_id'])
+    count = new_friends_count.get(user_id, 0)
+    
+    return jsonify({'new_friends_count': count})
+
+
+@app.route('/clear_new_friends', methods=['POST'])
+def clear_new_friends():
+    data = request.json
+    if 'user_id' not in data:
+        return jsonify({'error': 'user_id is required'}), 400
+    
+    user_id = str(data['user_id'])
+    if user_id in new_friends_count:
+        new_friends_count[user_id] = 0
+        save_data()
+    
+    return jsonify({'success': True})
+
+
+@app.route('/get_consent_history', methods=['POST'])
+def get_consent_history_endpoint():
+    data = request.json
+    if 'user_id' not in data:
+        return jsonify({'error': 'user_id is required'}), 400
+    
+    user_id = str(data['user_id'])
+    history = consent_history.get(user_id, [])
+    
+    # Подсчитываем статистику
+    total_consents = len(history)
+    active_consents = len([h for h in history if h.get('status') == 'active'])
+    this_month_consents = len([h for h in history if h.get('timestamp', 0) > time() - 2592000])  # 30 дней
+    
+    return jsonify({
+        'consent_history': history,
+        'total_consents': total_consents,
+        'active_consents': active_consents,
+        'this_month_consents': this_month_consents
+    })
 
 
 # =====  WEBHOOK ПОДДЕРЖКА (готова, но не активна) =====
