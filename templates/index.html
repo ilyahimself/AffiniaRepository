@@ -2349,10 +2349,50 @@
         });
 
         function loadConsentHistory() {
-            // Simulate consent history data - in real app this would come from backend
-            consentHistoryData = generateMockConsentHistory();
-            updateHistoryStatistics();
-            displayConsentHistory();
+            const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
+            console.log('Loading consent history for user:', userId);
+            
+            if (!userId) {
+                console.warn('No user ID available, showing empty history');
+                consentHistoryData = [];
+                updateHistoryStatistics();
+                displayConsentHistory();
+                return;
+            }
+            
+            // Загружаем реальные данные из backend
+            fetch('/get_consent_history', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Consent history received:', data);
+                
+                // Преобразуем данные в нужный формат
+                consentHistoryData = (data.consent_history || []).map(consent => ({
+                    id: `consent_${consent.partner_id}_${consent.timestamp}`,
+                    partnerId: consent.partner_id,
+                    partnerName: `User ${consent.partner_id.substring(0, 6)}...`,
+                    status: consent.status || 'active',
+                    createdAt: new Date(consent.timestamp * 1000),
+                    expiresAt: new Date((consent.timestamp + 7 * 24 * 60 * 60) * 1000), // 7 дней
+                    details: getConsentDetails(consent.status || 'active'),
+                    location: 'Digital consent',
+                    witnessId: null,
+                    type: consent.type || 'intimate'
+                }));
+                
+                updateHistoryStatistics();
+                displayConsentHistory();
+            })
+            .catch(error => {
+                console.error('Error loading consent history:', error);
+                consentHistoryData = [];
+                updateHistoryStatistics();
+                displayConsentHistory();
+            });
         }
 
         function generateMockConsentHistory() {
@@ -3416,12 +3456,18 @@
                     body: JSON.stringify({ user_id: userId })
                 });
         const data = await response.json();
+                console.log('Beloved data received:', data);
                 
                 // Organize partners by relationship status
                 const beloved = data.beloved || [];
+                console.log('Beloved partners:', beloved);
                 const currentPartners = beloved.filter(p => p.relationship_status === 'current');
                 const potentialPartners = beloved.filter(p => p.relationship_status === 'potential');
                 const pastPartners = beloved.filter(p => p.relationship_status === 'past');
+                
+                console.log('Current partners:', currentPartners.length);
+                console.log('Potential partners:', potentialPartners.length);
+                console.log('Past partners:', pastPartners.length);
                 
                 // Update statistics
                 document.getElementById('current-partners').textContent = currentPartners.length;
@@ -3868,11 +3914,17 @@ function sendConsentResponse(decision) {
                     document.getElementById('partner-request-modal').style.display = 'none';
                     
                     if (decision === 'accept') {
+                        console.log('Partner request accepted, updating UI...');
                         showNotification('💕 Connection established!', `You both earned ${data.tokens_earned} AFN!`, 'success');
                         addActivityItem('💕', `Established intimate connection and earned ${data.tokens_earned} AFN`);
-                        updateCounter();
-                        updateBelovedList();
-                        updateConsentHistory();
+                        
+                        // Обновляем все связанные данные с небольшой задержкой
+                        setTimeout(() => {
+                            updateCounter();
+                            updateBelovedList();
+                            updateConsentHistory();
+                            console.log('UI update completed after partner request acceptance');
+                        }, 1000);
                     } else {
                         // Показываем модальное окно с выбором продолжить или удалить профиль
                         document.getElementById('app-choice-modal').style.display = 'flex';
