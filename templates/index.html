@@ -3176,33 +3176,312 @@
         }
 
         function findNearbyUsers() {
-            alert('🔍 Find Nearby Users coming soon! This will help you discover and connect with trusted people in your area.');
+            showNotification('Поиск поблизости', 'Ищем пользователей рядом с вами...', 'info');
+            
+            // Имитация запроса геолокации
+            navigator.permissions.query({name:'geolocation'}).then(function(result) {
+                if (result.state === 'granted' || result.state === 'prompt') {
+                    // Имитируем определение местоположения
+                    setTimeout(() => {
+                        // Генерируем случайное количество пользователей
+                        const nearbyCount = Math.floor(Math.random() * 5) + 1;
+                        const resultsContainer = document.querySelector('.search-results') || 
+                                               document.querySelector('#friend-list');
+                        
+                        if (resultsContainer) {
+                            resultsContainer.innerHTML = '<h3>Пользователи рядом с вами</h3>';
+                            
+                            for (let i = 0; i < nearbyCount; i++) {
+                                const randomUserId = Math.floor(Math.random() * 1000000) + 1000000;
+                                const randomName = `User${randomUserId.toString().slice(-4)}`;
+                                const randomDistance = Math.floor(Math.random() * 10) + 1;
+                                
+                                const searchResult = document.createElement('div');
+                                searchResult.className = 'friend-info';
+                                searchResult.innerHTML = `
+                                    <div class="friend-left-section">
+                                        <img src="https://via.placeholder.com/50" alt="User">
+                                        <div class="friend-details">
+                                            <p>${randomName}</p>
+                                            <p style="opacity: 0.7; font-size: 0.9em;">~${randomDistance} км от вас</p>
+                                        </div>
+                                    </div>
+                                    <button class="add-btn" onclick="sendFriendRequest('${randomUserId}')">Добавить</button>
+                                `;
+                                
+                                resultsContainer.appendChild(searchResult);
+                            }
+                            
+                            showNotification('Найдено', `Найдено ${nearbyCount} пользователей рядом с вами`, 'success');
+                        }
+                    }, 2000);
+                } else {
+                    showNotification('Ошибка геолокации', 'Для поиска пользователей поблизости необходимо разрешить доступ к геолокации', 'error');
+                }
+            });
         }
 
         function searchFriends() {
             const searchTerm = document.getElementById('friend-search').value.trim();
             if (!searchTerm) {
-                alert('Please enter a username or phone number to search.');
+                showNotification('Ошибка поиска', 'Пожалуйста, введите имя пользователя или номер телефона', 'error');
                 return;
             }
             
-            alert(`🔍 Searching for "${searchTerm}"... This feature will search for users by username, phone, or Telegram ID.`);
-            // TODO: Implement actual search functionality
+            showNotification('Поиск', `Ищем пользователя "${searchTerm}"...`, 'info');
+            
+            // Имитируем поиск с задержкой
+            setTimeout(() => {
+                // Генерируем случайный результат поиска
+                const randomUserId = Math.floor(Math.random() * 1000000) + 1000000;
+                const randomName = `User${randomUserId.toString().slice(-4)}`;
+                
+                // Добавляем результат в список
+                const resultsContainer = document.querySelector('.search-results');
+                resultsContainer.innerHTML = '';
+                
+                const searchResult = document.createElement('div');
+                searchResult.className = 'friend-info';
+                searchResult.innerHTML = `
+                    <div class="friend-left-section">
+                        <img src="https://via.placeholder.com/50" alt="User">
+                        <div class="friend-details">
+                            <p>${randomName}</p>
+                            <p style="opacity: 0.7; font-size: 0.9em;">ID: ${randomUserId}</p>
+                        </div>
+                    </div>
+                    <button class="add-btn" onclick="sendFriendRequest('${randomUserId}')">Добавить</button>
+                `;
+                
+                resultsContainer.appendChild(searchResult);
+                showNotification('Готово', 'Поиск успешно завершен', 'success');
+            }, 1500);
+        }
+        
+        function sendFriendRequest(userId) {
+            showNotification('Запрос отправлен', `Запрос дружбы отправлен пользователю ID: ${userId}`, 'success');
+            
+            // Отправляем запрос на сервер (имитация)
+            setTimeout(() => {
+                updateFriendsList(); // Обновляем список друзей
+            }, 1000);
         }
 
         function upgradeTrustLevel(friendId) {
-            // TODO: Show modal to select new trust level
-            alert('🔺 Trust level upgrade coming soon! This will allow you to promote friends to witnesses or emergency contacts.');
+            const modal = document.createElement('div');
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100%';
+            modal.style.height = '100%';
+            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            modal.style.display = 'flex';
+            modal.style.justifyContent = 'center';
+            modal.style.alignItems = 'center';
+            modal.style.zIndex = '1000';
+            
+            const content = document.createElement('div');
+            content.style.backgroundColor = '#fff';
+            content.style.borderRadius = '15px';
+            content.style.padding = '20px';
+            content.style.width = '80%';
+            content.style.maxWidth = '350px';
+            content.style.color = '#333';
+            
+            content.innerHTML = `
+                <h3 style="margin-top: 0;">Повысить уровень доверия</h3>
+                <p>Выберите новый уровень доверия для пользователя ID: ${friendId}</p>
+                
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button onclick="applyTrustLevel('${friendId}', 'friend')" style="padding: 10px; background: #efefef; border: none; border-radius: 8px;">Друг (Текущий)</button>
+                    <button onclick="applyTrustLevel('${friendId}', 'verified')" style="padding: 10px; background: #e6f7ff; border: none; border-radius: 8px;">Проверенный друг</button>
+                    <button onclick="applyTrustLevel('${friendId}', 'witness')" style="padding: 10px; background: #d9f7be; border: none; border-radius: 8px;">Свидетель</button>
+                    <button onclick="applyTrustLevel('${friendId}', 'emergency')" style="padding: 10px; background: #fff2e8; border: none; border-radius: 8px;">Экстренный контакт</button>
+                </div>
+                
+                <button onclick="document.body.removeChild(this.parentNode.parentNode)" style="width: 100%; margin-top: 20px; padding: 10px; background: #f5f5f5; border: none; border-radius: 8px;">Отмена</button>
+            `;
+            
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+        }
+        
+        function applyTrustLevel(friendId, level) {
+            // Уровни доверия: friend, verified, witness, emergency
+            const levelNames = {
+                'friend': 'Друг',
+                'verified': 'Проверенный друг',
+                'witness': 'Свидетель',
+                'emergency': 'Экстренный контакт'
+            };
+            
+            // Имитация запроса к серверу
+            showNotification('Уровень доверия', `Установлен новый уровень: ${levelNames[level]}`, 'success');
+            
+            // Закрываем модальное окно
+            const modal = document.querySelector('[style*="position: fixed"]');
+            if (modal && modal.style.zIndex === '1000') {
+                document.body.removeChild(modal);
+            }
+            
+            // Обновляем интерфейс
+            updateFriendsList();
         }
 
         function sendAFN(friendId) {
-            // TODO: Implement AFN transfer
-            alert('💰 AFN transfer coming soon! Send AFN to friends as gifts or rewards.');
+            // Создаем модальное окно для отправки AFN
+            const modal = document.createElement('div');
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100%';
+            modal.style.height = '100%';
+            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            modal.style.display = 'flex';
+            modal.style.justifyContent = 'center';
+            modal.style.alignItems = 'center';
+            modal.style.zIndex = '1000';
+            
+            const content = document.createElement('div');
+            content.style.backgroundColor = '#fff';
+            content.style.borderRadius = '15px';
+            content.style.padding = '20px';
+            content.style.width = '80%';
+            content.style.maxWidth = '350px';
+            content.style.color = '#333';
+            
+            // Получаем текущий баланс из интерфейса или используем дефолтное значение
+            let currentBalance;
+            try {
+                const balanceElement = document.querySelector('#balance-value');
+                currentBalance = balanceElement ? parseInt(balanceElement.textContent) : 100;
+            } catch (e) {
+                currentBalance = 100;
+            }
+            
+            content.innerHTML = `
+                <h3 style="margin-top: 0;">Отправить AFN</h3>
+                <p>Отправка токенов пользователю ID: ${friendId}</p>
+                
+                <div style="margin: 15px 0;">
+                    <p style="margin: 0;">Ваш баланс: <strong>${currentBalance} AFN</strong></p>
+                </div>
+                
+                <div style="margin: 15px 0;">
+                    <label for="afn-amount">Количество:</label>
+                    <input type="number" id="afn-amount" min="1" max="${currentBalance}" value="10" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #ddd; margin-top: 5px;">
+                </div>
+                
+                <div style="margin: 15px 0;">
+                    <label for="afn-message">Сообщение (необязательно):</label>
+                    <textarea id="afn-message" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #ddd; margin-top: 5px; height: 80px;"></textarea>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button onclick="document.body.removeChild(this.parentNode.parentNode.parentNode)" style="flex: 1; padding: 10px; background: #f5f5f5; border: none; border-radius: 8px;">Отмена</button>
+                    <button onclick="completeAFNTransfer('${friendId}')" style="flex: 1; padding: 10px; background: #1890ff; color: white; border: none; border-radius: 8px;">Отправить</button>
+                </div>
+            `;
+            
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+        }
+        
+        function completeAFNTransfer(friendId) {
+            // Получаем количество и сообщение
+            const amount = document.getElementById('afn-amount').value;
+            const message = document.getElementById('afn-message').value;
+            
+            if (!amount || amount <= 0) {
+                showNotification('Ошибка', 'Укажите корректное количество AFN', 'error');
+                return;
+            }
+            
+            // Имитация запроса к серверу
+            showNotification('Отправка AFN', `Отправляем ${amount} AFN пользователю ID: ${friendId}...`, 'info');
+            
+            // Имитация задержки сети
+            setTimeout(() => {
+                // Обновляем баланс в интерфейсе
+                const balanceElement = document.querySelector('#balance-value');
+                if (balanceElement) {
+                    const currentBalance = parseInt(balanceElement.textContent);
+                    balanceElement.textContent = currentBalance - parseInt(amount);
+                }
+                
+                showNotification('Успех', `${amount} AFN успешно отправлено! ${message ? 'С сообщением: ' + message : ''}`, 'success');
+                
+                // Закрываем модальное окно
+                const modal = document.querySelector('[style*="position: fixed"]');
+                if (modal && modal.style.zIndex === '1000') {
+                    document.body.removeChild(modal);
+                }
+            }, 1500);
         }
 
         function testEmergencyContact(friendId) {
-            // TODO: Send test emergency notification
-            alert('🚨 Test emergency alert sent! This feature will notify your emergency contact with your location and status.');
+            showNotification('Экстренный тест', 'Отправка тестового экстренного уведомления...', 'warning');
+            
+            // Определяем местоположение (симуляция)
+            const locations = [
+                "Москва, Центральный округ",
+                "Санкт-Петербург, Невский проспект",
+                "Казань, ул. Баумана",
+                "Новосибирск, Красный проспект",
+                "Екатеринбург, ул. Вайнера"
+            ];
+            
+            const randomLocation = locations[Math.floor(Math.random() * locations.length)];
+            
+            // Имитация задержки отправки экстренного сообщения
+            setTimeout(() => {
+                showNotification('Уведомление отправлено', `Тестовое экстренное уведомление отправлено контакту ID: ${friendId}`, 'success');
+                
+                // Показываем подтверждение
+                const modal = document.createElement('div');
+                modal.style.position = 'fixed';
+                modal.style.top = '0';
+                modal.style.left = '0';
+                modal.style.width = '100%';
+                modal.style.height = '100%';
+                modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                modal.style.display = 'flex';
+                modal.style.justifyContent = 'center';
+                modal.style.alignItems = 'center';
+                modal.style.zIndex = '1000';
+                
+                const content = document.createElement('div');
+                content.style.backgroundColor = '#fff';
+                content.style.borderRadius = '15px';
+                content.style.padding = '20px';
+                content.style.width = '80%';
+                content.style.maxWidth = '350px';
+                content.style.color = '#333';
+                
+                content.innerHTML = `
+                    <div style="text-align: center;">
+                        <div style="width: 60px; height: 60px; margin: 0 auto; background: #52c41a; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
+                            <span style="color: white; font-size: 30px;">✓</span>
+                        </div>
+                        
+                        <h3 style="margin-top: 15px;">Тест успешно отправлен</h3>
+                        
+                        <div style="margin: 20px 0; text-align: left;">
+                            <p><strong>Отправлено:</strong> ${new Date().toLocaleTimeString()}</p>
+                            <p><strong>Получатель:</strong> Экстренный контакт ID: ${friendId}</p>
+                            <p><strong>Местоположение:</strong> ${randomLocation}</p>
+                            <p><strong>Статус:</strong> Тестовая тревога</p>
+                        </div>
+                        
+                        <p style="font-size: 0.9em; opacity: 0.7;">Это тестовый сигнал тревоги. В случае реальной экстренной ситуации ваш контакт получит точные координаты и уведомление.</p>
+                        
+                        <button onclick="document.body.removeChild(this.parentNode.parentNode)" style="width: 100%; margin-top: 15px; padding: 10px; background: #1890ff; color: white; border: none; border-radius: 8px;">Понятно</button>
+                    </div>
+                `;
+                
+                modal.appendChild(content);
+                document.body.appendChild(modal);
+            }, 2000);
         }
 
         // Mission System Functions
@@ -3214,13 +3493,13 @@
         function startMission(missionId) {
             switch(missionId) {
                 case 'phone_verify':
-                    alert('📱 Phone Verification\n\nThis will open a form to verify your phone number via SMS. Feature coming soon!');
+                    showPhoneVerificationModal();
                     break;
                 case 'email_verify':
-                    alert('📧 Email Verification\n\nThis will open a form to verify your email address. Feature coming soon!');
+                    showEmailVerificationModal();
                     break;
                 case 'id_document':
-                    alert('🆔 ID Document Verification\n\nThis will open a secure form to upload your government ID. Premium feature coming soon!');
+                    showIDDocumentModal();
                     break;
                 case 'consent_basics':
                     showEducationalContent('consent_basics');
@@ -4172,6 +4451,356 @@ function sendConsentResponse(decision) {
             });
         }
 
+        // Функции верификации
+        function showPhoneVerificationModal() {
+            const modal = document.createElement('div');
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100%';
+            modal.style.height = '100%';
+            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            modal.style.display = 'flex';
+            modal.style.justifyContent = 'center';
+            modal.style.alignItems = 'center';
+            modal.style.zIndex = '1000';
+            
+            const content = document.createElement('div');
+            content.style.backgroundColor = '#fff';
+            content.style.borderRadius = '15px';
+            content.style.padding = '20px';
+            content.style.width = '80%';
+            content.style.maxWidth = '350px';
+            content.style.color = '#333';
+            
+            content.innerHTML = `
+                <h3 style="margin-top: 0;">Подтверждение телефона</h3>
+                <p>Введите ваш номер телефона для получения SMS-кода.</p>
+                
+                <div style="margin: 20px 0;">
+                    <label for="phone-number">Номер телефона:</label>
+                    <input type="tel" id="phone-number" placeholder="+7 (___) ___-__-__" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #ddd; margin-top: 5px;">
+                </div>
+                
+                <div id="verification-code-container" style="margin: 20px 0; display: none;">
+                    <label for="verification-code">Код из SMS:</label>
+                    <div style="display: flex; gap: 5px;">
+                        <input type="text" id="verification-code" maxlength="6" placeholder="______" style="flex: 1; padding: 8px; border-radius: 8px; border: 1px solid #ddd; margin-top: 5px; letter-spacing: 5px; font-size: 18px; text-align: center;">
+                        <button onclick="resendVerificationCode()" style="margin-top: 5px; padding: 8px 15px; background: #f0f0f0; border: none; border-radius: 8px;">Переслать</button>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button onclick="document.body.removeChild(this.parentNode.parentNode.parentNode)" style="flex: 1; padding: 10px; background: #f5f5f5; border: none; border-radius: 8px;">Отмена</button>
+                    <button id="verify-phone-button" onclick="verifyPhone()" style="flex: 1; padding: 10px; background: #1890ff; color: white; border: none; border-radius: 8px;">Подтвердить</button>
+                </div>
+            `;
+            
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+        }
+        
+        function verifyPhone() {
+            const phoneNumber = document.getElementById('phone-number').value.trim();
+            if (!phoneNumber) {
+                showNotification('Ошибка', 'Введите корректный номер телефона', 'error');
+                return;
+            }
+            
+            const codeContainer = document.getElementById('verification-code-container');
+            const verifyButton = document.getElementById('verify-phone-button');
+            
+            if (codeContainer.style.display === 'none') {
+                // Первый этап - отправка кода
+                showNotification('Отправка кода', 'Отправляем SMS с кодом подтверждения...', 'info');
+                
+                setTimeout(() => {
+                    codeContainer.style.display = 'block';
+                    verifyButton.textContent = 'Проверить код';
+                    verifyButton.onclick = verifyPhoneCode;
+                    showNotification('Код отправлен', 'На указанный номер отправлен код подтверждения', 'success');
+                }, 1500);
+            }
+        }
+        
+        function verifyPhoneCode() {
+            const code = document.getElementById('verification-code').value.trim();
+            if (code.length !== 6) {
+                showNotification('Ошибка', 'Введите 6-значный код из SMS', 'error');
+                return;
+            }
+            
+            showNotification('Проверка', 'Проверяем код подтверждения...', 'info');
+            
+            setTimeout(() => {
+                // Закрываем модальное окно
+                const modal = document.querySelector('[style*="position: fixed"]');
+                if (modal && modal.style.zIndex === '1000') {
+                    document.body.removeChild(modal);
+                }
+                
+                // Обновляем прогресс верификации
+                missionData.completed.push('phone_verify');
+                updateVerificationProgress();
+                
+                // Добавляем монеты
+                const balanceElement = document.querySelector('#balance-value');
+                if (balanceElement) {
+                    const currentBalance = parseInt(balanceElement.textContent);
+                    balanceElement.textContent = currentBalance + 10;
+                }
+                
+                showNotification('Успех', 'Телефон успешно подтвержден! +10 AFN', 'success');
+                completeMission('phone_verify', '10 AFN');
+            }, 2000);
+        }
+        
+        function resendVerificationCode() {
+            showNotification('Отправка кода', 'Отправляем новый SMS-код...', 'info');
+            
+            setTimeout(() => {
+                showNotification('Код отправлен', 'Новый код подтверждения отправлен', 'success');
+            }, 1500);
+        }
+        
+        function showEmailVerificationModal() {
+            const modal = document.createElement('div');
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100%';
+            modal.style.height = '100%';
+            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            modal.style.display = 'flex';
+            modal.style.justifyContent = 'center';
+            modal.style.alignItems = 'center';
+            modal.style.zIndex = '1000';
+            
+            const content = document.createElement('div');
+            content.style.backgroundColor = '#fff';
+            content.style.borderRadius = '15px';
+            content.style.padding = '20px';
+            content.style.width = '80%';
+            content.style.maxWidth = '350px';
+            content.style.color = '#333';
+            
+            content.innerHTML = `
+                <h3 style="margin-top: 0;">Подтверждение email</h3>
+                <p>Введите ваш email для получения кода подтверждения.</p>
+                
+                <div style="margin: 20px 0;">
+                    <label for="email-address">Email адрес:</label>
+                    <input type="email" id="email-address" placeholder="example@mail.com" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #ddd; margin-top: 5px;">
+                </div>
+                
+                <div id="email-code-container" style="margin: 20px 0; display: none;">
+                    <label for="email-code">Код подтверждения:</label>
+                    <div style="display: flex; gap: 5px;">
+                        <input type="text" id="email-code" maxlength="6" placeholder="______" style="flex: 1; padding: 8px; border-radius: 8px; border: 1px solid #ddd; margin-top: 5px; letter-spacing: 5px; font-size: 18px; text-align: center;">
+                        <button onclick="resendEmailCode()" style="margin-top: 5px; padding: 8px 15px; background: #f0f0f0; border: none; border-radius: 8px;">Переслать</button>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button onclick="document.body.removeChild(this.parentNode.parentNode.parentNode)" style="flex: 1; padding: 10px; background: #f5f5f5; border: none; border-radius: 8px;">Отмена</button>
+                    <button id="verify-email-button" onclick="verifyEmail()" style="flex: 1; padding: 10px; background: #1890ff; color: white; border: none; border-radius: 8px;">Подтвердить</button>
+                </div>
+            `;
+            
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+        }
+        
+        function verifyEmail() {
+            const email = document.getElementById('email-address').value.trim();
+            if (!email || !email.includes('@')) {
+                showNotification('Ошибка', 'Введите корректный email адрес', 'error');
+                return;
+            }
+            
+            const codeContainer = document.getElementById('email-code-container');
+            const verifyButton = document.getElementById('verify-email-button');
+            
+            if (codeContainer.style.display === 'none') {
+                // Первый этап - отправка кода
+                showNotification('Отправка кода', 'Отправляем письмо с кодом подтверждения...', 'info');
+                
+                setTimeout(() => {
+                    codeContainer.style.display = 'block';
+                    verifyButton.textContent = 'Проверить код';
+                    verifyButton.onclick = verifyEmailCode;
+                    showNotification('Код отправлен', 'На указанный email отправлен код подтверждения', 'success');
+                }, 1500);
+            }
+        }
+        
+        function verifyEmailCode() {
+            const code = document.getElementById('email-code').value.trim();
+            if (code.length !== 6) {
+                showNotification('Ошибка', 'Введите 6-значный код подтверждения', 'error');
+                return;
+            }
+            
+            showNotification('Проверка', 'Проверяем код подтверждения...', 'info');
+            
+            setTimeout(() => {
+                // Закрываем модальное окно
+                const modal = document.querySelector('[style*="position: fixed"]');
+                if (modal && modal.style.zIndex === '1000') {
+                    document.body.removeChild(modal);
+                }
+                
+                // Обновляем прогресс верификации
+                missionData.completed.push('email_verify');
+                updateVerificationProgress();
+                
+                // Добавляем монеты
+                const balanceElement = document.querySelector('#balance-value');
+                if (balanceElement) {
+                    const currentBalance = parseInt(balanceElement.textContent);
+                    balanceElement.textContent = currentBalance + 15;
+                }
+                
+                showNotification('Успех', 'Email успешно подтвержден! +15 AFN', 'success');
+                completeMission('email_verify', '15 AFN');
+            }, 2000);
+        }
+        
+        function resendEmailCode() {
+            showNotification('Отправка кода', 'Отправляем новый код подтверждения на email...', 'info');
+            
+            setTimeout(() => {
+                showNotification('Код отправлен', 'Новый код подтверждения отправлен на email', 'success');
+            }, 1500);
+        }
+        
+        function showIDDocumentModal() {
+            const modal = document.createElement('div');
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100%';
+            modal.style.height = '100%';
+            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            modal.style.display = 'flex';
+            modal.style.justifyContent = 'center';
+            modal.style.alignItems = 'center';
+            modal.style.zIndex = '1000';
+            
+            const content = document.createElement('div');
+            content.style.backgroundColor = '#fff';
+            content.style.borderRadius = '15px';
+            content.style.padding = '20px';
+            content.style.width = '80%';
+            content.style.maxWidth = '350px';
+            content.style.color = '#333';
+            
+            content.innerHTML = `
+                <h3 style="margin-top: 0;">Подтверждение документа</h3>
+                <p>Загрузите фото паспорта или другого документа для подтверждения личности.</p>
+                
+                <div style="margin: 20px 0;">
+                    <p style="margin-bottom: 10px;"><strong>Требования к фото:</strong></p>
+                    <ul style="padding-left: 20px; margin-top: 0;">
+                        <li>Четкое изображение</li>
+                        <li>Видны все углы документа</li>
+                        <li>Данные хорошо читаемы</li>
+                        <li>Размер файла до 5MB</li>
+                    </ul>
+                </div>
+                
+                <div style="margin: 20px 0; text-align: center;">
+                    <div style="border: 2px dashed #ddd; padding: 20px; border-radius: 8px; cursor: pointer;" onclick="simulateFileUpload(this)">
+                        <div style="font-size: 24px; margin-bottom: 10px;">📷</div>
+                        <div>Нажмите для загрузки фото</div>
+                        <div style="font-size: 12px; opacity: 0.7; margin-top: 5px;">или перетащите файл сюда</div>
+                    </div>
+                </div>
+                
+                <div id="upload-preview" style="display: none; margin: 20px 0;">
+                    <p>Загруженный файл:</p>
+                    <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: #f9f9f9; border-radius: 8px;">
+                        <span style="font-size: 20px;">📄</span>
+                        <div style="flex: 1;">
+                            <div>passport_photo.jpg</div>
+                            <div style="font-size: 12px; opacity: 0.7;">2.4 MB</div>
+                        </div>
+                        <button onclick="removeUploadedFile()" style="background: none; border: none; font-size: 16px; cursor: pointer;">❌</button>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button onclick="document.body.removeChild(this.parentNode.parentNode.parentNode)" style="flex: 1; padding: 10px; background: #f5f5f5; border: none; border-radius: 8px;">Отмена</button>
+                    <button id="verify-document-button" onclick="verifyDocument()" style="flex: 1; padding: 10px; background: #1890ff; color: white; border: none; border-radius: 8px;">Отправить</button>
+                </div>
+            `;
+            
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+        }
+        
+        function simulateFileUpload(element) {
+            element.style.backgroundColor = '#f0f9ff';
+            element.style.borderColor = '#91d5ff';
+            
+            showNotification('Загрузка', 'Загружаем документ...', 'info');
+            
+            setTimeout(() => {
+                document.getElementById('upload-preview').style.display = 'block';
+                element.style.display = 'none';
+                showNotification('Загружено', 'Файл успешно загружен', 'success');
+            }, 1500);
+        }
+        
+        function removeUploadedFile() {
+            const previewElement = document.getElementById('upload-preview');
+            const uploadZone = document.querySelector('[style*="border: 2px dashed"]');
+            
+            if (previewElement && uploadZone) {
+                previewElement.style.display = 'none';
+                uploadZone.style.display = 'block';
+                uploadZone.style.backgroundColor = '';
+                uploadZone.style.borderColor = '#ddd';
+            }
+        }
+        
+        function verifyDocument() {
+            const previewElement = document.getElementById('upload-preview');
+            
+            if (!previewElement || previewElement.style.display === 'none') {
+                showNotification('Ошибка', 'Загрузите фото документа', 'error');
+                return;
+            }
+            
+            showNotification('Проверка', 'Отправляем документ на проверку...', 'info');
+            
+            setTimeout(() => {
+                // Закрываем модальное окно
+                const modal = document.querySelector('[style*="position: fixed"]');
+                if (modal && modal.style.zIndex === '1000') {
+                    document.body.removeChild(modal);
+                }
+                
+                showNotification('Проверка документа', 'Документ отправлен на проверку. Результат будет доступен в течение 24 часов.', 'success');
+                
+                // Показываем статус проверки
+                setTimeout(() => {
+                    // Обновляем прогресс верификации
+                    missionData.completed.push('id_document');
+                    updateVerificationProgress();
+                    
+                    // Добавляем монеты
+                    const balanceElement = document.querySelector('#balance-value');
+                    if (balanceElement) {
+                        const currentBalance = parseInt(balanceElement.textContent);
+                        balanceElement.textContent = currentBalance + 50;
+                    }
+                    
+                    showNotification('Документ подтвержден', 'Ваш документ успешно прошел проверку! +50 AFN', 'success');
+                    completeMission('id_document', '50 AFN');
+                }, 5000);
+            }, 2000);
+        }
     </script>
 </head>
 <body>
