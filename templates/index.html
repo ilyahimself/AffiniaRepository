@@ -82,8 +82,9 @@
             flex: 1;
             overflow-y: auto;
             display: flex;
-            height: 80%; 
+            height: calc(100vh);
             align-self: stretch;
+            padding-bottom: 88px; /* чтобы контент проходил под nav-bar и был виден через прозрачность */
         }
 
         .page {
@@ -217,9 +218,11 @@
             display: flex;
             justify-content: space-around;
             gap: 8px;
-            background: #0E0E0F;
-            border-top: 4px solid #2B2B2E;
-            box-shadow: 0 -4px 0 #000;
+            background: rgba(20, 20, 24, 0.55);
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25);
+            backdrop-filter: blur(14px) saturate(160%);
+            -webkit-backdrop-filter: blur(14px) saturate(160%);
             padding: 10px 8px;
             color: #ffffff;
             height: auto;
@@ -231,14 +234,13 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            background: #17181B;
-            border: 4px solid #2B2B2E;
+            background: transparent;
+            border: none;
             color: rgba(255, 255, 255, 0.9);
             padding: 6px 4px;
             font-size: 12px;
             font-weight: 600;
-            border-radius: 8px;
-            box-shadow: 4px -4px 0 #000;
+            border-radius: 10px;
             transition: none;
             cursor: pointer;
         }
@@ -256,8 +258,8 @@
 
         .nav-bar button.active {
             color: #ffffff;
-            background: #211416;
-            border-color: #A80000;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.18);
             transform: translateY(-2px);
         }
 
