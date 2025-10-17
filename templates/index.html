@@ -339,13 +339,17 @@
         }
 
         #referral-modal-content {
-            background-color: #fff;
+            background: rgba(20,20,24,0.55);
+            border: 1px solid rgba(255,255,255,0.15);
+            backdrop-filter: blur(14px) saturate(160%);
+            -webkit-backdrop-filter: blur(14px) saturate(160%);
             padding: 20px;
-            border-radius: 10px;
+            border-radius: 12px;
             text-align: center;
-            width: 300px;
+            width: 320px;
             position: relative;
-            color: #000;
+            color: #fff;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
         }
 
         #close-referral-modal {
@@ -354,14 +358,13 @@
             right: 10px;
             font-size: 18px;
             font-weight: bold;
-            color: #888;
-            border: none;
-            background: none;
+            color: #ddd;
+            border: 1px solid rgba(255,255,255,0.18);
+            background: rgba(255,255,255,0.06);
+            width: 28px; height: 28px; border-radius: 8px;
         }
 
-        #close-referral-modal:hover {
-            color: #000;
-        }
+        #close-referral-modal:hover { color: #fff; }
         
         /* ----- Элементы списка друзей ----- */        
         .friend-info {
@@ -4088,6 +4091,19 @@ function deleteBeloved(belovedId) {
             document.getElementById('consent-link').setAttribute('data-link', consentLink);
             document.getElementById('consent-link').textContent = consentLink;
             document.getElementById('consent-modal').style.display = 'flex';
+            // Генерируем QR сразу
+            fetch('/generate_consent_qr', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId })
+            })
+            .then(r => r.json())
+            .then(qrData => {
+                if (qrData.qr_code) {
+                    document.getElementById('consent-qr-code').src = `data:image/png;base64,${qrData.qr_code}`;
+                }
+            })
+            .catch(() => {});
             
             // Добавляем активность
             addActivityItem('🔐', 'Created new consent link for partner');
@@ -5475,10 +5491,10 @@ function sendConsentResponse(decision) {
         <div id="referral-modal-content">
             <button id="close-referral-modal" onclick="closeReferralModal()">×</button>
             <h3>Your Referral Link</h3>
-            <img id="qr-code" src="" alt="QR Code" style="width:200px; height:200px;">
+            <img id="qr-code" src="" alt="QR Code" style="width:200px; height:200px; image-rendering: pixelated;">
             <!-- Текст ссылки скрыт, но значение хранится в data-link -->
             <p id="referral-link" style="visibility: hidden;"></p>
-            <button onclick="sendReferralLink()">Send</button>
+            <button onclick="sendReferralLink()" class="pixel-button" style="margin-top: 10px;">Send</button>
         </div>
     </div>
 
@@ -5532,14 +5548,14 @@ function sendConsentResponse(decision) {
     <div id="notifications-container" style="position: fixed; top: 20px; right: 20px; z-index: 10000; max-width: 350px;"></div>
 
     <!-- Consent Modal (для создания consent-ссылки) -->
-<div id="consent-modal" style="display: none; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
-    <div id="consent-modal-content" style="background-color: #fff; padding: 20px; border-radius: 10px; text-align: center; width: 300px; position: relative; color: #000;">
-        <button id="close-consent-modal" onclick="closeConsentModal()" style="position: absolute; top: 10px; right: 10px; font-size: 18px; font-weight: bold; color: #888; border: none; background: none;">×</button>
+<div id="consent-modal" style="display: none; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.55); z-index: 10003;">
+    <div id="consent-modal-content" style="background: rgba(20,20,24,0.55); border: 1px solid rgba(255,255,255,0.15); backdrop-filter: blur(14px) saturate(160%); -webkit-backdrop-filter: blur(14px) saturate(160%); padding: 20px; border-radius: 12px; text-align: center; width: 320px; position: relative; color: #fff; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
+        <button id="close-consent-modal" onclick="closeConsentModal()" style="position: absolute; top: 10px; right: 10px; font-size: 18px; font-weight: bold; color: #ddd; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); width: 28px; height: 28px; border-radius: 8px;">×</button>
         <h3>Your Consent Link</h3>
-        <img id="consent-qr-code" src="" alt="QR Code" style="width:200px; height:200px;">
+        <img id="consent-qr-code" src="" alt="QR Code" style="width:200px; height:200px; image-rendering: pixelated;">
         <!-- Скрытый элемент для хранения ссылки -->
         <p id="consent-link" style="visibility: hidden;"></p>
-        <button onclick="sendConsentLink()">Send</button>
+        <button onclick="sendConsentLink()" class="pixel-button" style="margin-top: 10px;">Send</button>
     </div>
 </div>
 
