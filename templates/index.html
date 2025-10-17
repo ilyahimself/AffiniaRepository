@@ -91,6 +91,8 @@
             display: none;
             width: 100%;            
             align-items: center;
+            padding-bottom: 88px; /* чтобы контент не прятался за прозрачным nav-bar */
+            overflow-y: auto;
         }
 
         .page.active {
@@ -447,6 +449,7 @@
             padding: 20px;
             height: 100%;
             overflow-y: auto;
+            padding-bottom: 96px;
         }
 
         .stars-balance-card {
@@ -963,6 +966,7 @@
             padding: 20px;
             height: 100%;
             overflow-y: auto;
+            padding-bottom: 96px;
         }
 
         .trust-stats-grid {
@@ -1211,6 +1215,7 @@
             padding: 20px;
             height: 100%;
             overflow-y: auto;
+            padding-bottom: 96px;
         }
 
         .mission-header {
@@ -1494,6 +1499,13 @@
         .beloved-header {
             text-align: center;
             margin-bottom: 25px;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: rgba(15,16,18,0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            padding: 10px 0;
         }
 
         .beloved-title {
@@ -1881,12 +1893,17 @@
         }
 
         .history-header {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
-            padding: 20px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(20,20,24,0.55);
+            border-bottom: 1px solid rgba(255,255,255,0.15);
+            backdrop-filter: blur(14px) saturate(160%);
+            -webkit-backdrop-filter: blur(14px) saturate(160%);
+            padding: 16px 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 2;
         }
 
         .history-title {
@@ -1994,7 +2011,7 @@
         .history-list {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
+            padding: 20px 20px 88px;
         }
 
         .consent-entry {
@@ -5044,6 +5061,28 @@ function sendConsentResponse(decision) {
                 <!-- Trust Levels -->
                 <div class="trust-levels-header">🛡️ Your Trust Network</div>
 
+                <!-- Regular Friends -->
+                <div class="trust-level-section">
+                    <div class="trust-level-title">
+                        <span>👋</span>
+                        <span>Friends</span>
+                    </div>
+            <div id="friends-list">
+                        <!-- Regular friends will be populated here -->
+            </div>        
+        </div>
+
+                <!-- Verified Friends -->
+                <div class="trust-level-section">
+                    <div class="trust-level-title">
+                        <span>✅</span>
+                        <span>Verified Friends</span>
+                    </div>
+                    <div id="verified-friends-list">
+                        <!-- Verified friends will be populated here -->
+                    </div>
+                </div>
+
                 <!-- Emergency Contacts -->
                 <div class="trust-level-section">
                     <div class="trust-level-title">
@@ -5065,28 +5104,6 @@ function sendConsentResponse(decision) {
                         <!-- Witnesses will be populated here -->
                     </div>
                 </div>
-
-                <!-- Verified Friends -->
-                <div class="trust-level-section">
-                    <div class="trust-level-title">
-                        <span>✅</span>
-                        <span>Verified Friends</span>
-                    </div>
-                    <div id="verified-friends-list">
-                        <!-- Verified friends will be populated here -->
-                    </div>
-                </div>
-
-                <!-- Regular Friends -->
-                <div class="trust-level-section">
-                    <div class="trust-level-title">
-                        <span>👋</span>
-                        <span>Friends</span>
-                    </div>
-            <div id="friends-list">
-                        <!-- Regular friends will be populated here -->
-            </div>        
-        </div>
 
                 <!-- No friends message -->
                 <div id="no-friends-message" class="no-friends-message" style="display: none;">
@@ -5418,8 +5435,7 @@ function sendConsentResponse(decision) {
                     <!-- Сетка с суммами -->
                     <div class="amount-grid">
                         <div class="amount-option" data-amount="50" onclick="selectAmount(50)">
-                            <div>⭐ 50</div>
-                            <small>Basic</small>
+                            <div>⭐ 50 <span class="glass-chip">Basic</span></div>
                         </div>
                         <div class="amount-option" data-amount="100" onclick="selectAmount(100)">
                             <div>⭐ 100 <span class="glass-chip">Popular</span></div>
