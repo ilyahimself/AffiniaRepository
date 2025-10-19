@@ -8,6 +8,8 @@
     <meta name="theme-color" content="#1e90ff">
     <!-- Telegram Mini Apps Analytics SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- TON Connect SDK -->
+    <script src="https://unpkg.com/@tonconnect/ui@2.0.0/dist/tonconnect-ui.min.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -600,6 +602,151 @@
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
+        }
+
+        /* ----- TON Wallet Styles ----- */
+        .ton-wallet-section {
+            margin-top: 25px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+        }
+
+        .ton-title {
+            color: #fff;
+            font-size: 20px;
+            font-weight: 600;
+            margin: 15px 0 10px 0;
+            text-align: center;
+        }
+
+        .ton-description {
+            color: #ccc;
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+
+        .ton-wallet-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .ton-wallet-card:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .ton-wallet-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .ton-wallet-icon {
+            font-size: 24px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+        }
+
+        .ton-wallet-details h3 {
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0 0 4px 0;
+        }
+
+        .ton-wallet-details p {
+            color: #aaa;
+            font-size: 12px;
+            margin: 0;
+        }
+
+        .ton-balance {
+            text-align: right;
+            margin-top: 10px;
+        }
+
+        .ton-balance-amount {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .ton-currency {
+            color: #aaa;
+            font-size: 14px;
+            margin-left: 4px;
+        }
+
+        .ton-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .ton-action-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 8px;
+            padding: 12px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .ton-action-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.18);
+        }
+
+        .ton-action-icon {
+            font-size: 16px;
+        }
+
+        .ton-connect-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #0088cc, #0066aa);
+            border: none;
+            border-radius: 12px;
+            padding: 15px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .ton-connect-btn:hover {
+            background: linear-gradient(135deg, #0099dd, #0077bb);
+            transform: translateY(-1px);
+        }
+
+        .ton-connect-icon {
+            font-size: 18px;
         }
 
         .amount-description {
@@ -2846,6 +2993,140 @@
             }
         }
 
+        // TON Connect Integration
+        let tonConnect = null;
+        let tonWallet = null;
+
+        // Инициализация TON Connect
+        function initTonConnect() {
+            try {
+                if (window.TonConnectUI) {
+                    tonConnect = new window.TonConnectUI.TonConnectUI({
+                        manifestUrl: 'https://affinia.herokuapp.com/static/manifest.json'
+                    });
+
+                    // Обработчики событий
+                    tonConnect.onStatusChange((wallet) => {
+                        if (wallet) {
+                            tonWallet = wallet;
+                            updateTonWalletUI(true);
+                            trackEvent('ton_wallet_connected', {
+                                address: wallet.account.address,
+                                timestamp: Date.now()
+                            });
+                        } else {
+                            tonWallet = null;
+                            updateTonWalletUI(false);
+                            trackEvent('ton_wallet_disconnected', {
+                                timestamp: Date.now()
+                            });
+                        }
+                    });
+
+                    console.log('TON Connect initialized');
+                } else {
+                    console.error('TON Connect UI not loaded');
+                }
+            } catch (error) {
+                console.error('TON Connect initialization error:', error);
+            }
+        }
+
+        // Обновление UI TON кошелька
+        function updateTonWalletUI(connected) {
+            const statusCard = document.getElementById('ton-wallet-status');
+            const actions = document.getElementById('ton-actions');
+            const connectBtn = document.getElementById('ton-connect-btn');
+            const balance = document.getElementById('ton-balance');
+            const title = document.getElementById('ton-wallet-title');
+            const subtitle = document.getElementById('ton-wallet-subtitle');
+
+            if (connected && tonWallet) {
+                // Показываем подключенное состояние
+                statusCard.style.cursor = 'default';
+                title.textContent = 'TON Wallet Connected';
+                subtitle.textContent = `${tonWallet.account.address.slice(0, 6)}...${tonWallet.account.address.slice(-4)}`;
+                balance.style.display = 'block';
+                actions.style.display = 'grid';
+                connectBtn.style.display = 'none';
+                
+                // Загружаем баланс
+                loadTonBalance();
+            } else {
+                // Показываем состояние отключения
+                statusCard.style.cursor = 'pointer';
+                title.textContent = 'Connect TON Wallet';
+                subtitle.textContent = 'Tap to connect your wallet';
+                balance.style.display = 'none';
+                actions.style.display = 'none';
+                connectBtn.style.display = 'flex';
+            }
+        }
+
+        // Подключение TON кошелька
+        function connectTonWallet() {
+            if (tonConnect) {
+                tonConnect.openModal();
+                trackEvent('ton_connect_attempt', {
+                    timestamp: Date.now()
+                });
+            } else {
+                alert('TON Connect not initialized. Please refresh the page.');
+            }
+        }
+
+        // Отключение TON кошелька
+        function disconnectTonWallet() {
+            if (tonConnect) {
+                tonConnect.disconnect();
+                trackEvent('ton_wallet_disconnect_attempt', {
+                    timestamp: Date.now()
+                });
+            }
+        }
+
+        // Загрузка баланса TON
+        async function loadTonBalance() {
+            if (!tonWallet) return;
+
+            try {
+                // Здесь можно добавить реальный запрос к TON API
+                // Пока показываем заглушку
+                const balanceElement = document.getElementById('ton-balance-amount');
+                balanceElement.textContent = '0.5'; // Заглушка
+                
+                trackEvent('ton_balance_loaded', {
+                    address: tonWallet.account.address,
+                    balance: '0.5',
+                    timestamp: Date.now()
+                });
+            } catch (error) {
+                console.error('Error loading TON balance:', error);
+            }
+        }
+
+        // Отправка TON
+        function sendTon() {
+            alert('Send TON functionality coming soon!');
+            trackEvent('ton_send_clicked', {
+                timestamp: Date.now()
+            });
+        }
+
+        // Получение TON
+        function receiveTon() {
+            if (tonWallet) {
+                const address = tonWallet.account.address;
+                navigator.clipboard.writeText(address).then(() => {
+                    alert(`TON address copied to clipboard:\n${address}`);
+                });
+                trackEvent('ton_receive_clicked', {
+                    address: address,
+                    timestamp: Date.now()
+                });
+            }
+        }
+
         function addActivityItem(icon, text) {
             const activityList = document.getElementById('activity-list');
             if (activityList) {
@@ -4119,6 +4400,11 @@ function deleteBeloved(belovedId) {
             theme: theme
         });
     }
+    
+    // Инициализация TON Connect
+    setTimeout(() => {
+        initTonConnect();
+    }, 1000);
     
     updateUserInfo();
     updateCounter();
@@ -5515,6 +5801,54 @@ function sendConsentResponse(decision) {
                     </div>
                     <button class="donate-button" id="donate-btn" onclick="processDonation()" disabled>
                         Select Amount to Donate
+                    </button>
+                </div>
+
+                <!-- TON Wallet Section -->
+                <div class="ton-wallet-section">
+                    <div class="glass-card-header">
+                        <span class="glass-chip">TON Blockchain</span>
+                    </div>
+                    <h2 class="ton-title">🔗 TON Wallet</h2>
+                    <div class="ton-description">
+                        Connect your TON wallet to access blockchain features and manage TON tokens
+                    </div>
+                    
+                    <!-- TON Wallet Status -->
+                    <div id="ton-wallet-status" class="ton-wallet-card">
+                        <div class="ton-wallet-info">
+                            <div class="ton-wallet-icon">🔗</div>
+                            <div class="ton-wallet-details">
+                                <h3 id="ton-wallet-title">Connect TON Wallet</h3>
+                                <p id="ton-wallet-subtitle">Tap to connect your wallet</p>
+                            </div>
+                        </div>
+                        <div id="ton-balance" class="ton-balance" style="display: none;">
+                            <span id="ton-balance-amount">0</span>
+                            <span class="ton-currency">TON</span>
+                        </div>
+                    </div>
+
+                    <!-- TON Actions (shown when connected) -->
+                    <div id="ton-actions" class="ton-actions" style="display: none;">
+                        <button class="ton-action-btn" onclick="sendTon()">
+                            <span class="ton-action-icon">📤</span>
+                            Send TON
+                        </button>
+                        <button class="ton-action-btn" onclick="receiveTon()">
+                            <span class="ton-action-icon">📥</span>
+                            Receive TON
+                        </button>
+                        <button class="ton-action-btn" onclick="disconnectTonWallet()">
+                            <span class="ton-action-icon">🔌</span>
+                            Disconnect
+                        </button>
+                    </div>
+
+                    <!-- Connect Button (shown when disconnected) -->
+                    <button id="ton-connect-btn" class="ton-connect-btn" onclick="connectTonWallet()">
+                        <span class="ton-connect-icon">🔗</span>
+                        Connect TON Wallet
                     </button>
                 </div>
             </div>
