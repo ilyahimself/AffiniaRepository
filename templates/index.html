@@ -6,8 +6,10 @@
     <title>Affinia Mini App</title>
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#1e90ff">
-    <!-- Telegram Mini Apps Analytics SDK -->
+    <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Telegram Mini Apps Analytics SDK -->
+    <script src="https://tganalytics.xyz/sdk/index.js"></script>
     <!-- TON Connect SDK -->
     <script src="https://unpkg.com/@tonconnect/ui@2.0.0/dist/tonconnect-ui.min.js" onload="console.log('TON Connect loaded')" onerror="console.error('TON Connect failed to load')"></script>
     <style>
@@ -2999,7 +3001,12 @@
         // Функция для отслеживания событий аналитики
         function trackEvent(eventName, eventData = {}) {
             try {
-                // Отправка в Telegram Analytics (если доступно)
+                // Отправка в Telegram Analytics SDK
+                if (window.TelegramAnalytics) {
+                    window.TelegramAnalytics.track(eventName, eventData);
+                }
+                
+                // Fallback - отправка через WebApp
                 if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.sendData) {
                     window.Telegram.WebApp.sendData(JSON.stringify({
                         type: 'analytics',
@@ -4437,6 +4444,14 @@ function deleteBeloved(belovedId) {
             user_id: window.Telegram.WebApp.initDataUnsafe?.user?.id,
             theme: theme
         });
+    }
+    
+    // Инициализация Telegram Analytics SDK
+    if (window.TelegramAnalytics) {
+        // Нужно получить Analytics ID от @DataChief_bot
+        // Пока используем заглушку
+        window.TelegramAnalytics.init('AFFINIA_ANALYTICS_ID');
+        console.log('Telegram Analytics initialized');
     }
     
     // Инициализация TON Connect
