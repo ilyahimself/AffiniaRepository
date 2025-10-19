@@ -179,7 +179,14 @@ def static_files(filename):
 @app.route('/tonconnect-manifest.json')
 def tonconnect_manifest():
     # TON Connect manifest for wallet integration
-    return send_from_directory('static', 'tonconnect-manifest.json', mimetype='application/json')
+    manifest = {
+        "url": "https://affinia.herokuapp.com",
+        "name": "Affinia Mini App",
+        "iconUrl": "https://affinia.herokuapp.com/static/icon-192x192.png",
+        "termsOfUseUrl": "https://affinia.herokuapp.com/terms",
+        "privacyPolicyUrl": "https://affinia.herokuapp.com/privacy"
+    }
+    return jsonify(manifest)
 
 
 @app.route('/get_balance', methods=['POST'])
