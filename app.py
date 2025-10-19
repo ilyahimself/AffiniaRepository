@@ -188,6 +188,10 @@ def tonconnect_manifest():
     }
     return jsonify(manifest)
 
+@app.route('/test-manifest')
+def test_manifest():
+    return "Manifest test works!"
+
 
 @app.route('/get_balance', methods=['POST'])
 def get_balance():
