@@ -3172,18 +3172,36 @@
             if (!tonWallet) return;
 
             try {
-                // Здесь можно добавить реальный запрос к TON API
-                // Пока показываем заглушку
                 const balanceElement = document.getElementById('ton-balance-amount');
-                balanceElement.textContent = '0.5'; // Заглушка
                 
-                trackEvent('ton_balance_loaded', {
-                    address: tonWallet.account.address,
-                    balance: '0.5',
-                    timestamp: Date.now()
-                });
+                // Показываем загрузку
+                balanceElement.textContent = 'Loading...';
+                
+                // Запрос к TON API для получения баланса
+                const address = tonWallet.account.address;
+                const response = await fetch(`https://toncenter.com/api/v2/getAddressBalance?address=${address}`);
+                const data = await response.json();
+                
+                if (data.ok) {
+                    // Конвертируем из nanotons в TON (1 TON = 1,000,000,000 nanotons)
+                    const balanceInTon = (parseInt(data.result) / 1000000000).toFixed(4);
+                    balanceElement.textContent = balanceInTon;
+                    
+                    trackEvent('ton_balance_loaded', {
+                        address: address,
+                        balance: balanceInTon,
+                        timestamp: Date.now()
+                    });
+                } else {
+                    // Если API не работает, показываем 0
+                    balanceElement.textContent = '0';
+                    console.warn('TON API error:', data);
+                }
             } catch (error) {
                 console.error('Error loading TON balance:', error);
+                // В случае ошибки показываем 0
+                const balanceElement = document.getElementById('ton-balance-amount');
+                balanceElement.textContent = '0';
             }
         }
 
