@@ -37,6 +37,11 @@
                         appName: 'affinia',
                     });
                     console.log('✅ Analytics initialized');
+                    console.log('sdk.track typeof:', typeof window.telegramAnalytics?.track);
+                    setTimeout(() => {
+                        console.log('Force track test');
+                        try { trackEvent('force_track_test', { ts: Date.now() }); } catch (e) { console.error('force_track_test error:', e); }
+                    }, 1500);
                 } catch (error) {
                     console.error('Analytics init error:', error);
                 }
