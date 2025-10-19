@@ -6,6 +6,8 @@
     <title>Affinia Mini App</title>
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#1e90ff">
+    <!-- Telegram Mini Apps Analytics SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -84,7 +86,7 @@
             display: flex;
             height: calc(100vh);
             align-self: stretch;
-            padding-bottom: 0;
+            padding-bottom: 96px;
         }
 
         .page {
@@ -438,7 +440,7 @@
             padding: 20px;
             height: 100%;
             overflow-y: auto;
-            padding-bottom: 250px;
+            padding-bottom: 96px;
         }
 
         .stars-balance-card {
@@ -956,7 +958,7 @@
             padding: 20px;
             height: 100%;
             overflow-y: auto;
-            padding-bottom: 250px;
+            padding-bottom: 96px;
         }
 
         .trust-stats-grid {
@@ -1205,7 +1207,7 @@
             padding: 20px;
             height: 100%;
             overflow-y: auto;
-            padding-bottom: 20px;
+            padding-bottom: 96px;
         }
 
         .mission-header {
@@ -1484,7 +1486,7 @@
             padding: 20px;
             height: 100%;
             overflow-y: auto;
-            padding-bottom: 250px;
+            padding-bottom: 96px;
         }
 
         .beloved-header {
@@ -2824,6 +2826,26 @@
             }
         }
 
+        // Функция для отслеживания событий аналитики
+        function trackEvent(eventName, eventData = {}) {
+            try {
+                // Отправка в Telegram Analytics (если доступно)
+                if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.sendData) {
+                    window.Telegram.WebApp.sendData(JSON.stringify({
+                        type: 'analytics',
+                        event: eventName,
+                        data: eventData,
+                        timestamp: Date.now()
+                    }));
+                }
+                
+                // Локальное логирование для отладки
+                console.log('Analytics Event:', eventName, eventData);
+            } catch (error) {
+                console.error('Analytics tracking error:', error);
+            }
+        }
+
         function addActivityItem(icon, text) {
             const activityList = document.getElementById('activity-list');
             if (activityList) {
@@ -2845,6 +2867,12 @@
                 while (activityList.children.length > 3) {
                     activityList.removeChild(activityList.lastChild);
                 }
+                
+                // Отслеживаем активность
+                trackEvent('activity_added', {
+                    icon: icon,
+                    text: text
+                });
             }
         }
 
@@ -3045,6 +3073,12 @@
             });
 
             document.getElementById(pageId).classList.add('active');
+            
+            // Отслеживаем переходы между страницами
+            trackEvent('page_view', {
+                page: pageId,
+                timestamp: Date.now()
+            });
 
             if (pageId === 'friends-page') {
                 updateFriendsList();
@@ -4068,6 +4102,24 @@ function deleteBeloved(belovedId) {
 
 
         window.onload = function () {
+        // Инициализация Telegram WebApp
+    if (window.Telegram && window.Telegram.WebApp) {
+        window.Telegram.WebApp.ready();
+        window.Telegram.WebApp.expand();
+        
+        // Настройка темы
+        const theme = window.Telegram.WebApp.colorScheme;
+        if (theme === 'dark') {
+            document.body.classList.add('dark-theme');
+        }
+        
+        // Отправка события инициализации
+        trackEvent('app_initialized', {
+            user_id: window.Telegram.WebApp.initDataUnsafe?.user?.id,
+            theme: theme
+        });
+    }
+    
     updateUserInfo();
     updateCounter();
     showPage('main-page'); // Показываем страницу Main по умолчанию
