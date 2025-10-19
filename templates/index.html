@@ -11,16 +11,8 @@
     <!-- Telegram Mini Apps Analytics SDK -->
     <script
         src="https://tganalytics.xyz/index.js" 
-        onload="console.log('Analytics SDK loaded successfully from tganalytics.xyz'); console.log('window.telegramAnalytics after load:', window.telegramAnalytics);" 
-        onerror="console.error('Analytics SDK failed to load from tganalytics.xyz, trying alternative...')"
-        type="text/javascript">
-    </script>
-    
-    <!-- Alternative Analytics SDK -->
-    <script
-        src="https://unpkg.com/@telegram-apps/analytics@latest/dist/index.js" 
-        onload="console.log('Alternative Analytics SDK loaded successfully from unpkg'); console.log('window.TelegramAnalytics after load:', window.TelegramAnalytics);" 
-        onerror="console.error('Alternative Analytics SDK also failed to load')"
+        onload="console.log('Analytics SDK loaded successfully'); window.telegramAnalyticsReady = true;" 
+        onerror="console.error('Analytics SDK failed to load')"
         type="text/javascript">
     </script>
     <script>
@@ -35,202 +27,28 @@
         }
         
         function initAnalytics() {
-            console.log('Initializing Analytics SDK v5.0...');
-            console.log('Available global objects:', Object.keys(window).filter(k => k.includes('telegram') || k.includes('analytics')));
-            console.log('All window objects with "telegram":', Object.keys(window).filter(k => k.toLowerCase().includes('telegram')));
-            console.log('All window objects with "analytics":', Object.keys(window).filter(k => k.toLowerCase().includes('analytics')));
+            console.log('Initializing Analytics...');
             
-            // Проверяем все объекты в window
-            console.log('All window objects:', Object.keys(window).slice(0, 20)); // первые 20
-            
-            // Проверяем разные варианты объекта (по документации)
-            let analyticsObj = window.TelegramAnalytics || window.telegramAnalytics || window.analytics;
-            console.log('Found analytics object:', analyticsObj);
-            
-            // Если объект undefined, но telegramAnalytics существует, используем его
-            if (!analyticsObj && window.telegramAnalytics) {
-                console.log('Using window.telegramAnalytics directly');
-                analyticsObj = window.telegramAnalytics;
-                
-                // Инициализируем реальный SDK
+            // Простая проверка
+            if (window.telegramAnalytics && window.telegramAnalytics.init) {
                 try {
-                    analyticsObj.init({
+                    window.telegramAnalytics.init({
                         token: 'eyJhcHBfbmFtZSI6ImFmZmluaWEiLCJhcHBfdXJsIjoiaHR0cHM6Ly90Lm1lL0FmZmluaWFCb3QiLCJhcHBfZG9tYWluIjoiaHR0cHM6Ly9hZmZpbmlhLmhlcm9rdWFwcC5jb20ifQ==!jCoLLK51UOM752Ckcg8vTLYGvFP8oW7QNWFGDRnXNCQ=',
                         appName: 'affinia',
                     });
-                    console.log('✅ Real SDK initialized successfully');
+                    console.log('✅ Analytics initialized');
                 } catch (error) {
-                    console.error('Real SDK init error:', error);
-                }
-            }
-            
-            // Попробуем использовать официальный SDK напрямую
-            if (!analyticsObj && window.TelegramAnalytics) {
-                console.log('Trying to use window.TelegramAnalytics directly');
-                try {
-                    // Инициализируем официальный SDK
-                    window.TelegramAnalytics.init({
-                        token: 'eyJhcHBfbmFtZSI6ImFmZmluaWEiLCJhcHBfdXJsIjoiaHR0cHM6Ly90Lm1lL0FmZmluaWFCb3QiLCJhcHBfZG9tYWluIjoiaHR0cHM6Ly9hZmZpbmlhLmhlcm9rdWFwcC5jb20ifQ==!jCoLLK51UOM752Ckcg8vTLYGvFP8oW7QNWFGDRnXNCQ=',
-                        appName: 'affinia',
-                    });
-                    analyticsObj = window.TelegramAnalytics;
-                    console.log('✅ Official SDK initialized');
-                } catch (error) {
-                    console.error('Official SDK init error:', error);
-                }
-            }
-            
-            // Попробуем найти SDK в других местах
-            if (!analyticsObj) {
-                console.log('Searching for analytics SDK in window...');
-                console.log('window keys:', Object.keys(window).filter(k => k.toLowerCase().includes('analytics')));
-                
-                // Проверяем все возможные варианты
-                const possibleSDKs = [
-                    window.TelegramAnalytics,
-                    window.telegramAnalytics,
-                    window.analytics,
-                    window.Telegram?.Analytics,
-                    window.telegram?.analytics
-                ];
-                
-                for (let i = 0; i < possibleSDKs.length; i++) {
-                    if (possibleSDKs[i] && typeof possibleSDKs[i].init === 'function') {
-                        console.log(`Found SDK at index ${i}:`, possibleSDKs[i]);
-                        analyticsObj = possibleSDKs[i];
-                        break;
-                    }
-                }
-                
-                // Если все еще не найден, ждем еще
-                if (!analyticsObj) {
-                    console.log('SDK not found yet, will retry later...');
-                    return; // Выходим, чтобы попробовать позже
-                }
-            }
-            
-            // Если объект undefined или null, но SDK загружен, создаем его
-            if (!analyticsObj && window.telegramAnalytics !== undefined && window.telegramAnalytics !== null) {
-                console.log('Creating analytics object manually...');
-                console.log('window.telegramAnalytics value:', window.telegramAnalytics);
-                console.log('window.telegramAnalytics type:', typeof window.telegramAnalytics);
-                
-                try {
-                    // Пробуем разные способы создания объекта
-                    if (window.TelegramAnalytics) {
-                        console.log('Trying new window.TelegramAnalytics()');
-                        analyticsObj = new window.TelegramAnalytics();
-                    } else if (window.telegramAnalytics && typeof window.telegramAnalytics === 'function') {
-                        console.log('Trying new window.telegramAnalytics()');
-                        analyticsObj = new window.telegramAnalytics();
-                    } else if (window.telegramAnalytics && typeof window.telegramAnalytics === 'object') {
-                        console.log('Using window.telegramAnalytics directly');
-                        analyticsObj = window.telegramAnalytics;
-                    } else if (window.telegramAnalytics && typeof window.telegramAnalytics.init === 'function') {
-                        console.log('Using window.telegramAnalytics as is');
-                        analyticsObj = window.telegramAnalytics;
-                    }
-                    console.log('Created analytics object:', analyticsObj);
-                } catch (error) {
-                    console.error('Error creating analytics object:', error);
-                }
-            }
-            
-            if (analyticsObj && typeof analyticsObj.init === 'function') {
-                try {
-                    analyticsObj.init({
-                        token: 'eyJhcHBfbmFtZSI6ImFmZmluaWEiLCJhcHBfdXJsIjoiaHR0cHM6Ly90Lm1lL0FmZmluaWFCb3QiLCJhcHBfZG9tYWluIjoiaHR0cHM6Ly9hZmZpbmlhLmhlcm9rdWFwcC5jb20ifQ==!jCoLLK51UOM752Ckcg8vTLYGvFP8oW7QNWFGDRnXNCQ=',
-                        appName: 'affinia',
-                    });
-                    console.log('✅ Telegram Analytics initialized correctly v5.0');
-                    // Сохраняем ссылку глобально
-                    window.telegramAnalytics = analyticsObj;
-                    console.log('✅ Analytics object saved globally:', window.telegramAnalytics);
-                } catch (error) {
-                    console.error('❌ Analytics init error:', error);
+                    console.error('Analytics init error:', error);
                 }
             } else {
-                console.error('❌ telegramAnalytics not available or no init function');
-                console.log('Available methods in analyticsObj:', analyticsObj ? Object.keys(analyticsObj) : 'null');
-                console.log('window.telegramAnalytics type:', typeof window.telegramAnalytics);
-                console.log('window.telegramAnalytics value:', window.telegramAnalytics);
-                console.log('window.TelegramAnalytics type:', typeof window.TelegramAnalytics);
-                
-                // Если telegramAnalytics null, попробуем создать объект вручную
-                if (window.telegramAnalytics === null) {
-                    console.log('🔄 telegramAnalytics is null, trying to create object...');
-                    try {
-                        // Попробуем создать простой объект с методами
-                        window.telegramAnalytics = {
-                            init: function(config) {
-                                console.log('Manual analytics init called:', config);
-                                this.initialized = true;
-                                this.config = config;
-                            },
-                            track: function(eventName, eventData) {
-                                console.log('Manual analytics track called:', eventName, eventData);
-                                
-                                // Просто логируем событие
-                                console.log('✅ Analytics event logged:', eventName, eventData);
-                                
-                                // Используем только официальный API
-                                if (window.telegramAnalytics && window.telegramAnalytics.registerInvoice) {
-                                    try {
-                                        window.telegramAnalytics.registerInvoice({
-                                            event: eventName,
-                                            data: eventData
-                                        });
-                                        console.log('✅ Sent via official SDK registerInvoice');
-                                    } catch (error) {
-                                        console.error('Official SDK error:', error);
-                                    }
-                                }
-                            }
-                        };
-                        console.log('✅ Created manual analytics object');
-                        analyticsObj = window.telegramAnalytics;
-                    } catch (error) {
-                        console.error('❌ Error creating manual analytics object:', error);
-                    }
-                }
+                console.log('Analytics SDK not ready yet');
             }
         }
         
         // Инициализируем после загрузки страницы
         window.addEventListener('load', function() {
-            // Ждем дольше для полной загрузки SDK
-            setTimeout(initAnalytics, 3000);
-            
-            // Принудительно отправляем тестовые события
-            setTimeout(() => {
-                console.log('🧪 Sending test analytics events...');
-                trackEvent('app_launched', { source: 'manual_test' });
-                trackEvent('page_view', { page: 'main', source: 'manual_test' });
-                trackEvent('user_action', { action: 'test_click', source: 'manual_test' });
-            }, 6000);
+            setTimeout(initAnalytics, 2000);
         });
-        
-        // Дополнительные попытки инициализации
-        setTimeout(() => {
-            console.log('🔄 Retry analytics initialization (5s)...');
-            console.log('All window objects at 5s:', Object.keys(window).filter(k => k.toLowerCase().includes('analytics')));
-            initAnalytics();
-        }, 5000);
-        
-        setTimeout(() => {
-            console.log('🔄 Retry analytics initialization (8s)...');
-            console.log('All window objects at 8s:', Object.keys(window).filter(k => k.toLowerCase().includes('analytics')));
-            initAnalytics();
-        }, 8000);
-        
-        // Финальная попытка через 10 секунд
-        setTimeout(() => {
-            console.log('🔄 Final retry analytics initialization (10s)...');
-            console.log('All window objects at 10s:', Object.keys(window).filter(k => k.toLowerCase().includes('analytics')));
-            console.log('window.telegramAnalytics at 10s:', window.telegramAnalytics);
-            console.log('window.TelegramAnalytics at 10s:', window.TelegramAnalytics);
-            initAnalytics();
-        }, 10000);
         
         // Делаем telegramAnalytics глобально доступным
         window.telegramAnalytics = null;
@@ -3250,35 +3068,21 @@
 
         // Функция для отслеживания событий аналитики
         function trackEvent(eventName, eventData = {}) {
-            console.log('🔍 trackEvent called:', eventName, eventData);
-            console.log('🔍 window.TelegramAnalytics:', window.TelegramAnalytics);
-            console.log('🔍 window.telegramAnalytics:', window.telegramAnalytics);
-            console.log('🔍 track function:', window.TelegramAnalytics?.track);
+            console.log('📊 Event:', eventName, eventData);
             
-            try {
-                // Отправка в Telegram Analytics SDK с правильным форматом
-                const analyticsObj = window.TelegramAnalytics || window.telegramAnalytics;
-                if (analyticsObj && typeof analyticsObj.track === 'function') {
-                    const standardEvent = {
-                        event_name: eventName,
-                        user_id: window.Telegram?.WebApp?.initDataUnsafe?.user?.id,
-                        session_id: generateSessionId(),
-                        app_name: 'affinia',
-                        platform: 'telegram',
-                        locale: window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code || 'en',
-                        client_timestamp: Date.now().toString(),
-                        ...eventData
-                    };
-                    
-                    console.log('📤 Sending analytics event:', standardEvent);
-                    analyticsObj.track(eventName, standardEvent);
-                    console.log('✅ Analytics Event sent successfully:', eventName);
-                } else {
-                    console.error('❌ telegramAnalytics not available or track is not a function');
-                    console.log('Available methods:', Object.keys(window.telegramAnalytics || {}));
+            // Простая отправка через SDK
+            if (window.telegramAnalytics && window.telegramAnalytics.registerInvoice) {
+                try {
+                    window.telegramAnalytics.registerInvoice({
+                        event: eventName,
+                        data: eventData
+                    });
+                    console.log('✅ Event sent');
+                } catch (error) {
+                    console.error('Send error:', error);
                 }
-            } catch (error) {
-                console.error('❌ Analytics tracking error:', error);
+            } else {
+                console.log('SDK not ready');
             }
         }
 
