@@ -3032,10 +3032,21 @@
         // Функция для отслеживания событий аналитики
         function trackEvent(eventName, eventData = {}) {
             try {
-                // Отправка в Telegram Analytics SDK
+                // Отправка в Telegram Analytics SDK с правильным форматом
                 if (window.telegramAnalytics && window.telegramAnalytics.track) {
-                    window.telegramAnalytics.track(eventName, eventData);
-                    console.log('Analytics Event sent:', eventName, eventData);
+                    const standardEvent = {
+                        event_name: eventName,
+                        user_id: window.Telegram?.WebApp?.initDataUnsafe?.user?.id,
+                        session_id: generateSessionId(),
+                        app_name: 'affinia',
+                        platform: 'telegram',
+                        locale: window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code || 'en',
+                        client_timestamp: Date.now().toString(),
+                        ...eventData
+                    };
+                    
+                    window.telegramAnalytics.track(eventName, standardEvent);
+                    console.log('Analytics Event sent:', eventName, standardEvent);
                 } else {
                     console.warn('telegramAnalytics not available');
                 }
@@ -4467,27 +4478,38 @@ function deleteBeloved(belovedId) {
     
     // Analytics уже инициализирован в head
     
-    // Отправляем события для тестирования Analytics
+    // Отправляем стандартные события согласно документации
     if (window.telegramAnalytics) {
-        // Событие запуска приложения
-        window.telegramAnalytics.track('app_launched', {
+        // Стандартное событие инициализации приложения
+        window.telegramAnalytics.track('app-init', {
             user_id: window.Telegram?.WebApp?.initDataUnsafe?.user?.id,
-            timestamp: Date.now()
+            session_id: generateSessionId(),
+            app_name: 'affinia',
+            platform: 'telegram',
+            locale: window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code || 'en',
+            client_timestamp: Date.now().toString()
         });
         
-        // Событие загрузки страницы
-        window.telegramAnalytics.track('page_loaded', {
-            page: 'main',
-            timestamp: Date.now()
+        // Кастомное событие для тестирования
+        window.telegramAnalytics.track('custom-event', {
+            user_id: window.Telegram?.WebApp?.initDataUnsafe?.user?.id,
+            session_id: generateSessionId(),
+            app_name: 'affinia',
+            custom_data: {
+                event_type: 'app_launched',
+                page: 'main'
+            },
+            client_timestamp: Date.now().toString()
         });
-        
-        // Событие инициализации пользователя
-        if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
-            window.telegramAnalytics.track('user_initialized', {
-                user_id: window.Telegram.WebApp.initDataUnsafe.user.id,
-                timestamp: Date.now()
-            });
-        }
+    }
+    
+    // Функция генерации session_id (UUID)
+    function generateSessionId() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
     }
     
     // Инициализация TON Connect
