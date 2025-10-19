@@ -3062,21 +3062,17 @@
         // Инициализация TON Connect
         function initTonConnect() {
             // Ждем загрузки TON Connect SDK
-            if (!window.TonConnectUI) {
+            if (!window.TON_CONNECT_UI) {
                 setTimeout(initTonConnect, 500);
                 return;
             }
 
             try {
-                // Простой манифест для TON Connect
-                const manifest = {
-                    url: window.location.origin,
-                    name: 'Affinia Mini App',
-                    iconUrl: window.location.origin + '/static/icon-192x192.png'
-                };
-
-                tonConnect = new window.TonConnectUI.TonConnectUI({
-                    manifest: manifest,
+                // Создаем манифест для TON Connect
+                const manifestUrl = window.location.origin + '/tonconnect-manifest.json';
+                
+                tonConnect = new window.TON_CONNECT_UI.TonConnectUI({
+                    manifestUrl: manifestUrl,
                     buttonRootId: 'ton-connect-button'
                 });
 
