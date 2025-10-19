@@ -3073,6 +3073,21 @@
                 console.log('TON Connect initialized successfully');
             } catch (error) {
                 console.error('TON Connect initialization error:', error);
+                // Fallback - показываем сообщение об ошибке
+                showTonConnectFallback();
+            }
+        }
+
+        // Fallback для TON Connect
+        function showTonConnectFallback() {
+            const tonConnectBtn = document.getElementById('ton-connect-button');
+            if (tonConnectBtn) {
+                tonConnectBtn.innerHTML = `
+                    <button class="ton-connect-btn" onclick="alert('TON Connect temporarily unavailable. This feature will be available soon!')">
+                        <span class="ton-connect-icon">⚠️</span>
+                        TON Connect Coming Soon
+                    </button>
+                `;
             }
         }
 
@@ -4457,6 +4472,13 @@ function deleteBeloved(belovedId) {
     setTimeout(() => {
         initTonConnect();
     }, 1000);
+    
+    // Fallback если TON Connect не загрузится за 10 секунд
+    setTimeout(() => {
+        if (!tonConnect) {
+            showTonConnectFallback();
+        }
+    }, 10000);
     
     updateUserInfo();
     updateCounter();
