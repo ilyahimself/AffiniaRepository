@@ -21,8 +21,24 @@
             console.log('Available global objects:', Object.keys(window).filter(k => k.includes('telegram') || k.includes('analytics')));
             
             // Проверяем разные варианты объекта (по документации)
-            const analyticsObj = window.TelegramAnalytics || window.telegramAnalytics || window.analytics;
+            let analyticsObj = window.TelegramAnalytics || window.telegramAnalytics || window.analytics;
             console.log('Found analytics object:', analyticsObj);
+            
+            // Если объект undefined, но SDK загружен, создаем его
+            if (!analyticsObj && window.telegramAnalytics !== undefined) {
+                console.log('Creating analytics object manually...');
+                try {
+                    // Пробуем создать объект через конструктор
+                    if (window.TelegramAnalytics) {
+                        analyticsObj = new window.TelegramAnalytics();
+                    } else if (window.telegramAnalytics && typeof window.telegramAnalytics === 'function') {
+                        analyticsObj = new window.telegramAnalytics();
+                    }
+                    console.log('Created analytics object:', analyticsObj);
+                } catch (error) {
+                    console.error('Error creating analytics object:', error);
+                }
+            }
             
             if (analyticsObj && typeof analyticsObj.init === 'function') {
                 try {
@@ -37,8 +53,10 @@
                     console.error('❌ Analytics init error:', error);
                 }
             } else {
-                console.error('❌ telegramAnalytics not available');
+                console.error('❌ telegramAnalytics not available or no init function');
                 console.log('Available methods in analyticsObj:', analyticsObj ? Object.keys(analyticsObj) : 'null');
+                console.log('window.telegramAnalytics type:', typeof window.telegramAnalytics);
+                console.log('window.TelegramAnalytics type:', typeof window.TelegramAnalytics);
             }
         }
         
