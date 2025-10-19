@@ -40,6 +40,9 @@
             console.log('All window objects with "telegram":', Object.keys(window).filter(k => k.toLowerCase().includes('telegram')));
             console.log('All window objects with "analytics":', Object.keys(window).filter(k => k.toLowerCase().includes('analytics')));
             
+            // Проверяем все объекты в window
+            console.log('All window objects:', Object.keys(window).slice(0, 20)); // первые 20
+            
             // Проверяем разные варианты объекта (по документации)
             let analyticsObj = window.TelegramAnalytics || window.telegramAnalytics || window.analytics;
             console.log('Found analytics object:', analyticsObj);
@@ -63,6 +66,29 @@
                     console.log('✅ Official SDK initialized');
                 } catch (error) {
                     console.error('Official SDK init error:', error);
+                }
+            }
+            
+            // Попробуем найти SDK в других местах
+            if (!analyticsObj) {
+                console.log('Searching for analytics SDK in window...');
+                console.log('window keys:', Object.keys(window).filter(k => k.toLowerCase().includes('analytics')));
+                
+                // Проверяем все возможные варианты
+                const possibleSDKs = [
+                    window.TelegramAnalytics,
+                    window.telegramAnalytics,
+                    window.analytics,
+                    window.Telegram?.Analytics,
+                    window.telegram?.analytics
+                ];
+                
+                for (let i = 0; i < possibleSDKs.length; i++) {
+                    if (possibleSDKs[i] && typeof possibleSDKs[i].init === 'function') {
+                        console.log(`Found SDK at index ${i}:`, possibleSDKs[i]);
+                        analyticsObj = possibleSDKs[i];
+                        break;
+                    }
                 }
             }
             
