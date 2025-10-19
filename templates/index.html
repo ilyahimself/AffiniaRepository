@@ -9,33 +9,28 @@
     <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <!-- Telegram Mini Apps Analytics SDK -->
-    <script src="https://tganalytics.xyz/sdk/index.js"></script>
+    <script 
+        async 
+        src="https://tganalytics.xyz/index.js" 
+        onload="initAnalytics()" 
+        type="text/javascript">
+    </script>
     <script>
-        // Инициализация Analytics сразу после загрузки SDK
-        (function() {
-            function initAnalytics() {
-                if (window.TelegramAnalytics) {
-                    try {
-                        window.TelegramAnalytics.init('eyJhcHBfbmFtZSI6ImFmZmluaWEiLCJhcHBfdXJsIjoiaHR0cHM6Ly90Lm1lL0FmZmluaWFCb3QiLCJhcHBfZG9tYWluIjoiaHR0cHM6Ly9hZmZpbmlhLmhlcm9rdWFwcC5jb20ifQ==!jCoLLK51UOM752Ckcg8vTLYGvFP8oW7QNWFGDRnXNCQ=');
-                        console.log('Analytics initialized');
-                        
-                        // Отправляем тестовое событие
-                        window.TelegramAnalytics.track('app_started', {
-                            timestamp: Date.now(),
-                            user_agent: navigator.userAgent
-                        });
-                    } catch (error) {
-                        console.error('Analytics init error:', error);
-                    }
-                } else {
-                    // Повторяем попытку через 100ms
-                    setTimeout(initAnalytics, 100);
+        function initAnalytics() {
+            if (window.telegramAnalytics) {
+                try {
+                    window.telegramAnalytics.init({
+                        token: 'eyJhcHBfbmFtZSI6ImFmZmluaWEiLCJhcHBfdXJsIjoiaHR0cHM6Ly90Lm1lL0FmZmluaWFCb3QiLCJhcHBfZG9tYWluIjoiaHR0cHM6Ly9hZmZpbmlhLmhlcm9rdWFwcC5jb20ifQ==!jCoLLK51UOM752Ckcg8vTLYGvFP8oW7QNWFGDRnXNCQ=',
+                        appName: 'affinia',
+                    });
+                    console.log('Telegram Analytics initialized correctly');
+                } catch (error) {
+                    console.error('Analytics init error:', error);
                 }
+            } else {
+                console.error('telegramAnalytics not available');
             }
-            
-            // Запускаем инициализацию
-            initAnalytics();
-        })();
+        }
     </script>
     <!-- TON Connect SDK -->
     <script src="https://unpkg.com/@tonconnect/ui@2.0.0/dist/tonconnect-ui.min.js"></script>
@@ -3038,11 +3033,11 @@
         function trackEvent(eventName, eventData = {}) {
             try {
                 // Отправка в Telegram Analytics SDK
-                if (window.TelegramAnalytics && window.TelegramAnalytics.track) {
-                    window.TelegramAnalytics.track(eventName, eventData);
+                if (window.telegramAnalytics && window.telegramAnalytics.track) {
+                    window.telegramAnalytics.track(eventName, eventData);
                     console.log('Analytics Event sent:', eventName, eventData);
                 } else {
-                    console.warn('Telegram Analytics not available');
+                    console.warn('telegramAnalytics not available');
                 }
             } catch (error) {
                 console.error('Analytics tracking error:', error);
@@ -4473,22 +4468,22 @@ function deleteBeloved(belovedId) {
     // Analytics уже инициализирован в head
     
     // Отправляем события для тестирования Analytics
-    if (window.TelegramAnalytics) {
+    if (window.telegramAnalytics) {
         // Событие запуска приложения
-        window.TelegramAnalytics.track('app_launched', {
+        window.telegramAnalytics.track('app_launched', {
             user_id: window.Telegram?.WebApp?.initDataUnsafe?.user?.id,
             timestamp: Date.now()
         });
         
         // Событие загрузки страницы
-        window.TelegramAnalytics.track('page_loaded', {
+        window.telegramAnalytics.track('page_loaded', {
             page: 'main',
             timestamp: Date.now()
         });
         
         // Событие инициализации пользователя
         if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
-            window.TelegramAnalytics.track('user_initialized', {
+            window.telegramAnalytics.track('user_initialized', {
                 user_id: window.Telegram.WebApp.initDataUnsafe.user.id,
                 timestamp: Date.now()
             });
