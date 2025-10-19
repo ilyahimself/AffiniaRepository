@@ -50,8 +50,8 @@
             setTimeout(initAnalytics, 2000);
         });
         
-        // Делаем telegramAnalytics глобально доступным
-        window.telegramAnalytics = null;
+        // Флаг готовности SDK (устанавливается onload у скрипта)
+        window.telegramAnalyticsReady = window.telegramAnalyticsReady || false;
     </script>
     <!-- TON Connect SDK -->
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js" onload="console.log('TON Connect SDK loaded')" onerror="console.error('TON Connect SDK failed to load')"></script>
@@ -3069,20 +3069,38 @@
         // Функция для отслеживания событий аналитики
         function trackEvent(eventName, eventData = {}) {
             console.log('📊 Event:', eventName, eventData);
-            
-            // Простая отправка через SDK
-            if (window.telegramAnalytics && window.telegramAnalytics.registerInvoice) {
-                try {
-                    window.telegramAnalytics.registerInvoice({
-                        event: eventName,
-                        data: eventData
-                    });
-                    console.log('✅ Event sent');
-                } catch (error) {
-                    console.error('Send error:', error);
-                }
-            } else {
+
+            const payload = {
+                event_name: eventName,
+                user_id: Telegram?.WebApp?.initDataUnsafe?.user?.id,
+                session_id: generateSessionId(),
+                app_name: 'affinia',
+                platform: 'telegram',
+                locale: Telegram?.WebApp?.initDataUnsafe?.user?.language_code || 'en',
+                client_timestamp: Date.now().toString(),
+                ...eventData
+            };
+
+            const sdk = window.telegramAnalytics;
+            if (!sdk) {
                 console.log('SDK not ready');
+                return;
+            }
+
+            try {
+                if (typeof sdk.track === 'function') {
+                    sdk.track(eventName, payload);
+                    console.log('✅ Event sent via track');
+                    return;
+                }
+                if (typeof sdk.registerInvoice === 'function') {
+                    sdk.registerInvoice({ event: eventName, data: payload });
+                    console.log('✅ Event sent via registerInvoice');
+                    return;
+                }
+                console.warn('SDK has no supported send method');
+            } catch (error) {
+                console.error('Send error:', error);
             }
         }
 
