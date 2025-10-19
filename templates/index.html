@@ -90,6 +90,12 @@
                         break;
                     }
                 }
+                
+                // Если все еще не найден, ждем еще
+                if (!analyticsObj) {
+                    console.log('SDK not found yet, will retry later...');
+                    return; // Выходим, чтобы попробовать позже
+                }
             }
             
             // Если объект undefined или null, но SDK загружен, создаем его
@@ -179,7 +185,7 @@
         // Инициализируем после загрузки страницы
         window.addEventListener('load', function() {
             // Ждем дольше для полной загрузки SDK
-            setTimeout(initAnalytics, 2000);
+            setTimeout(initAnalytics, 3000);
             
             // Принудительно отправляем тестовые события
             setTimeout(() => {
@@ -187,14 +193,19 @@
                 trackEvent('app_launched', { source: 'manual_test' });
                 trackEvent('page_view', { page: 'main', source: 'manual_test' });
                 trackEvent('user_action', { action: 'test_click', source: 'manual_test' });
-            }, 5000);
+            }, 6000);
         });
         
-        // Дополнительная попытка инициализации через 3 секунды
+        // Дополнительные попытки инициализации
         setTimeout(() => {
-            console.log('🔄 Retry analytics initialization...');
+            console.log('🔄 Retry analytics initialization (5s)...');
             initAnalytics();
-        }, 3000);
+        }, 5000);
+        
+        setTimeout(() => {
+            console.log('🔄 Retry analytics initialization (8s)...');
+            initAnalytics();
+        }, 8000);
         
         // Делаем telegramAnalytics глобально доступным
         window.telegramAnalytics = null;
