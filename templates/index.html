@@ -11,7 +11,16 @@
     <!-- Telegram Mini Apps Analytics SDK -->
     <script src="https://tganalytics.xyz/sdk/index.js"></script>
     <!-- TON Connect SDK -->
-    <script src="https://unpkg.com/@tonconnect/ui@2.0.0/dist/tonconnect-ui.min.js" onload="console.log('TON Connect loaded')" onerror="console.error('TON Connect failed to load')"></script>
+    <script src="https://unpkg.com/@tonconnect/ui@2.0.0/dist/tonconnect-ui.min.js"></script>
+    <script>
+        // Проверяем загрузку TON Connect
+        window.addEventListener('load', function() {
+            console.log('TON Connect available:', !!window.TonConnectUI);
+            if (!window.TonConnectUI) {
+                console.error('TON Connect SDK failed to load');
+            }
+        });
+    </script>
     <style>
         * {
             box-sizing: border-box;
@@ -3031,18 +3040,16 @@
         function initTonConnect() {
             // Ждем загрузки TON Connect SDK
             if (!window.TonConnectUI) {
-                setTimeout(initTonConnect, 1000);
+                setTimeout(initTonConnect, 500);
                 return;
             }
 
             try {
-                // Манифест для TON Connect
+                // Простой манифест для TON Connect
                 const manifest = {
-                    url: 'https://affinia.herokuapp.com',
+                    url: window.location.origin,
                     name: 'Affinia Mini App',
-                    iconUrl: 'https://affinia.herokuapp.com/static/icon-192x192.png',
-                    termsOfUseUrl: 'https://affinia.herokuapp.com/terms',
-                    privacyPolicyUrl: 'https://affinia.herokuapp.com/privacy'
+                    iconUrl: window.location.origin + '/static/icon-192x192.png'
                 };
 
                 tonConnect = new window.TonConnectUI.TonConnectUI({
@@ -3073,21 +3080,6 @@
                 console.log('TON Connect initialized successfully');
             } catch (error) {
                 console.error('TON Connect initialization error:', error);
-                // Fallback - показываем сообщение об ошибке
-                showTonConnectFallback();
-            }
-        }
-
-        // Fallback для TON Connect
-        function showTonConnectFallback() {
-            const tonConnectBtn = document.getElementById('ton-connect-button');
-            if (tonConnectBtn) {
-                tonConnectBtn.innerHTML = `
-                    <button class="ton-connect-btn" onclick="alert('TON Connect temporarily unavailable. This feature will be available soon!')">
-                        <span class="ton-connect-icon">⚠️</span>
-                        TON Connect Coming Soon
-                    </button>
-                `;
             }
         }
 
@@ -4472,13 +4464,6 @@ function deleteBeloved(belovedId) {
     setTimeout(() => {
         initTonConnect();
     }, 1000);
-    
-    // Fallback если TON Connect не загрузится за 10 секунд
-    setTimeout(() => {
-        if (!tonConnect) {
-            showTonConnectFallback();
-        }
-    }, 10000);
     
     updateUserInfo();
     updateCounter();
