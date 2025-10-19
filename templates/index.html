@@ -51,6 +51,17 @@
             if (!analyticsObj && window.telegramAnalytics) {
                 console.log('Using window.telegramAnalytics directly');
                 analyticsObj = window.telegramAnalytics;
+                
+                // Инициализируем реальный SDK
+                try {
+                    analyticsObj.init({
+                        token: 'eyJhcHBfbmFtZSI6ImFmZmluaWEiLCJhcHBfdXJsIjoiaHR0cHM6Ly90Lm1lL0FmZmluaWFCb3QiLCJhcHBfZG9tYWluIjoiaHR0cHM6Ly9hZmZpbmlhLmhlcm9rdWFwcC5jb20ifQ==!jCoLLK51UOM752Ckcg8vTLYGvFP8oW7QNWFGDRnXNCQ=',
+                        appName: 'affinia',
+                    });
+                    console.log('✅ Real SDK initialized successfully');
+                } catch (error) {
+                    console.error('Real SDK init error:', error);
+                }
             }
             
             // Попробуем использовать официальный SDK напрямую
@@ -159,14 +170,18 @@
                             track: function(eventName, eventData) {
                                 console.log('Manual analytics track called:', eventName, eventData);
                                 
-                                // Просто логируем событие, не отправляем на сервер
+                                // Просто логируем событие
                                 console.log('✅ Analytics event logged:', eventName, eventData);
                                 
-                                // Попробуем использовать официальный API если доступен
-                                if (window.TelegramAnalytics && window.TelegramAnalytics.track) {
+                                // Попробуем использовать официальный API
+                                if (window.telegramAnalytics && window.telegramAnalytics.registerInvoice) {
                                     try {
-                                        window.TelegramAnalytics.track(eventName, eventData);
-                                        console.log('✅ Sent via official SDK');
+                                        // Используем registerInvoice вместо track
+                                        window.telegramAnalytics.registerInvoice({
+                                            event: eventName,
+                                            data: eventData
+                                        });
+                                        console.log('✅ Sent via official SDK registerInvoice');
                                     } catch (error) {
                                         console.error('Official SDK error:', error);
                                     }
