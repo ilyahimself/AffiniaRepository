@@ -3082,23 +3082,14 @@
             };
 
             const sdk = window.telegramAnalytics;
-            if (!sdk) {
+            if (!sdk || typeof sdk.track !== 'function') {
                 console.log('SDK not ready');
                 return;
             }
 
             try {
-                if (typeof sdk.track === 'function') {
-                    sdk.track(eventName, payload);
-                    console.log('✅ Event sent via track');
-                    return;
-                }
-                if (typeof sdk.registerInvoice === 'function') {
-                    sdk.registerInvoice({ event: eventName, data: payload });
-                    console.log('✅ Event sent via registerInvoice');
-                    return;
-                }
-                console.warn('SDK has no supported send method');
+                sdk.track(eventName, payload);
+                console.log('✅ Event sent via track');
             } catch (error) {
                 console.error('Send error:', error);
             }
