@@ -3056,6 +3056,8 @@
                         }
                     });
 
+                    // Инициализируем UI после создания
+                    updateTonWalletUI(false);
                     console.log('TON Connect initialized');
                 } else {
                     console.error('TON Connect UI not loaded');
@@ -3069,7 +3071,6 @@
         function updateTonWalletUI(connected) {
             const statusCard = document.getElementById('ton-wallet-status');
             const actions = document.getElementById('ton-actions');
-            const connectBtn = document.getElementById('ton-connect-btn');
             const tonConnectBtn = document.getElementById('ton-connect-button');
             const balance = document.getElementById('ton-balance');
             const title = document.getElementById('ton-wallet-title');
@@ -3082,7 +3083,6 @@
                 subtitle.textContent = `${tonWallet.account.address.slice(0, 6)}...${tonWallet.account.address.slice(-4)}`;
                 balance.style.display = 'block';
                 actions.style.display = 'grid';
-                connectBtn.style.display = 'none';
                 if (tonConnectBtn) tonConnectBtn.style.display = 'none';
                 
                 // Загружаем баланс
@@ -3091,31 +3091,17 @@
                 // Показываем состояние отключения
                 statusCard.style.cursor = 'pointer';
                 title.textContent = 'Connect TON Wallet';
-                subtitle.textContent = 'Tap to connect your wallet';
+                subtitle.textContent = 'Use the button below to connect';
                 balance.style.display = 'none';
                 actions.style.display = 'none';
-                connectBtn.style.display = 'flex';
-                if (tonConnectBtn) tonConnectBtn.style.display = 'none';
+                if (tonConnectBtn) tonConnectBtn.style.display = 'block';
             }
         }
 
-        // Подключение TON кошелька
+        // Подключение TON кошелька (теперь не нужна, используется встроенная кнопка)
         function connectTonWallet() {
             if (tonConnect) {
-                // Показываем встроенную кнопку TON Connect
-                const connectButton = document.getElementById('ton-connect-button');
-                const customButton = document.getElementById('ton-connect-btn');
-                
-                if (connectButton && customButton) {
-                    connectButton.style.display = 'block';
-                    customButton.style.display = 'none';
-                    
-                    // Инициализируем кнопку TON Connect
-                    tonConnect.connectWallet();
-                } else {
-                    tonConnect.openModal();
-                }
-                
+                tonConnect.openModal();
                 trackEvent('ton_connect_attempt', {
                     timestamp: Date.now()
                 });
@@ -5895,11 +5881,7 @@ function sendConsentResponse(decision) {
                     </div>
 
                     <!-- TON Connect Button (shown when disconnected) -->
-                    <div id="ton-connect-button" style="display: none;"></div>
-                    <button id="ton-connect-btn" class="ton-connect-btn" onclick="connectTonWallet()">
-                        <span class="ton-connect-icon">🔗</span>
-                        Connect TON Wallet
-                    </button>
+                    <div id="ton-connect-button"></div>
                 </div>
             </div>
         </div>        
