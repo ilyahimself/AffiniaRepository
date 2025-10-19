@@ -10,9 +10,17 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <!-- Telegram Mini Apps Analytics SDK -->
     <script
+        src="https://tganalytics.xyz/index.js" 
+        onload="console.log('Analytics SDK loaded successfully from tganalytics.xyz')" 
+        onerror="console.error('Analytics SDK failed to load from tganalytics.xyz, trying alternative...')"
+        type="text/javascript">
+    </script>
+    
+    <!-- Alternative Analytics SDK -->
+    <script
         src="https://unpkg.com/@telegram-apps/analytics@latest/dist/index.js" 
-        onload="console.log('Analytics SDK loaded successfully')" 
-        onerror="console.error('Analytics SDK failed to load')"
+        onload="console.log('Alternative Analytics SDK loaded successfully from unpkg')" 
+        onerror="console.error('Alternative Analytics SDK also failed to load')"
         type="text/javascript">
     </script>
     <script>
