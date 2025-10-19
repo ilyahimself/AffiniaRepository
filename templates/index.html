@@ -39,6 +39,12 @@
         // Инициализируем после загрузки страницы
         window.addEventListener('load', function() {
             setTimeout(initAnalytics, 1000);
+            
+            // Принудительно отправляем тестовое событие через 3 секунды
+            setTimeout(() => {
+                console.log('🧪 Sending test analytics event...');
+                trackEvent('test_event', { test: true, timestamp: Date.now() });
+            }, 3000);
         });
         
         // Делаем telegramAnalytics глобально доступным
@@ -3059,9 +3065,13 @@
 
         // Функция для отслеживания событий аналитики
         function trackEvent(eventName, eventData = {}) {
+            console.log('🔍 trackEvent called:', eventName, eventData);
+            console.log('🔍 window.telegramAnalytics:', window.telegramAnalytics);
+            console.log('🔍 track function:', window.telegramAnalytics?.track);
+            
             try {
                 // Отправка в Telegram Analytics SDK с правильным форматом
-                if (window.telegramAnalytics && window.telegramAnalytics.track) {
+                if (window.telegramAnalytics && typeof window.telegramAnalytics.track === 'function') {
                     const standardEvent = {
                         event_name: eventName,
                         user_id: window.Telegram?.WebApp?.initDataUnsafe?.user?.id,
@@ -3073,13 +3083,15 @@
                         ...eventData
                     };
                     
+                    console.log('📤 Sending analytics event:', standardEvent);
                     window.telegramAnalytics.track(eventName, standardEvent);
-                    console.log('Analytics Event sent:', eventName, standardEvent);
+                    console.log('✅ Analytics Event sent successfully:', eventName);
                 } else {
-                    console.warn('telegramAnalytics not available');
+                    console.error('❌ telegramAnalytics not available or track is not a function');
+                    console.log('Available methods:', Object.keys(window.telegramAnalytics || {}));
                 }
             } catch (error) {
-                console.error('Analytics tracking error:', error);
+                console.error('❌ Analytics tracking error:', error);
             }
         }
 
