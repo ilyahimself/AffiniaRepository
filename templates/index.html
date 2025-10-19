@@ -9,13 +9,7 @@
     <!-- Telegram Mini Apps Analytics SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <!-- TON Connect SDK -->
-    <script src="https://unpkg.com/@tonconnect/ui@2.0.0/dist/tonconnect-ui.min.js"></script>
-    <script>
-        // Проверка загрузки TON Connect
-        window.addEventListener('load', function() {
-            console.log('TON Connect UI loaded:', !!window.TonConnectUI);
-        });
-    </script>
+    <script src="https://unpkg.com/@tonconnect/ui@2.0.0/dist/tonconnect-ui.min.js" onload="console.log('TON Connect loaded')" onerror="console.error('TON Connect failed to load')"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -3028,62 +3022,50 @@
 
         // Инициализация TON Connect
         function initTonConnect() {
+            // Ждем загрузки TON Connect SDK
+            if (!window.TonConnectUI) {
+                setTimeout(initTonConnect, 1000);
+                return;
+            }
+
             try {
-                if (window.TonConnectUI) {
-                    // Простой манифест для TON Connect
-                    const manifest = {
-                        url: window.location.origin,
-                        name: 'Affinia Mini App',
-                        iconUrl: window.location.origin + '/static/icon-192x192.png'
-                    };
+                // Манифест для TON Connect
+                const manifest = {
+                    url: 'https://affinia.herokuapp.com',
+                    name: 'Affinia Mini App',
+                    iconUrl: 'https://affinia.herokuapp.com/static/icon-192x192.png',
+                    termsOfUseUrl: 'https://affinia.herokuapp.com/terms',
+                    privacyPolicyUrl: 'https://affinia.herokuapp.com/privacy'
+                };
 
-                    tonConnect = new window.TonConnectUI.TonConnectUI({
-                        manifest: manifest,
-                        buttonRootId: 'ton-connect-button'
-                    });
+                tonConnect = new window.TonConnectUI.TonConnectUI({
+                    manifest: manifest,
+                    buttonRootId: 'ton-connect-button'
+                });
 
-                    // Обработчики событий
-                    tonConnect.onStatusChange((wallet) => {
-                        if (wallet) {
-                            tonWallet = wallet;
-                            updateTonWalletUI(true);
-                            trackEvent('ton_wallet_connected', {
-                                address: wallet.account.address,
-                                timestamp: Date.now()
-                            });
-                        } else {
-                            tonWallet = null;
-                            updateTonWalletUI(false);
-                            trackEvent('ton_wallet_disconnected', {
-                                timestamp: Date.now()
-                            });
-                        }
-                    });
+                // Обработчики событий
+                tonConnect.onStatusChange((wallet) => {
+                    if (wallet) {
+                        tonWallet = wallet;
+                        updateTonWalletUI(true);
+                        trackEvent('ton_wallet_connected', {
+                            address: wallet.account.address,
+                            timestamp: Date.now()
+                        });
+                    } else {
+                        tonWallet = null;
+                        updateTonWalletUI(false);
+                        trackEvent('ton_wallet_disconnected', {
+                            timestamp: Date.now()
+                        });
+                    }
+                });
 
-                    // Инициализируем UI после создания
-                    updateTonWalletUI(false);
-                    console.log('TON Connect initialized successfully');
-                } else {
-                    console.error('TON Connect UI not loaded');
-                    // Fallback - показываем сообщение об ошибке
-                    showTonConnectError();
-                }
+                // Инициализируем UI
+                updateTonWalletUI(false);
+                console.log('TON Connect initialized successfully');
             } catch (error) {
                 console.error('TON Connect initialization error:', error);
-                showTonConnectError();
-            }
-        }
-
-        // Показ ошибки TON Connect
-        function showTonConnectError() {
-            const tonConnectBtn = document.getElementById('ton-connect-button');
-            if (tonConnectBtn) {
-                tonConnectBtn.innerHTML = `
-                    <button class="ton-connect-btn" onclick="alert('TON Connect temporarily unavailable. Please try again later.')">
-                        <span class="ton-connect-icon">⚠️</span>
-                        TON Connect Unavailable
-                    </button>
-                `;
             }
         }
 
@@ -3182,23 +3164,6 @@
             }
         }
 
-        // Тестовая функция TON Connect
-        function testTonConnect() {
-            if (tonConnect) {
-                try {
-                    tonConnect.openModal();
-                    trackEvent('ton_connect_test', {
-                        timestamp: Date.now()
-                    });
-                } catch (error) {
-                    console.error('TON Connect modal error:', error);
-                    alert('TON Connect error: ' + error.message);
-                }
-            } else {
-                alert('TON Connect not initialized. Trying to initialize...');
-                initTonConnect();
-            }
-        }
 
         function addActivityItem(icon, text) {
             const activityList = document.getElementById('activity-list');
@@ -5919,12 +5884,7 @@ function sendConsentResponse(decision) {
                     </div>
 
                     <!-- TON Connect Button (shown when disconnected) -->
-                    <div id="ton-connect-button">
-                        <button class="ton-connect-btn" onclick="testTonConnect()">
-                            <span class="ton-connect-icon">🔗</span>
-                            Connect TON Wallet
-                        </button>
-                    </div>
+                    <div id="ton-connect-button"></div>
                 </div>
             </div>
         </div>        
