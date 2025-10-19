@@ -190,7 +190,7 @@ def tonconnect_manifest():
 
 @app.route('/test-manifest')
 def test_manifest():
-    return "Manifest test works!"
+    return "Manifest test works! Version 2.0"
 
 
 @app.route('/get_balance', methods=['POST'])
