@@ -11,7 +11,7 @@
     <!-- Telegram Mini Apps Analytics SDK -->
     <script>
         function initAnalytics() {
-            console.log('Initializing Analytics SDK v3.0...');
+            console.log('Initializing Analytics SDK v4.0...');
             console.log('window.telegramAnalytics:', window.telegramAnalytics);
             console.log('window.TelegramAnalytics:', window.TelegramAnalytics);
             
@@ -51,7 +51,7 @@
         }
     </script>
     <script
-        src="https://unpkg.com/@telegram-apps/analytics@latest/dist/index.js" 
+        src="https://unpkg.com/@telegram-apps/analytics@latest/dist/index.js?v=4.0" 
         onload="initAnalytics()" 
         onerror="console.error('Analytics SDK failed to load')"
         type="text/javascript">
