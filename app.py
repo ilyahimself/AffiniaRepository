@@ -178,6 +178,7 @@ def static_files(filename):
 
 @app.route('/tonconnect-manifest.json')
 def tonconnect_manifest():
+    # TON Connect manifest for wallet integration
     return send_from_directory('static', 'tonconnect-manifest.json', mimetype='application/json')
 
 
