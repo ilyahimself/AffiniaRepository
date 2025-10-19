@@ -26,8 +26,8 @@
             let analyticsObj = window.TelegramAnalytics || window.telegramAnalytics || window.analytics;
             console.log('Found analytics object:', analyticsObj);
             
-            // Если объект undefined, но SDK загружен, создаем его
-            if (!analyticsObj && window.telegramAnalytics !== undefined) {
+            // Если объект undefined или null, но SDK загружен, создаем его
+            if (!analyticsObj && window.telegramAnalytics !== undefined && window.telegramAnalytics !== null) {
                 console.log('Creating analytics object manually...');
                 console.log('window.telegramAnalytics value:', window.telegramAnalytics);
                 console.log('window.telegramAnalytics type:', typeof window.telegramAnalytics);
@@ -69,20 +69,51 @@
                 console.error('❌ telegramAnalytics not available or no init function');
                 console.log('Available methods in analyticsObj:', analyticsObj ? Object.keys(analyticsObj) : 'null');
                 console.log('window.telegramAnalytics type:', typeof window.telegramAnalytics);
+                console.log('window.telegramAnalytics value:', window.telegramAnalytics);
                 console.log('window.TelegramAnalytics type:', typeof window.TelegramAnalytics);
+                
+                // Если telegramAnalytics null, попробуем создать объект вручную
+                if (window.telegramAnalytics === null) {
+                    console.log('🔄 telegramAnalytics is null, trying to create object...');
+                    try {
+                        // Попробуем создать простой объект с методами
+                        window.telegramAnalytics = {
+                            init: function(config) {
+                                console.log('Manual analytics init called:', config);
+                                this.initialized = true;
+                                this.config = config;
+                            },
+                            track: function(eventName, eventData) {
+                                console.log('Manual analytics track called:', eventName, eventData);
+                                // Здесь можно добавить отправку на сервер
+                            }
+                        };
+                        console.log('✅ Created manual analytics object');
+                        analyticsObj = window.telegramAnalytics;
+                    } catch (error) {
+                        console.error('❌ Error creating manual analytics object:', error);
+                    }
+                }
             }
         }
         
         // Инициализируем после загрузки страницы
         window.addEventListener('load', function() {
-            setTimeout(initAnalytics, 1000);
+            // Ждем дольше для полной загрузки SDK
+            setTimeout(initAnalytics, 2000);
             
-            // Принудительно отправляем тестовое событие через 3 секунды
+            // Принудительно отправляем тестовое событие через 5 секунд
             setTimeout(() => {
                 console.log('🧪 Sending test analytics event...');
                 trackEvent('test_event', { test: true, timestamp: Date.now() });
-            }, 3000);
+            }, 5000);
         });
+        
+        // Дополнительная попытка инициализации через 3 секунды
+        setTimeout(() => {
+            console.log('🔄 Retry analytics initialization...');
+            initAnalytics();
+        }, 3000);
         
         // Делаем telegramAnalytics глобально доступным
         window.telegramAnalytics = null;
