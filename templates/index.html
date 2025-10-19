@@ -10,6 +10,12 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <!-- TON Connect SDK -->
     <script src="https://unpkg.com/@tonconnect/ui@2.0.0/dist/tonconnect-ui.min.js"></script>
+    <script>
+        // Проверка загрузки TON Connect
+        window.addEventListener('load', function() {
+            console.log('TON Connect UI loaded:', !!window.TonConnectUI);
+        });
+    </script>
     <style>
         * {
             box-sizing: border-box;
@@ -3024,13 +3030,11 @@
         function initTonConnect() {
             try {
                 if (window.TonConnectUI) {
-                    // Создаем манифест для TON Connect
+                    // Простой манифест для TON Connect
                     const manifest = {
-                        url: 'https://affinia.herokuapp.com',
+                        url: window.location.origin,
                         name: 'Affinia Mini App',
-                        iconUrl: 'https://affinia.herokuapp.com/static/icon-192x192.png',
-                        termsOfUseUrl: 'https://affinia.herokuapp.com/terms',
-                        privacyPolicyUrl: 'https://affinia.herokuapp.com/privacy'
+                        iconUrl: window.location.origin + '/static/icon-192x192.png'
                     };
 
                     tonConnect = new window.TonConnectUI.TonConnectUI({
@@ -3058,12 +3062,28 @@
 
                     // Инициализируем UI после создания
                     updateTonWalletUI(false);
-                    console.log('TON Connect initialized');
+                    console.log('TON Connect initialized successfully');
                 } else {
                     console.error('TON Connect UI not loaded');
+                    // Fallback - показываем сообщение об ошибке
+                    showTonConnectError();
                 }
             } catch (error) {
                 console.error('TON Connect initialization error:', error);
+                showTonConnectError();
+            }
+        }
+
+        // Показ ошибки TON Connect
+        function showTonConnectError() {
+            const tonConnectBtn = document.getElementById('ton-connect-button');
+            if (tonConnectBtn) {
+                tonConnectBtn.innerHTML = `
+                    <button class="ton-connect-btn" onclick="alert('TON Connect temporarily unavailable. Please try again later.')">
+                        <span class="ton-connect-icon">⚠️</span>
+                        TON Connect Unavailable
+                    </button>
+                `;
             }
         }
 
@@ -3159,6 +3179,24 @@
                     address: address,
                     timestamp: Date.now()
                 });
+            }
+        }
+
+        // Тестовая функция TON Connect
+        function testTonConnect() {
+            if (tonConnect) {
+                try {
+                    tonConnect.openModal();
+                    trackEvent('ton_connect_test', {
+                        timestamp: Date.now()
+                    });
+                } catch (error) {
+                    console.error('TON Connect modal error:', error);
+                    alert('TON Connect error: ' + error.message);
+                }
+            } else {
+                alert('TON Connect not initialized. Trying to initialize...');
+                initTonConnect();
             }
         }
 
@@ -5881,7 +5919,12 @@ function sendConsentResponse(decision) {
                     </div>
 
                     <!-- TON Connect Button (shown when disconnected) -->
-                    <div id="ton-connect-button"></div>
+                    <div id="ton-connect-button">
+                        <button class="ton-connect-btn" onclick="testTonConnect()">
+                            <span class="ton-connect-icon">🔗</span>
+                            Connect TON Wallet
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>        
