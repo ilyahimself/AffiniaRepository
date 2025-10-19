@@ -132,6 +132,16 @@
         
         // Делаем telegramAnalytics глобально доступным
         window.telegramAnalytics = null;
+        
+        // Функция для генерации session ID
+        function generateSessionId() {
+            return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+        
+        // Функция для получения user ID
+        function getUserId() {
+            return window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'unknown';
+        }
     </script>
     <!-- TON Connect SDK -->
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js" onload="console.log('TON Connect SDK loaded')" onerror="console.error('TON Connect SDK failed to load')"></script>
