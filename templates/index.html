@@ -11,7 +11,7 @@
     <!-- Telegram Mini Apps Analytics SDK -->
     <script
         src="https://tganalytics.xyz/index.js" 
-        onload="console.log('Analytics SDK loaded successfully from tganalytics.xyz')" 
+        onload="console.log('Analytics SDK loaded successfully from tganalytics.xyz'); console.log('window.telegramAnalytics after load:', window.telegramAnalytics);" 
         onerror="console.error('Analytics SDK failed to load from tganalytics.xyz, trying alternative...')"
         type="text/javascript">
     </script>
@@ -19,7 +19,7 @@
     <!-- Alternative Analytics SDK -->
     <script
         src="https://unpkg.com/@telegram-apps/analytics@latest/dist/index.js" 
-        onload="console.log('Alternative Analytics SDK loaded successfully from unpkg')" 
+        onload="console.log('Alternative Analytics SDK loaded successfully from unpkg'); console.log('window.TelegramAnalytics after load:', window.TelegramAnalytics);" 
         onerror="console.error('Alternative Analytics SDK also failed to load')"
         type="text/javascript">
     </script>
@@ -199,13 +199,24 @@
         // Дополнительные попытки инициализации
         setTimeout(() => {
             console.log('🔄 Retry analytics initialization (5s)...');
+            console.log('All window objects at 5s:', Object.keys(window).filter(k => k.toLowerCase().includes('analytics')));
             initAnalytics();
         }, 5000);
         
         setTimeout(() => {
             console.log('🔄 Retry analytics initialization (8s)...');
+            console.log('All window objects at 8s:', Object.keys(window).filter(k => k.toLowerCase().includes('analytics')));
             initAnalytics();
         }, 8000);
+        
+        // Финальная попытка через 10 секунд
+        setTimeout(() => {
+            console.log('🔄 Final retry analytics initialization (10s)...');
+            console.log('All window objects at 10s:', Object.keys(window).filter(k => k.toLowerCase().includes('analytics')));
+            console.log('window.telegramAnalytics at 10s:', window.telegramAnalytics);
+            console.log('window.TelegramAnalytics at 10s:', window.TelegramAnalytics);
+            initAnalytics();
+        }, 10000);
         
         // Делаем telegramAnalytics глобально доступным
         window.telegramAnalytics = null;
