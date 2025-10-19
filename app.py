@@ -176,6 +176,10 @@ def serve_manifest():
 def static_files(filename):
     return send_from_directory('static', filename, mimetype='application/json')
 
+@app.route('/tonconnect-manifest.json')
+def tonconnect_manifest():
+    return send_from_directory('static', 'tonconnect-manifest.json', mimetype='application/json')
+
 
 @app.route('/get_balance', methods=['POST'])
 def get_balance():
