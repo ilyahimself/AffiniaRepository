@@ -4543,29 +4543,10 @@ function deleteBeloved(belovedId) {
     
     // Analytics уже инициализирован в head
     
-    // Отправляем стандартные события согласно документации
+    // Отправляем стандартные события через универсальную обертку
     if (window.telegramAnalytics) {
-        // Стандартное событие инициализации приложения
-        window.telegramAnalytics.track('app-init', {
-            user_id: window.Telegram?.WebApp?.initDataUnsafe?.user?.id,
-            session_id: generateSessionId(),
-            app_name: 'affinia',
-            platform: 'telegram',
-            locale: window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code || 'en',
-            client_timestamp: Date.now().toString()
-        });
-        
-        // Кастомное событие для тестирования
-        window.telegramAnalytics.track('custom-event', {
-            user_id: window.Telegram?.WebApp?.initDataUnsafe?.user?.id,
-            session_id: generateSessionId(),
-            app_name: 'affinia',
-            custom_data: {
-                event_type: 'app_launched',
-                page: 'main'
-            },
-            client_timestamp: Date.now().toString()
-        });
+        trackEvent('app-init');
+        trackEvent('custom-event', { custom_data: { event_type: 'app_launched', page: 'main' } });
     }
     
     // Функция генерации session_id (UUID)
