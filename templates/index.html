@@ -26,6 +26,8 @@
                         appName: 'affinia',
                     });
                     console.log('Telegram Analytics initialized correctly v5.0');
+                    // Сохраняем ссылку глобально
+                    window.telegramAnalytics = window.telegramAnalytics;
                 } catch (error) {
                     console.error('Analytics init error:', error);
                 }
@@ -38,6 +40,9 @@
         window.addEventListener('load', function() {
             setTimeout(initAnalytics, 1000);
         });
+        
+        // Делаем telegramAnalytics глобально доступным
+        window.telegramAnalytics = null;
     </script>
     <!-- TON Connect SDK -->
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js" onload="console.log('TON Connect SDK loaded')" onerror="console.error('TON Connect SDK failed to load')"></script>
