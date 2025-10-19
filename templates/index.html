@@ -749,6 +749,29 @@
             font-size: 18px;
         }
 
+        /* TON Connect Button Styles */
+        #ton-connect-button {
+            width: 100%;
+        }
+
+        #ton-connect-button .ton-connect-button {
+            width: 100% !important;
+            height: 50px !important;
+            border-radius: 12px !important;
+            background: linear-gradient(135deg, #0088cc, #0066aa) !important;
+            border: none !important;
+            font-size: 16px !important;
+            font-weight: 600 !important;
+            color: #fff !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+        }
+
+        #ton-connect-button .ton-connect-button:hover {
+            background: linear-gradient(135deg, #0099dd, #0077bb) !important;
+            transform: translateY(-1px) !important;
+        }
+
         .amount-description {
             text-align: center;
             color: rgba(255, 255, 255, 0.8);
@@ -3001,8 +3024,18 @@
         function initTonConnect() {
             try {
                 if (window.TonConnectUI) {
+                    // Создаем манифест для TON Connect
+                    const manifest = {
+                        url: 'https://affinia.herokuapp.com',
+                        name: 'Affinia Mini App',
+                        iconUrl: 'https://affinia.herokuapp.com/static/icon-192x192.png',
+                        termsOfUseUrl: 'https://affinia.herokuapp.com/terms',
+                        privacyPolicyUrl: 'https://affinia.herokuapp.com/privacy'
+                    };
+
                     tonConnect = new window.TonConnectUI.TonConnectUI({
-                        manifestUrl: 'https://affinia.herokuapp.com/static/manifest.json'
+                        manifest: manifest,
+                        buttonRootId: 'ton-connect-button'
                     });
 
                     // Обработчики событий
@@ -3037,6 +3070,7 @@
             const statusCard = document.getElementById('ton-wallet-status');
             const actions = document.getElementById('ton-actions');
             const connectBtn = document.getElementById('ton-connect-btn');
+            const tonConnectBtn = document.getElementById('ton-connect-button');
             const balance = document.getElementById('ton-balance');
             const title = document.getElementById('ton-wallet-title');
             const subtitle = document.getElementById('ton-wallet-subtitle');
@@ -3049,6 +3083,7 @@
                 balance.style.display = 'block';
                 actions.style.display = 'grid';
                 connectBtn.style.display = 'none';
+                if (tonConnectBtn) tonConnectBtn.style.display = 'none';
                 
                 // Загружаем баланс
                 loadTonBalance();
@@ -3060,13 +3095,27 @@
                 balance.style.display = 'none';
                 actions.style.display = 'none';
                 connectBtn.style.display = 'flex';
+                if (tonConnectBtn) tonConnectBtn.style.display = 'none';
             }
         }
 
         // Подключение TON кошелька
         function connectTonWallet() {
             if (tonConnect) {
-                tonConnect.openModal();
+                // Показываем встроенную кнопку TON Connect
+                const connectButton = document.getElementById('ton-connect-button');
+                const customButton = document.getElementById('ton-connect-btn');
+                
+                if (connectButton && customButton) {
+                    connectButton.style.display = 'block';
+                    customButton.style.display = 'none';
+                    
+                    // Инициализируем кнопку TON Connect
+                    tonConnect.connectWallet();
+                } else {
+                    tonConnect.openModal();
+                }
+                
                 trackEvent('ton_connect_attempt', {
                     timestamp: Date.now()
                 });
@@ -5845,7 +5894,8 @@ function sendConsentResponse(decision) {
                         </button>
                     </div>
 
-                    <!-- Connect Button (shown when disconnected) -->
+                    <!-- TON Connect Button (shown when disconnected) -->
+                    <div id="ton-connect-button" style="display: none;"></div>
                     <button id="ton-connect-btn" class="ton-connect-btn" onclick="connectTonWallet()">
                         <span class="ton-connect-icon">🔗</span>
                         Connect TON Wallet
