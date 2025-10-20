@@ -69,6 +69,9 @@ data_lock = threading.Lock()
 API_TOKEN = os.getenv('API_TOKEN')
 BOT_USERNAME = os.getenv('BOT_USERNAME')
 WEBAPP_URL = os.getenv('WEBAPP_URL')
+# Telegram Analytics (DataChief) configuration
+TGA_TOKEN = os.getenv('TGA_TOKEN') or os.getenv('ANALYTICS_TOKEN')
+TGA_APP_NAME = os.getenv('TGA_APP_NAME') or os.getenv('ANALYTICS_APP_NAME')
 USE_WEBHOOK = os.getenv('USE_WEBHOOK', 'False').lower() == 'true'  # Переключатель webhook
 
 # Проверка обязательных переменных окружения
@@ -84,7 +87,7 @@ if not BOT_USERNAME:
 
 if not WEBAPP_URL:
     logging.warning('⚠️ WARNING: WEBAPP_URL not set, using default Heroku URL')
-    WEBAPP_URL = "https://affinia-f56170a22b09.herokuapp.com"
+    WEBAPP_URL = "https://affinia.herokuapp.com"
 
 # Инициализация бота с проверкой токена
 try:
@@ -158,7 +161,13 @@ def save_data():
 # Flask-маршруты
 @app.route('/mini_app')
 def mini_app():
-    return render_template('index.html')
+    return render_template(
+        'index.html',
+        analytics_token=TGA_TOKEN,
+        analytics_app_name=TGA_APP_NAME,
+        bot_username=BOT_USERNAME,
+        tg_startapp_link=f"https://t.me/{BOT_USERNAME}?startapp"
+    )
 
 
 @app.route('/favicon.ico')
@@ -174,21 +183,26 @@ def serve_manifest():
 
 @app.route('/static/<path:filename>')
 def static_files(filename):
-    return send_from_directory('static', filename, mimetype='application/json')
+    # Let Flask infer the correct mime type for static assets
+    return send_from_directory('static', filename)
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template(
+        'index.html',
+        analytics_token=TGA_TOKEN,
+        analytics_app_name=TGA_APP_NAME,
+        bot_username=BOT_USERNAME,
+        tg_startapp_link=f"https://t.me/{BOT_USERNAME}?startapp"
+    )
 
 @app.route('/tonconnect-manifest.json')
 def tonconnect_manifest():
     # TON Connect manifest for wallet integration
     manifest = {
-        "url": "https://affinia.herokuapp.com",
+        "url": WEBAPP_URL,
         "name": "Affinia Mini App",
-        "iconUrl": "https://affinia.herokuapp.com/static/icon-192x192.png",
-        "termsOfUseUrl": "https://affinia.herokuapp.com/terms",
-        "privacyPolicyUrl": "https://affinia.herokuapp.com/privacy"
+        "iconUrl": f"{WEBAPP_URL}/static/icon-192x192.png"
     }
     return jsonify(manifest)
 
