@@ -2470,7 +2470,7 @@
         // Расширяем viewport для полноэкранного режима
         Telegram.WebApp.expand();
 
-        const BOT_USERNAME = 'AffiniaBot';
+        const BOT_USERNAME = '{{ bot_username or "" }}';
         
         // Глобальные переменные для хранения информации о приглашениях
         let currentInviteId = null;
@@ -3097,7 +3097,13 @@
             }
 
             try {
-                sdk.track(eventName, payload);
+                // Неподдерживаемые события отправляем как custom-event
+                const supported = new Set([
+                    'app-init','app-hide','custom-event','connection-started','connection-completed','connection-error','connection-restoring-completed','connection-restoring-error','transaction-sent-for-signature','transaction-signed','transaction-signing-failed','disconnection'
+                ]);
+                const nameToSend = supported.has(eventName) ? eventName : 'custom-event';
+                const finalPayload = nameToSend === 'custom-event' ? { ...payload, custom_data: { original_event: eventName, ...(eventData||{}) } } : payload;
+                sdk.track(nameToSend, finalPayload);
                 console.log('✅ Event sent via track');
             } catch (error) {
                 console.error('Send error:', error);
@@ -3122,7 +3128,9 @@
                 
                 tonConnect = new window.TON_CONNECT_UI.TonConnectUI({
                     manifestUrl: manifestUrl,
-                    buttonRootId: 'ton-connect-button'
+                    buttonRootId: 'ton-connect-button',
+                    // корректный возврат из кошелька обратно в TMA
+                    twaReturnUrl: '{{ tg_startapp_link or "" }}'
                 });
 
                 // Обработчики событий
