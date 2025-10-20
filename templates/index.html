@@ -11,14 +11,18 @@
     <!-- Telegram Mini Apps Analytics SDK -->
     <script
         src="https://tganalytics.xyz/index.js" 
-        onload="console.log('Analytics SDK loaded successfully'); window.telegramAnalyticsReady = true;" 
+        onload="window.telegramAnalyticsReady = true; try { initAnalytics(); } catch (e) { console.error(e); }" 
         onerror="console.error('Analytics SDK failed to load')"
         type="text/javascript">
     </script>
     <script>
-        // Функция для генерации session ID
+        // Функция для генерации session ID (UUID v4-подобный)
         function generateSessionId() {
-            return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
         }
         
         // Функция для получения user ID
@@ -27,32 +31,28 @@
         }
         
         function initAnalytics() {
-            console.log('Initializing Analytics...');
-            
-            // Простая проверка
-            if (window.telegramAnalytics && window.telegramAnalytics.init) {
-                try {
-                    window.telegramAnalytics.init({
-                        token: 'eyJhcHBfbmFtZSI6ImFmZmluaWFfYXBwIiwiYXBwX3VybCI6Imh0dHBzOi8vdC5tZS9BZmZpbmlhQm90IiwiYXBwX2RvbWFpbiI6Imh0dHBzOi8vYWZmaW5pYS5oZXJva3VhcHAuY29tIn0=!DQxvq8I+xtSeoHv9kq/T/nENc/rdNYqbzMFIwdOIIyM=',
-                        appName: 'affinia_app',
-                    });
-                    console.log('✅ Analytics initialized');
-                    console.log('sdk.track typeof:', typeof window.telegramAnalytics?.track);
-                    setTimeout(() => {
-                        console.log('Force track test');
-                        try { trackEvent('force_track_test', { ts: Date.now() }); } catch (e) { console.error('force_track_test error:', e); }
-                    }, 1500);
-                } catch (error) {
-                    console.error('Analytics init error:', error);
+            try {
+                if (!window.telegramAnalytics || !window.telegramAnalytics.init) {
+                    console.log('Analytics SDK not ready yet');
+                    return;
                 }
-            } else {
-                console.log('Analytics SDK not ready yet');
+                const token = '{{ analytics_token or "" }}';
+                const appName = '{{ analytics_app_name or "" }}';
+                if (!token || !appName) {
+                    console.warn('Analytics token/appName are not configured');
+                    return;
+                }
+                window.telegramAnalytics.init({ token: token, appName: appName });
+                console.log('✅ Analytics initialized');
+            } catch (error) {
+                console.error('Analytics init error:', error);
             }
         }
         
         // Инициализируем после загрузки страницы
         window.addEventListener('load', function() {
-            setTimeout(initAnalytics, 2000);
+            // fallback на случай, если скрипт загрузился до объявления initAnalytics
+            setTimeout(() => { try { initAnalytics(); } catch (e) {} }, 500);
         });
         
         // Флаг готовности SDK (устанавливается onload у скрипта)
@@ -3075,11 +3075,15 @@
         function trackEvent(eventName, eventData = {}) {
             console.log('📊 Event:', eventName, eventData);
 
+            const userId = Telegram?.WebApp?.initDataUnsafe?.user?.id;
+            if (!userId) {
+                console.warn('Skip event, user_id is missing');
+                return;
+            }
             const payload = {
                 event_name: eventName,
-                user_id: Telegram?.WebApp?.initDataUnsafe?.user?.id,
+                user_id: userId,
                 session_id: generateSessionId(),
-                app_name: 'affinia',
                 platform: 'telegram',
                 locale: Telegram?.WebApp?.initDataUnsafe?.user?.language_code || 'en',
                 client_timestamp: Date.now().toString(),
