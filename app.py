@@ -57,6 +57,7 @@ user_tokens = {}
 referrals = {}
 beloveds = {}
 user_stars = {}
+user_profiles = {}
 pending_friend_requests = {}  # Хранение ожидающих запросов дружбы
 pending_consent_requests = {}  # Хранение ожидающих запросов партнерства
 user_notifications = {}  # Хранение уведомлений для пользователей
@@ -81,6 +82,34 @@ def ensure_user_record(user_id: str) -> bool:
         save_data()
 
     return created
+
+
+def update_user_profile(tg_user) -> None:
+    """Сохраняет ник/имя пользователя для отображения вместо сухих ID."""
+    if tg_user is None:
+        return
+
+    user_id = str(getattr(tg_user, 'id', ''))
+    if not user_id:
+        return
+
+    profile = {
+        'username': tg_user.username or '',
+        'first_name': tg_user.first_name or '',
+        'last_name': tg_user.last_name or '',
+        'language_code': getattr(tg_user, 'language_code', '') or '',
+        'is_premium': bool(getattr(tg_user, 'is_premium', False))
+    }
+
+    updated = False
+    with data_lock:
+        if user_profiles.get(user_id) != profile:
+            user_profiles[user_id] = profile
+            updated = True
+
+    if updated:
+        logging.info(f'👤 Stored profile for user {user_id}: @{profile["username"] or "unknown"}')
+        save_data()
 
 # Безопасная загрузка конфигурации
 API_TOKEN = os.getenv('API_TOKEN')
@@ -119,7 +148,8 @@ URL = WEBAPP_URL
 
 
 def load_data():
-    global user_tokens, referrals, beloveds, user_stars, pending_friend_requests, pending_consent_requests
+    global user_tokens, referrals, beloveds, user_stars, user_profiles
+    global pending_friend_requests, pending_consent_requests
     global user_notifications, new_friends_count, new_partners_count, consent_history
     try:
         with open('user_tokens.json', 'r') as f:
@@ -128,6 +158,7 @@ def load_data():
             referrals = data.get('referrals', {})
             beloveds = data.get('beloveds', {})
             user_stars = data.get('user_stars', {})
+            user_profiles = data.get('user_profiles', {})
             pending_friend_requests = data.get('pending_friend_requests', {})
             pending_consent_requests = data.get('pending_consent_requests', {})
             user_notifications = data.get('user_notifications', {})
@@ -140,6 +171,7 @@ def load_data():
         referrals = {}
         beloveds = {}
         user_stars = {}  # Новая строка
+        user_profiles = {}
         print("Data file not found, starting with an empty dictionary")
     except JSONDecodeError:
         logging.error('Error decoding JSON from user_tokens.json. Starting with empty data.')
@@ -147,12 +179,14 @@ def load_data():
         referrals = {}
         beloveds = {}
         user_stars = {}  # Новая строка
+        user_profiles = {}
     except Exception as e:
         logging.error(f"Unexpected error while loading data: {e}")
         user_tokens = {}
         referrals = {}
         beloveds = {}
         user_stars = {}  # Новая строка
+        user_profiles = {}
 
 def save_data():
     try:
@@ -163,6 +197,7 @@ def save_data():
                     'referrals': referrals,
                     'beloveds': beloveds,
                     'user_stars': user_stars,
+                    'user_profiles': user_profiles,
                     'pending_friend_requests': pending_friend_requests,
                     'pending_consent_requests': pending_consent_requests,
                     'user_notifications': user_notifications,
@@ -488,8 +523,10 @@ def get_donate_link():
 
 async def start(update: Update, context: CallbackContext) -> None:
     args = context.args
-    user_id = str(update.message.from_user.id)
+    user = update.message.from_user
+    user_id = str(user.id)
     ensure_user_record(user_id)
+    update_user_profile(user)
     if args:
         arg = args[0]
         # Проверяем тип приглашения
@@ -511,7 +548,9 @@ async def start(update: Update, context: CallbackContext) -> None:
 
 
 async def referral_start(update: Update, context: CallbackContext, referrer_id: str) -> None:
-    new_user_id = str(update.message.from_user.id)
+    new_user = update.message.from_user
+    new_user_id = str(new_user.id)
+    update_user_profile(new_user)
     ensure_user_record(referrer_id)
     ensure_user_record(new_user_id)
 
@@ -554,7 +593,9 @@ async def referral_start(update: Update, context: CallbackContext, referrer_id: 
 
 
 async def handle_consent(update: Update, context: CallbackContext, referrer_id: str) -> None:
-    new_user_id = str(update.message.from_user.id)
+    new_user = update.message.from_user
+    new_user_id = str(new_user.id)
+    update_user_profile(new_user)
     ensure_user_record(new_user_id)
     ensure_user_record(referrer_id)
     # Формируем URL мини-приложения с GET-параметром consent,
@@ -571,8 +612,10 @@ async def handle_consent(update: Update, context: CallbackContext, referrer_id: 
 
 async def handle_friend_invitation(update: Update, context: CallbackContext, invite_id: str) -> None:
     """Обработка приглашения в друзья"""
-    user_id = str(update.message.from_user.id)
+    user = update.message.from_user
+    user_id = str(user.id)
     inviter_id = invite_id.split('_')[1] if '_' in invite_id else ''
+    update_user_profile(user)
     ensure_user_record(user_id)
     ensure_user_record(inviter_id)
     
@@ -592,8 +635,10 @@ async def handle_friend_invitation(update: Update, context: CallbackContext, inv
 
 async def handle_consent_invitation(update: Update, context: CallbackContext, invite_id: str) -> None:
     """Обработка приглашения для партнерства"""
-    user_id = str(update.message.from_user.id)
+    user = update.message.from_user
+    user_id = str(user.id)
     inviter_id = invite_id.split('_')[1] if '_' in invite_id else ''
+    update_user_profile(user)
     ensure_user_record(user_id)
     ensure_user_record(inviter_id)
     
@@ -613,8 +658,23 @@ async def handle_consent_invitation(update: Update, context: CallbackContext, in
 
 
 async def show_menu(update, context, user_id=None):
+    tg_user = None
+    if hasattr(update, 'message') and getattr(update, 'message', None):
+        tg_user = getattr(update.message, 'from_user', None)
+    elif hasattr(update, 'from_user'):
+        tg_user = update.from_user
+    elif hasattr(update, 'callback_query') and getattr(update, 'callback_query', None):
+        tg_user = update.callback_query.from_user
+
     if user_id is None:
-        user_id = str(update.message.from_user.id if hasattr(update.message, 'from_user') else update.from_user.id)
+        if tg_user is None:
+            logging.warning('show_menu called without user context')
+            return
+        user_id = str(tg_user.id)
+
+    ensure_user_record(user_id)
+    if tg_user:
+        update_user_profile(tg_user)
     ensure_user_record(user_id)
 
     keyboard = [
@@ -638,6 +698,7 @@ async def button_handler(update: Update, context: CallbackContext) -> None:
     await query.answer()
     command = query.data
     user_id = str(query.from_user.id)
+    update_user_profile(query.from_user)
 
     if command == 'balance':
         await balance(query, context, callback_query=True)
@@ -652,7 +713,9 @@ async def button_handler(update: Update, context: CallbackContext) -> None:
 
 
 async def balance(update: Update, context: CallbackContext, callback_query=False) -> None:
-    user_id = str(update.message.from_user.id if not callback_query else update.from_user.id)
+    tg_user = update.message.from_user if not callback_query else update.from_user
+    user_id = str(tg_user.id)
+    update_user_profile(tg_user)
     ensure_user_record(user_id)
     bal = user_tokens.get(user_id, 0)
     text = f'Your balance: {bal} AffinyCoin.'
@@ -664,7 +727,9 @@ async def balance(update: Update, context: CallbackContext, callback_query=False
 
 
 async def create_referral_link_btn(update: Update, context: CallbackContext) -> None:
-    user_id = str(update.from_user.id)
+    user = update.from_user
+    user_id = str(user.id)
+    update_user_profile(user)
     ensure_user_record(user_id)
     referral_link = f"https://t.me/{BOT_USERNAME}?start={user_id}"
     text = f'Share this link to invite friends and earn tokens: {referral_link}'
@@ -673,7 +738,9 @@ async def create_referral_link_btn(update: Update, context: CallbackContext) -> 
 
 
 async def create_consent_link_btn(update: Update, context: CallbackContext) -> None:
-    user_id = str(update.from_user.id)
+    user = update.from_user
+    user_id = str(user.id)
+    update_user_profile(user)
     ensure_user_record(user_id)
     # Больше не списываем токены за создание consent link
     consent_link = f"https://t.me/{BOT_USERNAME}?start=consent_{user_id}"
@@ -684,6 +751,7 @@ async def create_consent_link_btn(update: Update, context: CallbackContext) -> N
 
 async def process_consent(query, context, command):
     _, referrer_id, new_user_id = command.split('_')
+    update_user_profile(query.from_user)
     ensure_user_record(referrer_id)
     ensure_user_record(new_user_id)
     referrer_text = 'Congratulations, you have been given consent for intimacy.'
@@ -694,6 +762,7 @@ async def process_consent(query, context, command):
 
 async def process_decline(query, context, command):
     _, referrer_id, new_user_id = command.split('_')
+    update_user_profile(query.from_user)
     ensure_user_record(referrer_id)
     ensure_user_record(new_user_id)
     referrer_text = 'Sorry, you have been declined.'
@@ -740,7 +809,10 @@ async def run_bot_webhook():
     logging.info('🌐 Bot started in WEBHOOK mode')
 
 async def send_invoice(update: Update, context: CallbackContext) -> None:
+    user = update.message.from_user
     chat_id = update.message.chat_id
+    update_user_profile(user)
+    ensure_user_record(str(user.id))
     title = "Support the App"
     description = "Donate using Telegram Stars!"
     payload = f"donation_{chat_id}"
@@ -770,7 +842,10 @@ async def precheckout_callback(update: Update, context: CallbackContext) -> None
 
 async def successful_payment_callback(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat_id
-    user_id = str(chat_id)
+    user = update.message.from_user
+    user_id = str(user.id)
+    update_user_profile(user)
+    ensure_user_record(user_id)
     
     # Получаем сумму из payload
     payload = update.message.successful_payment.invoice_payload
