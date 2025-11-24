@@ -65,6 +65,23 @@ new_partners_count = {}  # Счетчик новых непросмотренн�
 consent_history = {}  # История всех consent связей
 data_lock = threading.Lock()
 
+def ensure_user_record(user_id: str) -> bool:
+    """Гарантирует, что пользователь есть в user_tokens, даже с нулевым балансом."""
+    if not user_id:
+        return False
+
+    created = False
+    with data_lock:
+        if user_id not in user_tokens:
+            user_tokens[user_id] = 0
+            created = True
+
+    if created:
+        logging.info(f'🆕 Registered new user {user_id} with 0 AFN')
+        save_data()
+
+    return created
+
 # Безопасная загрузка конфигурации
 API_TOKEN = os.getenv('API_TOKEN')
 BOT_USERNAME = os.getenv('BOT_USERNAME')
@@ -218,6 +235,7 @@ def get_balance():
         return jsonify({'error': 'user_id is required'}), 400
     
     user_id = str(data['user_id'])
+    ensure_user_record(user_id)
     
     # Rate limiting
     if not check_rate_limit(user_id):
@@ -238,6 +256,7 @@ def create_referral_link():
         return jsonify({'error': 'user_id is required'}), 400
     
     user_id = str(data['user_id'])
+    ensure_user_record(user_id)
     
     # Rate limiting
     if not check_rate_limit(user_id):
@@ -256,6 +275,7 @@ def generate_referral_qr():
         return jsonify({'error': 'user_id is required'}), 400
 
     user_id = str(data['user_id'])
+    ensure_user_record(user_id)
     referral_link = f"https://t.me/{BOT_USERNAME}?start={user_id}"
 
     # Генерация QR-кода
@@ -282,6 +302,7 @@ def create_consent_link():
     if 'user_id' not in data:
         return jsonify({'error': 'user_id is required'}), 400
     user_id = str(data['user_id'])
+    ensure_user_record(user_id)
     # Формируем ссылку, которая ведёт в бот, как в случае с рефералом:
     consent_link = f"https://t.me/{BOT_USERNAME}?start=consent_{user_id}"
     return jsonify({'link': consent_link})
@@ -294,6 +315,7 @@ def generate_consent_qr():
         return jsonify({'error': 'user_id is required'}), 400
 
     user_id = str(data['user_id'])
+    ensure_user_record(user_id)
     # Ссылка ведёт прямо в мини-приложение с GET-параметром consent
     consent_link = f"{URL}/mini_app?consent={user_id}"
 
@@ -321,6 +343,8 @@ def consent_response():
 
     referrer_id = str(data['referrer_id'])
     new_user_id = str(data['new_user_id'])
+    ensure_user_record(referrer_id)
+    ensure_user_record(new_user_id)
     decision = data['decision']
 
     if decision == 'consent':
@@ -360,6 +384,7 @@ def get_beloved():
     if 'user_id' not in data:
         return jsonify({'error': 'user_id is required'}), 400
     user_id = str(data['user_id'])
+    ensure_user_record(user_id)
     if user_id not in beloveds:
         return jsonify({'beloved': []})
     
@@ -395,6 +420,8 @@ def delete_beloved():
 
     user_id = str(data['user_id'])
     beloved_id = str(data['beloved_id'])
+    ensure_user_record(user_id)
+    ensure_user_record(beloved_id)
 
     if user_id in beloveds and beloved_id in beloveds[user_id]:
         beloveds[user_id].remove(beloved_id)
@@ -411,6 +438,7 @@ def get_donate_link():
         return jsonify({'error': 'user_id is required'}), 400
 
     user_id = str(data['user_id'])
+    ensure_user_record(user_id)
     
     # Rate limiting для донатов (более строгий)
     if not check_rate_limit(f"donate_{user_id}"):
@@ -461,6 +489,7 @@ def get_donate_link():
 async def start(update: Update, context: CallbackContext) -> None:
     args = context.args
     user_id = str(update.message.from_user.id)
+    ensure_user_record(user_id)
     if args:
         arg = args[0]
         # Проверяем тип приглашения
@@ -483,6 +512,8 @@ async def start(update: Update, context: CallbackContext) -> None:
 
 async def referral_start(update: Update, context: CallbackContext, referrer_id: str) -> None:
     new_user_id = str(update.message.from_user.id)
+    ensure_user_record(referrer_id)
+    ensure_user_record(new_user_id)
 
     if not referrer_id:
         await update.message.reply_text("Invalid referral link.")
@@ -524,6 +555,8 @@ async def referral_start(update: Update, context: CallbackContext, referrer_id: 
 
 async def handle_consent(update: Update, context: CallbackContext, referrer_id: str) -> None:
     new_user_id = str(update.message.from_user.id)
+    ensure_user_record(new_user_id)
+    ensure_user_record(referrer_id)
     # Формируем URL мини-приложения с GET-параметром consent,
     # где referrer_id – это ID пользователя, отправившего consent-запрос.
     open_app_url = f"{URL}/mini_app?consent={referrer_id}"
@@ -540,6 +573,8 @@ async def handle_friend_invitation(update: Update, context: CallbackContext, inv
     """Обработка приглашения в друзья"""
     user_id = str(update.message.from_user.id)
     inviter_id = invite_id.split('_')[1] if '_' in invite_id else ''
+    ensure_user_record(user_id)
+    ensure_user_record(inviter_id)
     
     # Формируем URL мини-приложения с параметром приглашения
     open_app_url = f"{URL}/mini_app?invite={invite_id}"
@@ -559,6 +594,8 @@ async def handle_consent_invitation(update: Update, context: CallbackContext, in
     """Обработка приглашения для партнерства"""
     user_id = str(update.message.from_user.id)
     inviter_id = invite_id.split('_')[1] if '_' in invite_id else ''
+    ensure_user_record(user_id)
+    ensure_user_record(inviter_id)
     
     # Формируем URL мини-приложения с параметром приглашения
     open_app_url = f"{URL}/mini_app?invite={invite_id}"
@@ -578,6 +615,7 @@ async def handle_consent_invitation(update: Update, context: CallbackContext, in
 async def show_menu(update, context, user_id=None):
     if user_id is None:
         user_id = str(update.message.from_user.id if hasattr(update.message, 'from_user') else update.from_user.id)
+    ensure_user_record(user_id)
 
     keyboard = [
         [InlineKeyboardButton("My Balance", callback_data='balance')],
@@ -615,6 +653,7 @@ async def button_handler(update: Update, context: CallbackContext) -> None:
 
 async def balance(update: Update, context: CallbackContext, callback_query=False) -> None:
     user_id = str(update.message.from_user.id if not callback_query else update.from_user.id)
+    ensure_user_record(user_id)
     bal = user_tokens.get(user_id, 0)
     text = f'Your balance: {bal} AffinyCoin.'
     if callback_query:
@@ -626,6 +665,7 @@ async def balance(update: Update, context: CallbackContext, callback_query=False
 
 async def create_referral_link_btn(update: Update, context: CallbackContext) -> None:
     user_id = str(update.from_user.id)
+    ensure_user_record(user_id)
     referral_link = f"https://t.me/{BOT_USERNAME}?start={user_id}"
     text = f'Share this link to invite friends and earn tokens: {referral_link}'
     await update.edit_message_text(text)
@@ -634,6 +674,7 @@ async def create_referral_link_btn(update: Update, context: CallbackContext) -> 
 
 async def create_consent_link_btn(update: Update, context: CallbackContext) -> None:
     user_id = str(update.from_user.id)
+    ensure_user_record(user_id)
     # Больше не списываем токены за создание consent link
     consent_link = f"https://t.me/{BOT_USERNAME}?start=consent_{user_id}"
     text = f'Share this link to request consent: {consent_link}'
@@ -643,6 +684,8 @@ async def create_consent_link_btn(update: Update, context: CallbackContext) -> N
 
 async def process_consent(query, context, command):
     _, referrer_id, new_user_id = command.split('_')
+    ensure_user_record(referrer_id)
+    ensure_user_record(new_user_id)
     referrer_text = 'Congratulations, you have been given consent for intimacy.'
     await context.bot.send_message(chat_id=referrer_id, text=referrer_text)
     await query.edit_message_text(text="You have given consent.")
@@ -651,6 +694,8 @@ async def process_consent(query, context, command):
 
 async def process_decline(query, context, command):
     _, referrer_id, new_user_id = command.split('_')
+    ensure_user_record(referrer_id)
+    ensure_user_record(new_user_id)
     referrer_text = 'Sorry, you have been declined.'
     await context.bot.send_message(chat_id=referrer_id, text=referrer_text)
     await query.edit_message_text(text="You have declined consent.")
@@ -761,6 +806,7 @@ def get_friends():
         return jsonify({'error': 'user_id is required'}), 400
 
     user_id = str(data['user_id'])
+    ensure_user_record(user_id)
     if user_id not in referrals:
         return jsonify({'friends': []})
 
@@ -777,6 +823,8 @@ def delete_friend():
 
     user_id = str(data['user_id'])
     friend_id = str(data['friend_id'])
+    ensure_user_record(user_id)
+    ensure_user_record(friend_id)
 
     if user_id in referrals and friend_id in referrals[user_id]:
         # Удаляем друга у пользователя
@@ -797,6 +845,7 @@ def get_telegram_stars():
         return jsonify({'error': 'user_id is required'}), 400
     
     user_id = str(data['user_id'])
+    ensure_user_record(user_id)
     stars = user_stars.get(user_id, 0)
     return jsonify({'telegram_stars': stars})
 
@@ -809,6 +858,7 @@ def send_friend_invite():
         return jsonify({'error': 'user_id is required'}), 400
     
     user_id = str(data['user_id'])
+    ensure_user_record(user_id)
     
     # Генерируем уникальный ID приглашения
     invite_id = f"friend_{user_id}_{int(time())}"
@@ -839,6 +889,7 @@ def handle_friend_invite():
     invite_id = data['invite_id']
     invitee_id = str(data['invitee_id'])
     decision = data['decision']
+    ensure_user_record(invitee_id)
     
     # Извлекаем ID приглашающего из invite_id
     if not invite_id.startswith('friend_'):
@@ -849,6 +900,7 @@ def handle_friend_invite():
         return jsonify({'error': 'Invalid invite ID format'}), 400
     
     inviter_id = parts[1]
+    ensure_user_record(inviter_id)
     
     if decision == 'accept':
         # Добавляем друзей друг к другу
@@ -914,6 +966,7 @@ def send_consent_invite():
         return jsonify({'error': 'user_id is required'}), 400
     
     user_id = str(data['user_id'])
+    ensure_user_record(user_id)
     
     # Генерируем уникальный ID приглашения
     invite_id = f"consent_{user_id}_{int(time())}"
@@ -944,6 +997,7 @@ def handle_consent_invite():
     invite_id = data['invite_id']
     partner_id = str(data['partner_id'])
     decision = data['decision']
+    ensure_user_record(partner_id)
     
     # Извлекаем ID приглашающего из invite_id
     if not invite_id.startswith('consent_'):
@@ -954,6 +1008,7 @@ def handle_consent_invite():
         return jsonify({'error': 'Invalid invite ID format'}), 400
     
     inviter_id = parts[1]
+    ensure_user_record(inviter_id)
     
     if decision == 'accept':
         # Добавляем партнеров друг к другу
@@ -1042,6 +1097,7 @@ def get_notifications():
         return jsonify({'error': 'user_id is required'}), 400
     
     user_id = str(data['user_id'])
+    ensure_user_record(user_id)
     notifications = user_notifications.get(user_id, [])
     
     # Очищаем уведомления после отправки
@@ -1059,6 +1115,7 @@ def get_new_friends_count():
         return jsonify({'error': 'user_id is required'}), 400
     
     user_id = str(data['user_id'])
+    ensure_user_record(user_id)
     count = new_friends_count.get(user_id, 0)
     
     return jsonify({'new_friends_count': count})
@@ -1071,6 +1128,7 @@ def clear_new_friends():
         return jsonify({'error': 'user_id is required'}), 400
     
     user_id = str(data['user_id'])
+    ensure_user_record(user_id)
     if user_id in new_friends_count:
         new_friends_count[user_id] = 0
         save_data()
@@ -1085,6 +1143,7 @@ def get_consent_history_endpoint():
         return jsonify({'error': 'user_id is required'}), 400
     
     user_id = str(data['user_id'])
+    ensure_user_record(user_id)
     history = consent_history.get(user_id, [])
     
     # Подсчитываем статистику
