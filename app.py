@@ -66,6 +66,37 @@ new_partners_count = {}  # Счетчик новых непросмотренн�
 consent_history = {}  # История всех consent связей
 data_lock = threading.Lock()
 
+# Зарезервированные параметры /start, которые НЕ являются рефералами
+RESERVED_START_PAYLOADS = {
+    '',
+    'webapp', 
+    'appcenter',
+    'open',
+    'openapp',
+    'menu',
+    'start',
+    'app'
+}
+
+def is_reserved_start_payload(arg: str) -> bool:
+    """Проверяет, является ли параметр зарезервированным (не реферальным)"""
+    if arg is None:
+        return True
+    norm = arg.strip().lower()
+    if not norm:
+        return True
+    # Проверяем точное совпадение или префикс
+    return norm in RESERVED_START_PAYLOADS or norm.startswith('webapp') or norm.startswith('appcenter')
+
+def is_valid_referrer(referrer_id: str, user_id: str) -> bool:
+    """Проверяет, является ли referrer_id валидным ID пользователя"""
+    if not referrer_id or not referrer_id.isdigit():
+        return False
+    if referrer_id == user_id:
+        return False
+    return referrer_id in user_tokens
+
+
 def ensure_user_record(user_id: str) -> bool:
     """Гарантирует, что пользователь есть в user_tokens, даже с нулевым балансом."""
     if not user_id:
@@ -527,8 +558,17 @@ async def start(update: Update, context: CallbackContext) -> None:
     user_id = str(user.id)
     ensure_user_record(user_id)
     update_user_profile(user)
+    
     if args:
         arg = args[0]
+        
+        # ВАЖНО: Проверяем, не является ли это зарезервированным параметром
+        if is_reserved_start_payload(arg):
+            # Это системный параметр (webapp, appcenter и т.д.) - просто показываем меню
+            logging.info(f'User {user_id} started with reserved payload: {arg}')
+            await show_menu(update, context, user_id)
+            return
+        
         # Проверяем тип приглашения
         if arg.startswith("friend_"):
             # Это приглашение в друзья - открываем мини-апп с параметром
@@ -541,8 +581,13 @@ async def start(update: Update, context: CallbackContext) -> None:
             else:  # Старый формат: consent_userId
                 await handle_consent(update, context, parts[1])
         else:
-            # Обычная реферальная ссылка
-            await referral_start(update, context, arg)
+            # Обычная реферальная ссылка - проверяем валидность
+            if is_valid_referrer(arg, user_id):
+                await referral_start(update, context, arg)
+            else:
+                logging.warning(f'Invalid referral link: {arg} for user {user_id}')
+                await update.message.reply_text("Invalid referral link.")
+                await show_menu(update, context, user_id)
     else:
         await show_menu(update, context, user_id)
 
