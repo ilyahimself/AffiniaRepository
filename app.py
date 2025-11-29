@@ -580,14 +580,19 @@ async def start(update: Update, context: CallbackContext) -> None:
                 await handle_consent_invitation(update, context, arg)
             else:  # Старый формат: consent_userId
                 await handle_consent(update, context, parts[1])
-        else:
-            # Обычная реферальная ссылка - проверяем валидность
+        elif arg.isdigit():
+            # Это потенциально реферальная ссылка (только числовые ID)
             if is_valid_referrer(arg, user_id):
                 await referral_start(update, context, arg)
             else:
-                logging.warning(f'Invalid referral link: {arg} for user {user_id}')
+                # ID числовой, но пользователь не существует или это сам пользователь
+                logging.warning(f'Invalid referral link (user not found): {arg} for user {user_id}')
                 await update.message.reply_text("Invalid referral link.")
                 await show_menu(update, context, user_id)
+        else:
+            # Параметр не числовой и не friend_/consent_ -> считаем системным
+            logging.info(f'User {user_id} started with non-numeric parameter (treated as reserved): {arg}')
+            await show_menu(update, context, user_id)
     else:
         await show_menu(update, context, user_id)
 
