@@ -284,7 +284,7 @@ def tonconnect_manifest():
     # TON Connect manifest for wallet integration
     manifest = {
         "url": WEBAPP_URL,
-        "name": "Affinia Mini App",
+        "name": "Affinia",
         "iconUrl": f"{WEBAPP_URL}/static/icon-192x192.png"
     }
     return jsonify(manifest)
