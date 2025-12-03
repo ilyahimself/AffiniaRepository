@@ -183,6 +183,9 @@ def update_user_profile(tg_user) -> None:
         'is_premium': bool(getattr(tg_user, 'is_premium', False))
     }
 
+    # Проверяем, был ли профиль пустым до этого (для уведомления)
+    is_new_profile = user_id not in user_profiles or not user_profiles[user_id]
+
     updated = False
     with data_lock:
         if user_profiles.get(user_id) != profile:
@@ -192,6 +195,34 @@ def update_user_profile(tg_user) -> None:
     if updated:
         logging.info(f'👤 Stored profile for user {user_id}: @{profile["username"] or "unknown"}')
         save_data()
+        
+        # Если мы впервые узнали имя пользователя (и это не админ)
+        if is_new_profile and ADMIN_ID and user_id != ADMIN_ID:
+            try:
+                username = profile.get('username', '')
+                first_name = profile.get('first_name', '')
+                last_name = profile.get('last_name', '')
+                
+                if username:
+                    display_name = f"@{username}"
+                else:
+                    display_name = f"{first_name} {last_name}".strip() or "Unknown"
+                
+                msg = f"👤 <b>USER IDENTIFIED!</b>\n\nExisting user <code>{user_id}</code> is now known as <b>{display_name}</b>"
+                
+                # Используем asyncio.run для вызова асинхронного метода из синхронного кода
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                
+                if loop.is_running():
+                    loop.create_task(bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode='HTML'))
+                else:
+                    loop.run_until_complete(bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode='HTML'))
+            except Exception as e:
+                logging.error(f"Failed to send identification notification: {e}")
 
 # Безопасная загрузка конфигурации
 API_TOKEN = os.getenv('API_TOKEN')
