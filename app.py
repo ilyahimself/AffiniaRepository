@@ -29,6 +29,17 @@ logging.basicConfig(
 logging.getLogger('telegram').setLevel(logging.WARNING)
 logging.getLogger('httpx').setLevel(logging.WARNING)
 
+# Фильтр для логов werkzeug (скрываем частые запросы)
+class EndpointFilter(logging.Filter):
+    def filter(self, record):
+        return "/get_notifications" not in record.getMessage() and \
+               "/get_new_friends_count" not in record.getMessage() and \
+               "/get_balance" not in record.getMessage()  # Баланс мы логируем сами красиво
+
+logging.getLogger("werkzeug").addFilter(EndpointFilter())
+
+ADMIN_ID = '478201816'
+
 app = Flask(__name__)
 
 # Простой rate limiting
@@ -131,6 +142,26 @@ def ensure_user_record(user_id: str) -> bool:
         display_name = get_user_display_name(user_id)
         logging.info(f'🆕 NEW USER REGISTERED: {display_name} with 0 AFN')
         save_data()
+
+        # Отправка уведомления админу
+        if ADMIN_ID and user_id != ADMIN_ID: # Не уведомлять о самом себе
+            try:
+                msg = f"🆕 <b>NEW USER REGISTERED!</b>\n\n👤 <b>User:</b> {display_name}\n🆔 <b>ID:</b> <code>{user_id}</code>"
+                # Используем asyncio.run для вызова асинхронного метода из синхронного кода
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                
+                if loop.is_running():
+                    # Если мы уже в асинхронном контексте (например, вызов из хендлера бота)
+                    loop.create_task(bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode='HTML'))
+                else:
+                    # Если мы в синхронном контексте (Flask)
+                    loop.run_until_complete(bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode='HTML'))
+            except Exception as e:
+                logging.error(f"Failed to send admin notification: {e}")
 
     return created
 
