@@ -97,6 +97,25 @@ def is_valid_referrer(referrer_id: str, user_id: str) -> bool:
     return referrer_id in user_tokens
 
 
+def get_user_display_name(user_id: str) -> str:
+    """Получает отображаемое имя пользователя (никнейм или имя)"""
+    if not user_id:
+        return "Unknown"
+    
+    profile = user_profiles.get(user_id, {})
+    username = profile.get('username', '')
+    first_name = profile.get('first_name', '')
+    last_name = profile.get('last_name', '')
+    
+    if username:
+        return f"@{username} (ID: {user_id})"
+    elif first_name or last_name:
+        full_name = f"{first_name} {last_name}".strip()
+        return f"{full_name} (ID: {user_id})"
+    else:
+        return f"User {user_id}"
+
+
 def ensure_user_record(user_id: str) -> bool:
     """Гарантирует, что пользователь есть в user_tokens, даже с нулевым балансом."""
     if not user_id:
@@ -109,7 +128,8 @@ def ensure_user_record(user_id: str) -> bool:
             created = True
 
     if created:
-        logging.info(f'🆕 Registered new user {user_id} with 0 AFN')
+        display_name = get_user_display_name(user_id)
+        logging.info(f'🆕 NEW USER REGISTERED: {display_name} with 0 AFN')
         save_data()
 
     return created
@@ -311,7 +331,8 @@ def get_balance():
     with data_lock:
         balance = user_tokens.get(user_id, 0)
     
-    logging.info(f'Balance requested for user {user_id}: {balance} AFN')
+    display_name = get_user_display_name(user_id)
+    logging.info(f'💰 Balance check: {display_name} → {balance} AFN')
     return jsonify({'balance': balance})
 
 
@@ -330,7 +351,8 @@ def create_referral_link():
         return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
     
     referral_link = f"https://t.me/{BOT_USERNAME}?start={user_id}"
-    logging.info(f'Referral link created for user {user_id}')
+    display_name = get_user_display_name(user_id)
+    logging.info(f'🔗 Referral link created: {display_name}')
     return jsonify({'link': referral_link})
 
 
@@ -425,6 +447,11 @@ def consent_response():
 
         save_data()
 
+        # Logging
+        referrer_display = get_user_display_name(referrer_id)
+        new_user_display = get_user_display_name(new_user_id)
+        logging.info(f'❤️ CONSENT ACCEPTED: {new_user_display} accepted request from {referrer_display}')
+
         # Отправляем уведомление отправителю через бота, чтобы он знал, что связь установлена
         try:
             bot.send_message(
@@ -435,6 +462,10 @@ def consent_response():
             logging.error(f"Error sending bot message: {e}")
         return jsonify({'success': True})
     elif decision == 'decline':
+        # Logging
+        referrer_display = get_user_display_name(referrer_id)
+        new_user_display = get_user_display_name(new_user_id)
+        logging.info(f'💔 CONSENT DECLINED: {new_user_display} declined request from {referrer_display}')
         try:
             bot.send_message(chat_id=referrer_id, text='Your consent request has been declined.')
         except Exception as e:
@@ -559,6 +590,10 @@ async def start(update: Update, context: CallbackContext) -> None:
     ensure_user_record(user_id)
     update_user_profile(user)
     
+    # Логируем вход пользователя
+    display_name = get_user_display_name(user_id)
+    logging.info(f'👤 User started bot: {display_name}')
+    
     if args:
         arg = args[0]
         
@@ -629,6 +664,11 @@ async def referral_start(update: Update, context: CallbackContext, referrer_id: 
             user_tokens[referrer_id] = user_tokens.get(referrer_id, 0) + 10
             user_tokens[new_user_id] = user_tokens.get(new_user_id, 0) + 5
             save_data()
+            
+            # Логирование реферальной регистрации
+            referrer_display = get_user_display_name(referrer_id)
+            new_user_display = get_user_display_name(new_user_id)
+            logging.info(f'🎉 REFERRAL SUCCESS! {new_user_display} invited by {referrer_display} | Rewards: +10 AFN (referrer), +5 AFN (new user)')
 
             referrer_text = 'You have been credited with 10 AffinyCoin for inviting a new user.'
             new_user_text = ('Thank you for registering! You have been credited with 5 AffinyCoin.\n'
