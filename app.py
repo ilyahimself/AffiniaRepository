@@ -534,6 +534,46 @@ def get_balance():
         return jsonify({'error': 'user_id is required'}), 400
     
     user_id = str(data['user_id'])
+    
+    # Capture user profile info if provided by Mini App
+    # Mini App should send: username, first_name, last_name from Telegram.WebApp.initDataUnsafe.user
+    user_info = data.get('user_info', {})
+    if user_info:
+        username = user_info.get('username', '')
+        first_name = user_info.get('first_name', '')
+        last_name = user_info.get('last_name', '')
+        language_code = user_info.get('language_code', '')
+        is_premium = user_info.get('is_premium', False)
+        
+        # Save profile BEFORE creating user record (for notification)
+        profile = {
+            'username': username or '',
+            'first_name': first_name or '',
+            'last_name': last_name or '',
+            'language_code': language_code or '',
+            'is_premium': bool(is_premium)
+        }
+        
+        with data_lock:
+            if user_id not in user_profiles or user_profiles.get(user_id) != profile:
+                user_profiles[user_id] = profile
+                logging.info(f'👤 Profile from Mini App: {user_id} → @{username or "unknown"}')
+        
+        # Also save to PostgreSQL
+        if USE_DATABASE:
+            try:
+                DatabaseService.update_profile(
+                    user_id,
+                    username=username,
+                    first_name=first_name,
+                    last_name=last_name,
+                    language_code=language_code,
+                    is_premium=is_premium
+                )
+            except Exception as e:
+                logging.error(f"DB error saving profile: {e}")
+    
+    # Now create user record (notification will have nickname)
     ensure_user_record(user_id)
     
     # Rate limiting
