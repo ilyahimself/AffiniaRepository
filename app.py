@@ -11,9 +11,22 @@ from flask import Flask, render_template, request, jsonify, send_from_directory
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo, Bot, LabeledPrice
 from telegram.ext import (Application, CommandHandler, CallbackContext, CallbackQueryHandler, PreCheckoutQueryHandler, MessageHandler, filters)
 from concurrent.futures import TimeoutError
+from dotenv import load_dotenv
+
+# Load .env file for local development
+load_dotenv()
+
 bot_loop = None
 
 from json.decoder import JSONDecodeError
+
+# PostgreSQL Database Service
+try:
+    from services.database_service import DatabaseService
+    USE_DATABASE = True
+except ImportError:
+    USE_DATABASE = False
+    logging.warning("⚠️ DatabaseService not available, using JSON fallback")
 
 # Настройка логирования с безопасностью
 logging.basicConfig(
@@ -128,15 +141,26 @@ def get_user_display_name(user_id: str) -> str:
 
 
 def ensure_user_record(user_id: str) -> bool:
-    """Гарантирует, что пользователь есть в user_tokens, даже с нулевым балансом."""
+    """Гарантирует, что пользователь есть в user_tokens (и PostgreSQL), даже с нулевым балансом."""
     if not user_id:
         return False
 
     created = False
+    
+    # Check/create in PostgreSQL first
+    if USE_DATABASE:
+        try:
+            user, was_created = DatabaseService.ensure_user(user_id)
+            created = was_created
+        except Exception as e:
+            logging.error(f"Database error in ensure_user_record: {e}")
+    
+    # Also maintain local cache
     with data_lock:
         if user_id not in user_tokens:
             user_tokens[user_id] = 0
-            created = True
+            if not USE_DATABASE:
+                created = True
 
     if created:
         display_name = get_user_display_name(user_id)
@@ -144,10 +168,9 @@ def ensure_user_record(user_id: str) -> bool:
         save_data()
 
         # Отправка уведомления админу
-        if ADMIN_ID and user_id != ADMIN_ID: # Не уведомлять о самом себе
+        if ADMIN_ID and user_id != ADMIN_ID:
             try:
                 msg = f"🆕 <b>NEW USER REGISTERED!</b>\n\n👤 <b>User:</b> {display_name}\n🆔 <b>ID:</b> <code>{user_id}</code>"
-                # Используем asyncio.run для вызова асинхронного метода из синхронного кода
                 try:
                     loop = asyncio.get_event_loop()
                 except RuntimeError:
@@ -155,10 +178,8 @@ def ensure_user_record(user_id: str) -> bool:
                     asyncio.set_event_loop(loop)
                 
                 if loop.is_running():
-                    # Если мы уже в асинхронном контексте (например, вызов из хендлера бота)
                     loop.create_task(bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode='HTML'))
                 else:
-                    # Если мы в синхронном контексте (Flask)
                     loop.run_until_complete(bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode='HTML'))
             except Exception as e:
                 logging.error(f"Failed to send admin notification: {e}")
@@ -183,7 +204,21 @@ def update_user_profile(tg_user) -> None:
         'is_premium': bool(getattr(tg_user, 'is_premium', False))
     }
 
-    # Проверяем, был ли профиль пустым до этого (для уведомления)
+    # Update in PostgreSQL first
+    if USE_DATABASE:
+        try:
+            DatabaseService.update_profile(
+                user_id,
+                username=profile['username'],
+                first_name=profile['first_name'],
+                last_name=profile['last_name'],
+                language_code=profile['language_code'],
+                is_premium=profile['is_premium']
+            )
+        except Exception as e:
+            logging.error(f"Database error updating profile: {e}")
+
+    # Check if profile was empty before
     is_new_profile = user_id not in user_profiles or not user_profiles[user_id]
 
     updated = False
@@ -195,34 +230,6 @@ def update_user_profile(tg_user) -> None:
     if updated:
         logging.info(f'👤 Stored profile for user {user_id}: @{profile["username"] or "unknown"}')
         save_data()
-        
-        # Если мы впервые узнали имя пользователя (и это не админ)
-        if is_new_profile and ADMIN_ID and user_id != ADMIN_ID:
-            try:
-                username = profile.get('username', '')
-                first_name = profile.get('first_name', '')
-                last_name = profile.get('last_name', '')
-                
-                if username:
-                    display_name = f"@{username}"
-                else:
-                    display_name = f"{first_name} {last_name}".strip() or "Unknown"
-                
-                msg = f"👤 <b>USER IDENTIFIED!</b>\n\nExisting user <code>{user_id}</code> is now known as <b>{display_name}</b>"
-                
-                # Используем asyncio.run для вызова асинхронного метода из синхронного кода
-                try:
-                    loop = asyncio.get_event_loop()
-                except RuntimeError:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                
-                if loop.is_running():
-                    loop.create_task(bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode='HTML'))
-                else:
-                    loop.run_until_complete(bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode='HTML'))
-            except Exception as e:
-                logging.error(f"Failed to send identification notification: {e}")
 
 # Безопасная загрузка конфигурации
 API_TOKEN = os.getenv('API_TOKEN')
@@ -260,10 +267,87 @@ except Exception as e:
 URL = WEBAPP_URL
 
 
+def init_database():
+    """Initialize PostgreSQL database connection"""
+    global USE_DATABASE
+    if not USE_DATABASE:
+        return False
+    
+    db_url = os.getenv('HEROKU_POSTGRESQL_COBALT_URL') or os.getenv('DATABASE_URL')
+    if db_url:
+        success = DatabaseService.initialize(db_url)
+        if success:
+            logging.info("✅ PostgreSQL database initialized")
+            return True
+        else:
+            logging.error("❌ Failed to initialize PostgreSQL, falling back to JSON")
+            USE_DATABASE = False
+            return False
+    else:
+        logging.warning("⚠️ No database URL found, using JSON storage")
+        USE_DATABASE = False
+        return False
+
+
 def load_data():
     global user_tokens, referrals, beloveds, user_stars, user_profiles
     global pending_friend_requests, pending_consent_requests
     global user_notifications, new_friends_count, new_partners_count, consent_history
+    
+    # Try to initialize database first
+    init_database()
+    
+    # If using PostgreSQL, load from there
+    if USE_DATABASE:
+        try:
+            # Load users from PostgreSQL
+            db_users = DatabaseService.get_all_users()
+            if db_users:
+                user_tokens = db_users
+                logging.info(f"✅ Loaded {len(db_users)} users from PostgreSQL")
+            else:
+                user_tokens = {}
+            
+            # Load relationships
+            referrals = {}
+            beloveds = {}
+            user_profiles = {}
+            
+            # For each user, get their friends and partners
+            for user_id in user_tokens.keys():
+                friends = DatabaseService.get_friends(user_id)
+                if friends:
+                    referrals[user_id] = friends
+                
+                partners = DatabaseService.get_partners(user_id)
+                if partners:
+                    beloveds[user_id] = partners
+                
+                # Get profile
+                user = DatabaseService.get_user(user_id)
+                if user and (user.username or user.first_name):
+                    user_profiles[user_id] = {
+                        'username': user.username or '',
+                        'first_name': user.first_name or '',
+                        'last_name': user.last_name or '',
+                        'language_code': user.language_code or '',
+                        'is_premium': user.is_premium or False
+                    }
+            
+            # Initialize other dicts
+            user_stars = {}
+            pending_friend_requests = {}
+            pending_consent_requests = {}
+            user_notifications = {}
+            new_friends_count = {}
+            new_partners_count = {}
+            consent_history = {}
+            logging.info(f"✅ Loaded data from PostgreSQL: {len(user_tokens)} users")
+            return
+        except Exception as e:
+            logging.error(f"Error loading from PostgreSQL: {e}, falling back to JSON")
+    
+    # Fallback to JSON file
     try:
         with open('user_tokens.json', 'r') as f:
             data = json.load(f)
@@ -277,31 +361,39 @@ def load_data():
             user_notifications = data.get('user_notifications', {})
             new_friends_count = data.get('new_friends_count', {})
             new_partners_count = data.get('new_partners_count', {})
-            consent_history = data.get('consent_history', {})  # Новая строка
-            print(f"Loaded data: {user_tokens}, {referrals}, {beloveds}, {user_stars}")
+            consent_history = data.get('consent_history', {})
+            print(f"Loaded data from JSON: {len(user_tokens)} users")
     except FileNotFoundError:
         user_tokens = {}
         referrals = {}
         beloveds = {}
-        user_stars = {}  # Новая строка
+        user_stars = {}
         user_profiles = {}
-        print("Data file not found, starting with an empty dictionary")
+        pending_friend_requests = {}
+        pending_consent_requests = {}
+        user_notifications = {}
+        new_friends_count = {}
+        new_partners_count = {}
+        consent_history = {}
+        print("Data file not found, starting with empty dictionary")
     except JSONDecodeError:
         logging.error('Error decoding JSON from user_tokens.json. Starting with empty data.')
         user_tokens = {}
         referrals = {}
         beloveds = {}
-        user_stars = {}  # Новая строка
+        user_stars = {}
         user_profiles = {}
     except Exception as e:
         logging.error(f"Unexpected error while loading data: {e}")
         user_tokens = {}
         referrals = {}
         beloveds = {}
-        user_stars = {}  # Новая строка
+        user_stars = {}
         user_profiles = {}
 
 def save_data():
+    """Save data to PostgreSQL and JSON file"""
+    # Save to JSON as backup
     try:
         with data_lock:
             with open('user_tokens.json', 'w') as f:
@@ -318,9 +410,12 @@ def save_data():
                     'new_partners_count': new_partners_count,
                     'consent_history': consent_history
                 }, f)
-        print(f"Saved data: {user_tokens}, {referrals}, {beloveds}, {user_stars}")
+        logging.debug(f"Saved data to JSON: {len(user_tokens)} users")
     except Exception as e:
-        logging.error(f"Unexpected error while saving data: {e}")
+        logging.error(f"Error saving to JSON: {e}")
+    
+    # PostgreSQL is updated in real-time via DatabaseService methods
+    # No need to sync here as we update DB directly in ensure_user_record, etc.
 
 
 # Flask-маршруты
@@ -374,6 +469,62 @@ def tonconnect_manifest():
 @app.route('/test-manifest')
 def test_manifest():
     return "Manifest test works! Version 2.0"
+
+
+# === MIGRATION ENDPOINT ===
+# The 6 users that were registered but lost (from Heroku logs)
+MISSING_USERS_TO_RECOVER = {
+    "635050290": 0,    # 3 Dec 19:27
+    "8407218553": 0,   # 4 Dec 01:40
+    "6990450953": 0,   # 4 Dec 05:31
+    "21827667": 0,     # 4 Dec 07:35
+    "1613610662": 0,   # 4 Dec 08:05
+    "8188206564": 0,   # 4 Dec 09:11
+}
+
+@app.route('/run_migration_now_2024')
+def run_migration_endpoint():
+    """Migration endpoint - adds 6 missing users and migrates to PostgreSQL"""
+    if not USE_DATABASE:
+        return "<h1>❌ Database not available</h1><p>USE_DATABASE is False. Check if DatabaseService imported correctly.</p>", 500
+    
+    try:
+        result_log = []
+        
+        # Add missing users to local cache first
+        for user_id, balance in MISSING_USERS_TO_RECOVER.items():
+            if user_id not in user_tokens:
+                user_tokens[user_id] = balance
+                result_log.append(f"➕ Added missing user: {user_id}")
+        
+        # Prepare data for migration
+        data = {
+            'user_tokens': user_tokens,
+            'referrals': referrals,
+            'beloveds': beloveds,
+            'user_profiles': user_profiles,
+            'user_stars': user_stars
+        }
+        
+        # Run migration
+        success = DatabaseService.migrate_from_json(data)
+        
+        if success:
+            # Verify
+            count = DatabaseService.get_user_count()
+            result_log.append(f"✅ Migration complete! {count} users in PostgreSQL")
+            
+            # Save JSON backup
+            save_data()
+            result_log.append("✅ JSON backup saved")
+            
+            return f"<h1>✅ MIGRATION SUCCESSFUL!</h1><pre>{'\\n'.join(result_log)}</pre><p>{count} users now in PostgreSQL</p>"
+        else:
+            return "<h1>❌ Migration Failed</h1><p>Check logs for details.</p>", 500
+            
+    except Exception as e:
+        import traceback
+        return f"<h1>❌ Error</h1><pre>{traceback.format_exc()}</pre>", 500
 
 
 @app.route('/get_balance', methods=['POST'])
@@ -649,8 +800,10 @@ async def start(update: Update, context: CallbackContext) -> None:
     args = context.args
     user = update.message.from_user
     user_id = str(user.id)
-    ensure_user_record(user_id)
+    # ВАЖНО: Сначала сохраняем профиль, потом создаём запись пользователя
+    # Это нужно чтобы в уведомлении о новом пользователе был никнейм
     update_user_profile(user)
+    ensure_user_record(user_id)
     
     # Логируем вход пользователя
     display_name = get_user_display_name(user_id)
