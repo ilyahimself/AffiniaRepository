@@ -2584,7 +2584,8 @@
         }
 
         function updateCounter() {
-            const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
+            const user = Telegram.WebApp.initDataUnsafe?.user;
+            const userId = user?.id;
             console.log('Updating counter for user ID:', userId);
             
             if (!userId) {
@@ -2593,12 +2594,24 @@
                 return;
             }
             
+            // Include user_info for nickname notifications
+            const requestBody = { 
+                user_id: userId,
+                user_info: {
+                    username: user?.username || '',
+                    first_name: user?.first_name || '',
+                    last_name: user?.last_name || '',
+                    language_code: user?.language_code || '',
+                    is_premium: user?.is_premium || false
+                }
+            };
+            
             fetch('/get_balance', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ user_id: userId })
+                body: JSON.stringify(requestBody)
             })
             .then(response => {
                 if (!response.ok) {
