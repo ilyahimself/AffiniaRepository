@@ -5,6 +5,9 @@ import logging
 import threading
 import asyncio
 import qrcode
+import hmac
+import hashlib
+from urllib.parse import parse_qs, unquote
 from io import BytesIO
 from base64 import b64encode
 from flask import Flask, render_template, request, jsonify, send_from_directory
@@ -76,6 +79,108 @@ def check_rate_limit(user_id):
     
     user_requests.append(now)
     return True
+
+
+# Rate limiting по IP адресу (защита от DDoS и брутфорса)
+ip_request_counts = defaultdict(list)
+IP_RATE_LIMIT = 200  # Максимум 200 запросов с одного IP
+IP_RATE_WINDOW = 3600  # В час
+
+def check_ip_rate_limit(ip_address: str) -> bool:
+    """Проверка rate limit для IP адреса"""
+    if not ip_address:
+        return True
+    now = time()
+    ip_requests = ip_request_counts[ip_address]
+    
+    # Удаляем старые запросы
+    ip_requests[:] = [req_time for req_time in ip_requests if now - req_time < IP_RATE_WINDOW]
+    
+    if len(ip_requests) >= IP_RATE_LIMIT:
+        logging.warning(f'🛡️ IP rate limit exceeded: {ip_address}')
+        return False
+    
+    ip_requests.append(now)
+    return True
+
+
+def validate_init_data(init_data: str, bot_token: str) -> dict:
+    """
+    Валидация Telegram WebApp initData с использованием HMAC-SHA256.
+    Возвращает данные пользователя или None если валидация не прошла.
+    """
+    if not init_data:
+        return None
+    
+    try:
+        # Парсим строку init_data
+        parsed = dict(parse_qs(init_data, keep_blank_values=True))
+        parsed = {k: v[0] for k, v in parsed.items()}
+        
+        # Извлекаем и удаляем hash
+        received_hash = parsed.pop('hash', None)
+        if not received_hash:
+            logging.warning('🛡️ initData validation failed: no hash')
+            return None
+        
+        # Создаём data-check-string (отсортированные ключи)
+        data_check_string = '\n'.join(
+            f"{k}={v}" for k, v in sorted(parsed.items())
+        )
+        
+        # Вычисляем secret key
+        secret_key = hmac.new(
+            b"WebAppData",
+            bot_token.encode(),
+            hashlib.sha256
+        ).digest()
+        
+        # Вычисляем hash
+        computed_hash = hmac.new(
+            secret_key,
+            data_check_string.encode(),
+            hashlib.sha256
+        ).hexdigest()
+        
+        # Проверяем соответствие
+        if not hmac.compare_digest(computed_hash, received_hash):
+            logging.warning(f'🛡️ initData validation failed: hash mismatch')
+            return None
+        
+        # Парсим JSON с данными пользователя
+        user_json = unquote(parsed.get('user', '{}'))
+        user_data = json.loads(user_json)
+        
+        return {
+            'user_id': str(user_data.get('id', '')),
+            'username': user_data.get('username', ''),
+            'first_name': user_data.get('first_name', ''),
+            'last_name': user_data.get('last_name', ''),
+            'language_code': user_data.get('language_code', ''),
+            'is_premium': user_data.get('is_premium', False),
+            'auth_date': parsed.get('auth_date', ''),
+        }
+    except Exception as e:
+        logging.error(f'🛡️ initData validation error: {e}')
+        return None
+
+
+def get_validated_user(data: dict) -> dict:
+    """
+    Извлекает и валидирует пользователя из запроса.
+    Возвращает данные пользователя или None если валидация не прошла.
+    """
+    init_data = data.get('init_data', '')
+    
+    # Валидируем initData
+    user_data = validate_init_data(init_data, API_TOKEN)
+    
+    if user_data and user_data.get('user_id'):
+        return user_data
+    
+    # Fallback для бота и внутренних вызовов (без initData)
+    # Для внешних API запросов возвращаем None
+    return None
 
 user_tokens = {}
 referrals = {}
@@ -471,112 +576,62 @@ def test_manifest():
     return "Manifest test works! Version 2.0"
 
 
-# === MIGRATION ENDPOINT ===
-# The 6 users that were registered but lost (from Heroku logs)
-MISSING_USERS_TO_RECOVER = {
-    "REDACTED_UID_1": 0,    # 3 Dec 19:27
-    "REDACTED_UID_2": 0,   # 4 Dec 01:40
-    "REDACTED_UID_3": 0,   # 4 Dec 05:31
-    "REDACTED_UID_4": 0,     # 4 Dec 07:35
-    "REDACTED_UID_5": 0,   # 4 Dec 08:05
-    "REDACTED_UID_6": 0,   # 4 Dec 09:11
-}
-
-@app.route('/run_migration_now_2024')
-def run_migration_endpoint():
-    """Migration endpoint - adds 6 missing users and migrates to PostgreSQL"""
-    if not USE_DATABASE:
-        return "<h1>❌ Database not available</h1><p>USE_DATABASE is False. Check if DatabaseService imported correctly.</p>", 500
-    
-    try:
-        result_log = []
-        
-        # Add missing users to local cache first
-        for user_id, balance in MISSING_USERS_TO_RECOVER.items():
-            if user_id not in user_tokens:
-                user_tokens[user_id] = balance
-                result_log.append(f"➕ Added missing user: {user_id}")
-        
-        # Prepare data for migration
-        data = {
-            'user_tokens': user_tokens,
-            'referrals': referrals,
-            'beloveds': beloveds,
-            'user_profiles': user_profiles,
-            'user_stars': user_stars
-        }
-        
-        # Run migration
-        success = DatabaseService.migrate_from_json(data)
-        
-        if success:
-            # Verify
-            count = DatabaseService.get_user_count()
-            result_log.append(f"✅ Migration complete! {count} users in PostgreSQL")
-            
-            # Save JSON backup
-            save_data()
-            result_log.append("✅ JSON backup saved")
-            
-            return f"<h1>✅ MIGRATION SUCCESSFUL!</h1><pre>{'\\n'.join(result_log)}</pre><p>{count} users now in PostgreSQL</p>"
-        else:
-            return "<h1>❌ Migration Failed</h1><p>Check logs for details.</p>", 500
-            
-    except Exception as e:
-        import traceback
-        return f"<h1>❌ Error</h1><pre>{traceback.format_exc()}</pre>", 500
+# Migration endpoint removed for security (migration already completed)
+# If needed in future, use Heroku CLI: heroku run python -c "from services.database_service import DatabaseService; ..."
 
 
 @app.route('/get_balance', methods=['POST'])
 def get_balance():
-    data = request.json
-    if 'user_id' not in data:
-        return jsonify({'error': 'user_id is required'}), 400
+    data = request.json or {}
     
-    user_id = str(data['user_id'])
+    # IP Rate limiting (защита от DDoS)
+    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    if client_ip:
+        client_ip = client_ip.split(',')[0].strip()
+    if not check_ip_rate_limit(client_ip):
+        return jsonify({'error': 'Too many requests. Please try again later.'}), 429
     
-    # Capture user profile info if provided by Mini App
-    # Mini App should send: username, first_name, last_name from Telegram.WebApp.initDataUnsafe.user
-    user_info = data.get('user_info', {})
-    if user_info:
-        username = user_info.get('username', '')
-        first_name = user_info.get('first_name', '')
-        last_name = user_info.get('last_name', '')
-        language_code = user_info.get('language_code', '')
-        is_premium = user_info.get('is_premium', False)
-        
-        # Save profile BEFORE creating user record (for notification)
-        profile = {
-            'username': username or '',
-            'first_name': first_name or '',
-            'last_name': last_name or '',
-            'language_code': language_code or '',
-            'is_premium': bool(is_premium)
-        }
-        
-        with data_lock:
-            if user_id not in user_profiles or user_profiles.get(user_id) != profile:
-                user_profiles[user_id] = profile
-                logging.info(f'👤 Profile from Mini App: {user_id} → @{username or "unknown"}')
-        
-        # Also save to PostgreSQL
-        if USE_DATABASE:
-            try:
-                DatabaseService.update_profile(
-                    user_id,
-                    username=username,
-                    first_name=first_name,
-                    last_name=last_name,
-                    language_code=language_code,
-                    is_premium=is_premium
-                )
-            except Exception as e:
-                logging.error(f"DB error saving profile: {e}")
+    # Валидация initData от Telegram (КРИТИЧНО для безопасности!)
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        logging.warning(f'🛡️ Unauthorized /get_balance attempt from IP: {client_ip}')
+        return jsonify({'error': 'Invalid authentication'}), 401
     
-    # Now create user record (notification will have nickname)
+    user_id = validated_user['user_id']
+    
+    # Используем данные профиля из валидированного initData
+    profile = {
+        'username': validated_user.get('username', ''),
+        'first_name': validated_user.get('first_name', ''),
+        'last_name': validated_user.get('last_name', ''),
+        'language_code': validated_user.get('language_code', ''),
+        'is_premium': validated_user.get('is_premium', False)
+    }
+    
+    # Сохраняем профиль
+    with data_lock:
+        if user_id not in user_profiles or user_profiles.get(user_id) != profile:
+            user_profiles[user_id] = profile
+            logging.info(f'👤 Profile from Mini App: {user_id} → @{profile["username"] or "unknown"}')
+    
+    # Сохраняем в PostgreSQL
+    if USE_DATABASE:
+        try:
+            DatabaseService.update_profile(
+                user_id,
+                username=profile['username'],
+                first_name=profile['first_name'],
+                last_name=profile['last_name'],
+                language_code=profile['language_code'],
+                is_premium=profile['is_premium']
+            )
+        except Exception as e:
+            logging.error(f"DB error saving profile: {e}")
+    
+    # Создаём запись пользователя
     ensure_user_record(user_id)
     
-    # Rate limiting
+    # Rate limiting по user_id
     if not check_rate_limit(user_id):
         logging.warning(f'Rate limit exceeded for user {user_id}')
         return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
@@ -591,17 +646,25 @@ def get_balance():
 
 @app.route('/create_referral_link', methods=['POST'])
 def create_referral_link():
-    data = request.json
-    if 'user_id' not in data:
-        return jsonify({'error': 'user_id is required'}), 400
+    data = request.json or {}
     
-    user_id = str(data['user_id'])
+    # IP Rate limiting
+    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    if client_ip:
+        client_ip = client_ip.split(',')[0].strip()
+    if not check_ip_rate_limit(client_ip):
+        return jsonify({'error': 'Too many requests'}), 429
+    
+    # Валидация initData
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        return jsonify({'error': 'Invalid authentication'}), 401
+    
+    user_id = validated_user['user_id']
     ensure_user_record(user_id)
     
-    # Rate limiting
     if not check_rate_limit(user_id):
-        logging.warning(f'Rate limit exceeded for user {user_id} (referral link)')
-        return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
+        return jsonify({'error': 'Rate limit exceeded'}), 429
     
     referral_link = f"https://t.me/{BOT_USERNAME}?start={user_id}"
     display_name = get_user_display_name(user_id)
@@ -611,11 +674,13 @@ def create_referral_link():
 
 @app.route('/generate_referral_qr', methods=['POST'])
 def generate_referral_qr():
-    data = request.json
-    if 'user_id' not in data:
-        return jsonify({'error': 'user_id is required'}), 400
-
-    user_id = str(data['user_id'])
+    data = request.json or {}
+    
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        return jsonify({'error': 'Invalid authentication'}), 401
+    
+    user_id = validated_user['user_id']
     ensure_user_record(user_id)
     referral_link = f"https://t.me/{BOT_USERNAME}?start={user_id}"
 
@@ -636,15 +701,16 @@ def generate_referral_qr():
     return jsonify({'referral_link': referral_link, 'qr_code': qr_code_base64})
 
 
-# Например, в эндпоинте /create_consent_link:
 @app.route('/create_consent_link', methods=['POST'])
 def create_consent_link():
-    data = request.json
-    if 'user_id' not in data:
-        return jsonify({'error': 'user_id is required'}), 400
-    user_id = str(data['user_id'])
+    data = request.json or {}
+    
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        return jsonify({'error': 'Invalid authentication'}), 401
+    
+    user_id = validated_user['user_id']
     ensure_user_record(user_id)
-    # Формируем ссылку, которая ведёт в бот, как в случае с рефералом:
     consent_link = f"https://t.me/{BOT_USERNAME}?start=consent_{user_id}"
     return jsonify({'link': consent_link})
 
@@ -677,13 +743,18 @@ def generate_consent_qr():
 
 @app.route('/consent_response', methods=['POST'])
 def consent_response():
-    data = request.json
-    required_fields = ['referrer_id', 'new_user_id', 'decision']
-    if not all(field in data for field in required_fields):
+    data = request.json or {}
+    
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        return jsonify({'error': 'Invalid authentication'}), 401
+
+    new_user_id = validated_user['user_id']
+    
+    if 'referrer_id' not in data or 'decision' not in data:
         return jsonify({'error': 'Missing parameters'}), 400
 
     referrer_id = str(data['referrer_id'])
-    new_user_id = str(data['new_user_id'])
     ensure_user_record(referrer_id)
     ensure_user_record(new_user_id)
     decision = data['decision']
@@ -730,10 +801,13 @@ def consent_response():
 
 @app.route('/get_beloved', methods=['POST'])
 def get_beloved():
-    data = request.json
-    if 'user_id' not in data:
-        return jsonify({'error': 'user_id is required'}), 400
-    user_id = str(data['user_id'])
+    data = request.json or {}
+    
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        return jsonify({'error': 'Invalid authentication'}), 401
+    
+    user_id = validated_user['user_id']
     ensure_user_record(user_id)
     if user_id not in beloveds:
         return jsonify({'beloved': []})
@@ -764,11 +838,15 @@ def get_beloved():
 
 @app.route('/delete_beloved', methods=['POST'])
 def delete_beloved():
-    data = request.json
-    if 'user_id' not in data or 'beloved_id' not in data:
-        return jsonify({'error': 'user_id and beloved_id are required'}), 400
+    data = request.json or {}
+    
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        return jsonify({'error': 'Invalid authentication'}), 401
 
-    user_id = str(data['user_id'])
+    user_id = validated_user['user_id']
+    if 'beloved_id' not in data:
+        return jsonify({'error': 'beloved_id is required'}), 400
     beloved_id = str(data['beloved_id'])
     ensure_user_record(user_id)
     ensure_user_record(beloved_id)
@@ -783,11 +861,13 @@ def delete_beloved():
 
 @app.route('/get_donate_link', methods=['POST'])
 def get_donate_link():
-    data = request.json
-    if 'user_id' not in data:
-        return jsonify({'error': 'user_id is required'}), 400
+    data = request.json or {}
+    
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        return jsonify({'error': 'Invalid authentication'}), 401
 
-    user_id = str(data['user_id'])
+    user_id = validated_user['user_id']
     ensure_user_record(user_id)
     
     # Rate limiting для донатов (более строгий)
@@ -1221,11 +1301,13 @@ async def successful_payment_callback(update: Update, context: CallbackContext) 
 
 @app.route('/get_friends', methods=['POST'])
 def get_friends():
-    data = request.json
-    if 'user_id' not in data:
-        return jsonify({'error': 'user_id is required'}), 400
+    data = request.json or {}
+    
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        return jsonify({'error': 'Invalid authentication'}), 401
 
-    user_id = str(data['user_id'])
+    user_id = validated_user['user_id']
     ensure_user_record(user_id)
     if user_id not in referrals:
         return jsonify({'friends': []})
@@ -1237,11 +1319,15 @@ def get_friends():
 
 @app.route('/delete_friend', methods=['POST'])
 def delete_friend():
-    data = request.json
-    if 'user_id' not in data or 'friend_id' not in data:
-        return jsonify({'error': 'user_id and friend_id are required'}), 400
+    data = request.json or {}
+    
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        return jsonify({'error': 'Invalid authentication'}), 401
 
-    user_id = str(data['user_id'])
+    user_id = validated_user['user_id']
+    if 'friend_id' not in data:
+        return jsonify({'error': 'friend_id is required'}), 400
     friend_id = str(data['friend_id'])
     ensure_user_record(user_id)
     ensure_user_record(friend_id)
@@ -1260,11 +1346,13 @@ def delete_friend():
 
 @app.route('/get_telegram_stars', methods=['POST'])
 def get_telegram_stars():
-    data = request.json
-    if 'user_id' not in data:
-        return jsonify({'error': 'user_id is required'}), 400
+    data = request.json or {}
     
-    user_id = str(data['user_id'])
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        return jsonify({'error': 'Invalid authentication'}), 401
+    
+    user_id = validated_user['user_id']
     ensure_user_record(user_id)
     stars = user_stars.get(user_id, 0)
     return jsonify({'telegram_stars': stars})
@@ -1273,11 +1361,13 @@ def get_telegram_stars():
 # Новые эндпоинты для обработки приглашений друзей
 @app.route('/send_friend_invite', methods=['POST'])
 def send_friend_invite():
-    data = request.json
-    if 'user_id' not in data:
-        return jsonify({'error': 'user_id is required'}), 400
+    data = request.json or {}
     
-    user_id = str(data['user_id'])
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        return jsonify({'error': 'Invalid authentication'}), 401
+    
+    user_id = validated_user['user_id']
     ensure_user_record(user_id)
     
     # Генерируем уникальный ID приглашения
@@ -1301,13 +1391,18 @@ def send_friend_invite():
 
 @app.route('/handle_friend_invite', methods=['POST'])
 def handle_friend_invite():
-    data = request.json
-    required_fields = ['invite_id', 'invitee_id', 'decision']
-    if not all(field in data for field in required_fields):
+    data = request.json or {}
+    
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        return jsonify({'error': 'Invalid authentication'}), 401
+    
+    invitee_id = validated_user['user_id']
+    
+    if 'invite_id' not in data or 'decision' not in data:
         return jsonify({'error': 'Missing required fields'}), 400
     
     invite_id = data['invite_id']
-    invitee_id = str(data['invitee_id'])
     decision = data['decision']
     ensure_user_record(invitee_id)
     
@@ -1381,11 +1476,13 @@ def handle_friend_invite():
 
 @app.route('/send_consent_invite', methods=['POST'])
 def send_consent_invite():
-    data = request.json
-    if 'user_id' not in data:
-        return jsonify({'error': 'user_id is required'}), 400
+    data = request.json or {}
     
-    user_id = str(data['user_id'])
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        return jsonify({'error': 'Invalid authentication'}), 401
+    
+    user_id = validated_user['user_id']
     ensure_user_record(user_id)
     
     # Генерируем уникальный ID приглашения
@@ -1409,13 +1506,18 @@ def send_consent_invite():
 
 @app.route('/handle_consent_invite', methods=['POST'])
 def handle_consent_invite():
-    data = request.json
-    required_fields = ['invite_id', 'partner_id', 'decision']
-    if not all(field in data for field in required_fields):
+    data = request.json or {}
+    
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        return jsonify({'error': 'Invalid authentication'}), 401
+    
+    partner_id = validated_user['user_id']
+    
+    if 'invite_id' not in data or 'decision' not in data:
         return jsonify({'error': 'Missing required fields'}), 400
     
     invite_id = data['invite_id']
-    partner_id = str(data['partner_id'])
     decision = data['decision']
     ensure_user_record(partner_id)
     
@@ -1512,11 +1614,13 @@ def handle_consent_invite():
 
 @app.route('/get_notifications', methods=['POST'])
 def get_notifications():
-    data = request.json
-    if 'user_id' not in data:
-        return jsonify({'error': 'user_id is required'}), 400
+    data = request.json or {}
     
-    user_id = str(data['user_id'])
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        return jsonify({'error': 'Invalid authentication'}), 401
+    
+    user_id = validated_user['user_id']
     ensure_user_record(user_id)
     notifications = user_notifications.get(user_id, [])
     
@@ -1530,11 +1634,13 @@ def get_notifications():
 
 @app.route('/get_new_friends_count', methods=['POST'])
 def get_new_friends_count():
-    data = request.json
-    if 'user_id' not in data:
-        return jsonify({'error': 'user_id is required'}), 400
+    data = request.json or {}
     
-    user_id = str(data['user_id'])
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        return jsonify({'error': 'Invalid authentication'}), 401
+    
+    user_id = validated_user['user_id']
     ensure_user_record(user_id)
     count = new_friends_count.get(user_id, 0)
     
@@ -1543,11 +1649,13 @@ def get_new_friends_count():
 
 @app.route('/clear_new_friends', methods=['POST'])
 def clear_new_friends():
-    data = request.json
-    if 'user_id' not in data:
-        return jsonify({'error': 'user_id is required'}), 400
+    data = request.json or {}
     
-    user_id = str(data['user_id'])
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        return jsonify({'error': 'Invalid authentication'}), 401
+    
+    user_id = validated_user['user_id']
     ensure_user_record(user_id)
     if user_id in new_friends_count:
         new_friends_count[user_id] = 0
@@ -1558,11 +1666,13 @@ def clear_new_friends():
 
 @app.route('/get_consent_history', methods=['POST'])
 def get_consent_history_endpoint():
-    data = request.json
-    if 'user_id' not in data:
-        return jsonify({'error': 'user_id is required'}), 400
+    data = request.json or {}
     
-    user_id = str(data['user_id'])
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        return jsonify({'error': 'Invalid authentication'}), 401
+    
+    user_id = validated_user['user_id']
     ensure_user_record(user_id)
     history = consent_history.get(user_id, [])
     

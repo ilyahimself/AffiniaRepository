@@ -1,42 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Affinia Mini App</title>
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#1e90ff">
-    
+
     <!-- Favicon and App Icons -->
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192x192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="/static/icon-512x512.png">
     <link rel="apple-touch-icon" href="/static/icon-192x192.png">
-    
+
     <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <!-- Telegram Mini Apps Analytics SDK -->
-    <script
-        src="https://tganalytics.xyz/index.js" 
-        onload="window.telegramAnalyticsReady = true; try { initAnalytics(); } catch (e) { console.error(e); }" 
-        onerror="console.error('Analytics SDK failed to load')"
-        type="text/javascript">
-    </script>
+    <script src="https://tganalytics.xyz/index.js"
+        onload="window.telegramAnalyticsReady = true; try { initAnalytics(); } catch (e) { console.error(e); }"
+        onerror="console.error('Analytics SDK failed to load')" type="text/javascript">
+        </script>
     <script>
         // Функция для генерации session ID (UUID v4-подобный)
         function generateSessionId() {
-            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
                 const r = Math.random() * 16 | 0;
                 const v = c === 'x' ? r : (r & 0x3 | 0x8);
                 return v.toString(16);
             });
         }
-        
+
         // Функция для получения user ID
         function getUserId() {
             return window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'unknown';
         }
-        
+
         function initAnalytics() {
             try {
                 if (!window.telegramAnalytics || !window.telegramAnalytics.init) {
@@ -55,21 +54,23 @@
                 console.error('Analytics init error:', error);
             }
         }
-        
+
         // Инициализируем после загрузки страницы
-        window.addEventListener('load', function() {
+        window.addEventListener('load', function () {
             // fallback на случай, если скрипт загрузился до объявления initAnalytics
-            setTimeout(() => { try { initAnalytics(); } catch (e) {} }, 500);
+            setTimeout(() => { try { initAnalytics(); } catch (e) { } }, 500);
         });
-        
+
         // Флаг готовности SDK (устанавливается onload у скрипта)
         window.telegramAnalyticsReady = window.telegramAnalyticsReady || false;
     </script>
     <!-- TON Connect SDK -->
-    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js" onload="console.log('TON Connect SDK loaded')" onerror="console.error('TON Connect SDK failed to load')"></script>
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"
+        onload="console.log('TON Connect SDK loaded')"
+        onerror="console.error('TON Connect SDK failed to load')"></script>
     <script>
         // Проверяем загрузку TON Connect
-        window.addEventListener('load', function() {
+        window.addEventListener('load', function () {
             console.log('TON Connect available:', !!window.TON_CONNECT_UI);
             if (!window.TON_CONNECT_UI) {
                 console.error('TON Connect SDK failed to load');
@@ -109,10 +110,10 @@
             position: relative;
             width: 100%;
             display: flex;
-            justify-content: space-between; 
+            justify-content: space-between;
             padding: 0 10px;
             height: auto;
-            margin-top: 10px; 
+            margin-top: 10px;
         }
 
         /* Левая секция (аватар, никнейм, коins) */
@@ -130,7 +131,7 @@
         }
 
         .user-details {
-            margin-left: 15px; 
+            margin-left: 15px;
             display: flex;
             flex-direction: column;
             gap: 10px;
@@ -146,7 +147,7 @@
         }
 
 
-        
+
         /* ----- Страницы (для переключения контента) ----- */
         .main-content {
             flex: 1;
@@ -159,13 +160,13 @@
 
         .page {
             display: none;
-            width: 100%;            
+            width: 100%;
             align-items: center;
             overflow-y: auto;
         }
 
         .page.active {
-            display: block; 
+            display: block;
         }
 
         /* ----- Центр экрана: кнопки Referral Link, Consent Link ----- */
@@ -193,7 +194,7 @@
             letter-spacing: 0.5px;
         }
 
-        .center-content button:hover {            
+        .center-content button:hover {
             transform: translate(2px, 2px);
             box-shadow: 2px 2px 0 #000, 4px 4px 0 rgba(0, 0, 0, 0.35);
         }
@@ -216,31 +217,35 @@
             background: #ff0000;
             color: #ffffff;
             border: 4px solid #cc0000;
-            border-radius: 8px; /* Пиксельные скругленные углы */
+            border-radius: 8px;
+            /* Пиксельные скругленные углы */
             width: 80px;
             height: 80px;
-            font-family: 'Courier New', monospace; /* Пиксельный шрифт */
+            font-family: 'Courier New', monospace;
+            /* Пиксельный шрифт */
             font-size: 18px;
             font-weight: bold;
             display: flex;
             justify-content: center;
             align-items: center;
-            box-shadow: 
+            box-shadow:
                 4px 4px 0px #990000,
                 8px 8px 0px rgba(0, 0, 0, 0.2);
-            transition: none; /* Убираем плавные переходы для пиксельного эффекта */
+            transition: none;
+            /* Убираем плавные переходы для пиксельного эффекта */
             cursor: pointer;
             animation: pixelPulse 2s infinite;
             image-rendering: pixelated;
             -ms-interpolation-mode: nearest-neighbor;
             position: relative;
         }
+
         .sos-button::after {
             content: "";
             position: absolute;
             inset: 6px;
             border-radius: 6px;
-            background: radial-gradient(50% 50% at 50% 50%, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 60%);
+            background: radial-gradient(50% 50% at 50% 50%, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0) 60%);
             pointer-events: none;
         }
 
@@ -248,34 +253,36 @@
             background: #ff3333;
             border-color: #ff0000;
             transform: translate(2px, 2px);
-            box-shadow: 
+            box-shadow:
                 2px 2px 0px #990000,
                 4px 4px 0px rgba(0, 0, 0, 0.3);
         }
 
         .sos-button:active {
             transform: translate(4px, 4px);
-            box-shadow: 
+            box-shadow:
                 0px 0px 0px #990000,
                 2px 2px 0px rgba(0, 0, 0, 0.4);
         }
 
         @keyframes pixelPulse {
-            0% { 
+            0% {
                 background: #ff0000;
-                box-shadow: 
+                box-shadow:
                     4px 4px 0px #990000,
                     8px 8px 0px rgba(0, 0, 0, 0.2);
             }
-            50% { 
+
+            50% {
                 background: #ff3333;
-                box-shadow: 
+                box-shadow:
                     4px 4px 0px #cc0000,
                     8px 8px 0px rgba(0, 0, 0, 0.3);
             }
-            100% { 
+
+            100% {
                 background: #ff0000;
-                box-shadow: 
+                box-shadow:
                     4px 4px 0px #990000,
                     8px 8px 0px rgba(0, 0, 0, 0.2);
             }
@@ -347,11 +354,13 @@
             place-items: center;
         }
 
-        .icon-wrap::before { content: none; }
+        .icon-wrap::before {
+            content: none;
+        }
 
         .glass-chip {
-            background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
             backdrop-filter: blur(10px) saturate(160%);
             -webkit-backdrop-filter: blur(10px) saturate(160%);
             border-radius: 8px;
@@ -362,16 +371,21 @@
             display: inline-block;
             vertical-align: middle;
             margin-left: 6px;
-            box-shadow: 0 1px 0 rgba(0,0,0,0.45);
+            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
         }
 
         @media (prefers-reduced-transparency: reduce) {
-            .glass-chip { background: #1B1C20; border-color: #2B2B2E; backdrop-filter: none; -webkit-backdrop-filter: none; }
+            .glass-chip {
+                background: #1B1C20;
+                border-color: #2B2B2E;
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
+            }
         }
 
         .glass-card-header {
-            background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02));
-            border-bottom: 1px solid rgba(255,255,255,0.12);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.02));
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
             backdrop-filter: blur(8px) saturate(140%);
             -webkit-backdrop-filter: blur(8px) saturate(140%);
             padding: 10px 14px;
@@ -381,7 +395,7 @@
 
         .glass-divider {
             height: 1px;
-            background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.18), rgba(255,255,255,0));
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0));
             backdrop-filter: blur(6px);
             -webkit-backdrop-filter: blur(6px);
         }
@@ -400,8 +414,8 @@
         }
 
         #referral-modal-content {
-            background: rgba(20,20,24,0.55);
-            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(20, 20, 24, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.15);
             backdrop-filter: blur(14px) saturate(160%);
             -webkit-backdrop-filter: blur(14px) saturate(160%);
             padding: 20px;
@@ -410,7 +424,7 @@
             width: 320px;
             position: relative;
             color: #fff;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         }
 
         #close-referral-modal {
@@ -420,20 +434,24 @@
             font-size: 18px;
             font-weight: bold;
             color: #ddd;
-            border: 1px solid rgba(255,255,255,0.18);
-            background: rgba(255,255,255,0.06);
-            width: 28px; height: 28px; border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            background: rgba(255, 255, 255, 0.06);
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
         }
 
-        #close-referral-modal:hover { color: #fff; }
-        
-        /* ----- Элементы списка друзей ----- */        
+        #close-referral-modal:hover {
+            color: #fff;
+        }
+
+        /* ----- Элементы списка друзей ----- */
         .friend-info {
             position: relative;
             width: 100%;
             display: flex;
             align-items: center;
-            justify-content: space-between; 
+            justify-content: space-between;
             padding: 15px;
             margin: 10px 0;
             background: #17181B;
@@ -443,9 +461,12 @@
             transition: none;
         }
 
-        .friend-info:hover { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #000; }
+        .friend-info:hover {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0 #000;
+        }
 
-        .friend-left-section{
+        .friend-left-section {
             display: flex;
             align-items: center;
         }
@@ -465,7 +486,7 @@
         }
 
         .friend-details {
-            margin-left: 15px; 
+            margin-left: 15px;
             display: flex;
             flex-direction: column;
             gap: 10px;
@@ -479,7 +500,7 @@
             text-align: left;
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
-        
+
         .delete-btn {
             background: linear-gradient(135deg, #ff4757, #ff6b7d);
             color: white;
@@ -2115,29 +2136,41 @@
             width: 95%;
             max-width: 500px;
             height: 90%;
-            background: rgba(20,20,24,0.55);
-            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(20, 20, 24, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.15);
             backdrop-filter: blur(14px) saturate(160%);
             -webkit-backdrop-filter: blur(14px) saturate(160%);
             border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
             animation: slideIn 0.3s ease;
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
         }
 
         @keyframes slideIn {
-            from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
-            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+            from {
+                transform: translateX(-50%) translateY(-20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(-50%) translateY(0);
+                opacity: 1;
+            }
         }
 
         .history-header {
-            background: rgba(20,20,24,0.55);
-            border-bottom: 1px solid rgba(255,255,255,0.15);
+            background: rgba(20, 20, 24, 0.55);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
             backdrop-filter: blur(14px) saturate(160%);
             -webkit-backdrop-filter: blur(14px) saturate(160%);
             padding: 16px 20px;
@@ -2415,30 +2448,32 @@
             transform: translateY(-2px);
             box-shadow: 0 6px 16px rgba(0, 184, 148, 0.4);
         }
-        
+
         /* Анимации для уведомлений */
         @keyframes slideInRight {
             from {
                 transform: translateX(100%);
                 opacity: 0;
             }
+
             to {
                 transform: translateX(0);
                 opacity: 1;
             }
         }
-        
+
         @keyframes slideOutRight {
             from {
                 transform: translateX(0);
                 opacity: 1;
             }
+
             to {
                 transform: translateX(100%);
                 opacity: 0;
             }
         }
-        
+
         /* Стили для значков на кнопках */
         .badge {
             position: absolute;
@@ -2456,14 +2491,16 @@
             font-weight: bold;
             animation: pulse 1.5s infinite;
         }
-        
+
         @keyframes pulse {
             0% {
                 transform: scale(1);
             }
+
             50% {
                 transform: scale(1.1);
             }
+
             100% {
                 transform: scale(1);
             }
@@ -2473,16 +2510,16 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script>
         Telegram.WebApp.ready();
-        
+
         // Расширяем viewport для полноэкранного режима
         Telegram.WebApp.expand();
 
         const BOT_USERNAME = '{{ bot_username or "" }}';
-        
+
         // Глобальные переменные для хранения информации о приглашениях
         let currentInviteId = null;
         let currentInviterInfo = null;
-        
+
         // Добавляем debug логирование
         console.log('Telegram WebApp initialized');
         console.log('initData:', Telegram.WebApp.initData);
@@ -2498,15 +2535,15 @@
         function initializeActivity() {
             console.log('Initializing activity history...');
             const activityList = document.getElementById('activity-list');
-            
+
             if (!activityList) {
                 console.warn('Activity list element not found');
                 return;
             }
-            
+
             // Очищаем список активности
             activityList.innerHTML = '';
-            
+
             // Добавляем приветственное сообщение только один раз при первом запуске
             const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
             if (userId) {
@@ -2522,29 +2559,29 @@
 
         function initializeApp() {
             console.log('Initializing Affinia app...');
-            
+
             // Инициализируем пользовательскую информацию
             updateUserInfo();
-            
+
             // Проверяем приглашения
             checkForInvitations();
-            
+
             // Проверяем consent ссылки
             checkForConsentLink();
-            
+
             // Проверяем уведомления
             checkForNotifications();
-            
+
             // Обновляем значки друзей
             updateFriendBadges();
-            
+
             // Загружаем дополнительные данные
             updateFriendsList();
             updateBelovedList();
-            
+
             // Инициализируем активность с приветственным сообщением
             initializeActivity();
-            
+
             console.log('App initialization complete');
         }
 
@@ -2562,11 +2599,11 @@
                     const lastName = user.last_name || '';
                     document.getElementById('username').textContent = firstName + (lastName ? ' ' + lastName : '');
                 }
-                
+
                 // Используем аватар из Telegram или генерируем fallback
                 const avatarUrl = user.photo_url || `https://api.dicebear.com/6.x/avataaars/svg?seed=${user.id.toString()}`;
                 document.getElementById('user-avatar').src = avatarUrl;
-                
+
                 // Загружаем баланс
                 updateCounter();
             } else {
@@ -2574,7 +2611,7 @@
                 console.warn('No user data available, using fallback');
                 document.getElementById('username').textContent = 'Guest User';
                 document.getElementById('user-avatar').src = 'https://api.dicebear.com/6.x/avataaars/svg?seed=guest';
-                
+
                 // Устанавливаем нулевой баланс
                 const counterElement = document.getElementById('afn-counter');
                 if (counterElement) {
@@ -2587,16 +2624,17 @@
             const user = Telegram.WebApp.initDataUnsafe?.user;
             const userId = user?.id;
             console.log('Updating counter for user ID:', userId);
-            
+
             if (!userId) {
                 console.warn('No user ID available, setting balance to 0');
                 setBalanceToZero();
                 return;
             }
-            
+
             // Include user_info for nickname notifications
-            const requestBody = { 
+            const requestBody = {
                 user_id: userId,
+                init_data: Telegram.WebApp.initData,
                 user_info: {
                     username: user?.username || '',
                     first_name: user?.first_name || '',
@@ -2605,7 +2643,7 @@
                     is_premium: user?.is_premium || false
                 }
             };
-            
+
             fetch('/get_balance', {
                 method: 'POST',
                 headers: {
@@ -2613,42 +2651,42 @@
                 },
                 body: JSON.stringify(requestBody)
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Balance data received:', data);
-                const balance = data.balance || 0;
-                
-                // Обновляем все элементы с балансом
-                const counterElement = document.getElementById('counter');
-                if (counterElement) {
-                    counterElement.textContent = balance + ' AFN';
-                }
-                
-                const afnCounterElement = document.getElementById('afn-counter');
-                if (afnCounterElement) {
-                    afnCounterElement.textContent = balance;
-                }
-                
-                // Также обновляем баланс на главной странице
-                const mainBalanceElement = document.getElementById('main-afn-balance');
-                if (mainBalanceElement) {
-                    mainBalanceElement.textContent = balance;
-                }
-                
-                // Обновляем статус безопасности
-                updateSafetyStatus(balance);
-            })
-            .catch(error => {
-                console.error('Error fetching balance:', error);
-                setBalanceToZero();
-            });
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Balance data received:', data);
+                    const balance = data.balance || 0;
+
+                    // Обновляем все элементы с балансом
+                    const counterElement = document.getElementById('counter');
+                    if (counterElement) {
+                        counterElement.textContent = balance + ' AFN';
+                    }
+
+                    const afnCounterElement = document.getElementById('afn-counter');
+                    if (afnCounterElement) {
+                        afnCounterElement.textContent = balance;
+                    }
+
+                    // Также обновляем баланс на главной странице
+                    const mainBalanceElement = document.getElementById('main-afn-balance');
+                    if (mainBalanceElement) {
+                        mainBalanceElement.textContent = balance;
+                    }
+
+                    // Обновляем статус безопасности
+                    updateSafetyStatus(balance);
+                })
+                .catch(error => {
+                    console.error('Error fetching balance:', error);
+                    setBalanceToZero();
+                });
         }
-        
+
         function setBalanceToZero() {
             const elements = ['counter', 'afn-counter', 'main-afn-balance'];
             elements.forEach(id => {
@@ -2708,9 +2746,9 @@
         }
 
         // Close modal when clicking outside
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const modal = document.getElementById('consent-history-modal');
-            modal.addEventListener('click', function(e) {
+            modal.addEventListener('click', function (e) {
                 if (e.target === modal) {
                     closeConsentHistory();
                 }
@@ -2720,7 +2758,7 @@
         function loadConsentHistory() {
             const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
             console.log('Loading consent history for user:', userId);
-            
+
             if (!userId) {
                 console.warn('No user ID available, showing empty history');
                 consentHistoryData = [];
@@ -2728,40 +2766,40 @@
                 displayConsentHistory();
                 return;
             }
-            
+
             // Загружаем реальные данные из backend
             fetch('/get_consent_history', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId })
+                body: JSON.stringify({ user_id: userId, init_data: Telegram.WebApp.initData })
             })
-            .then(response => response.json())
-            .then(data => {
-                console.log('Consent history received:', data);
-                
-                // Преобразуем данные в нужный формат
-                consentHistoryData = (data.consent_history || []).map(consent => ({
-                    id: `consent_${consent.partner_id}_${consent.timestamp}`,
-                    partnerId: consent.partner_id,
-                    partnerName: `User ${consent.partner_id.substring(0, 6)}...`,
-                    status: consent.status || 'active',
-                    createdAt: new Date(consent.timestamp * 1000),
-                    expiresAt: new Date((consent.timestamp + 7 * 24 * 60 * 60) * 1000), // 7 дней
-                    details: getConsentDetails(consent.status || 'active'),
-                    location: 'Digital consent',
-                    witnessId: null,
-                    type: consent.type || 'intimate'
-                }));
-                
-                updateHistoryStatistics();
-                displayConsentHistory();
-            })
-            .catch(error => {
-                console.error('Error loading consent history:', error);
-                consentHistoryData = [];
-                updateHistoryStatistics();
-                displayConsentHistory();
-            });
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Consent history received:', data);
+
+                    // Преобразуем данные в нужный формат
+                    consentHistoryData = (data.consent_history || []).map(consent => ({
+                        id: `consent_${consent.partner_id}_${consent.timestamp}`,
+                        partnerId: consent.partner_id,
+                        partnerName: `User ${consent.partner_id.substring(0, 6)}...`,
+                        status: consent.status || 'active',
+                        createdAt: new Date(consent.timestamp * 1000),
+                        expiresAt: new Date((consent.timestamp + 7 * 24 * 60 * 60) * 1000), // 7 дней
+                        details: getConsentDetails(consent.status || 'active'),
+                        location: 'Digital consent',
+                        witnessId: null,
+                        type: consent.type || 'intimate'
+                    }));
+
+                    updateHistoryStatistics();
+                    displayConsentHistory();
+                })
+                .catch(error => {
+                    console.error('Error loading consent history:', error);
+                    consentHistoryData = [];
+                    updateHistoryStatistics();
+                    displayConsentHistory();
+                });
         }
 
         function generateMockConsentHistory() {
@@ -2842,10 +2880,10 @@
         function createConsentEntry(consent) {
             const entry = document.createElement('div');
             entry.className = `consent-entry ${consent.status}`;
-            
+
             const statusBadge = getStatusBadge(consent.status);
             const avatar = `https://api.dicebear.com/6.x/avataaars/svg?seed=${consent.partnerId}`;
-            
+
             entry.innerHTML = `
                 <div class="consent-header">
                     <div class="consent-partner">
@@ -2866,7 +2904,7 @@
                     ${getConsentActionButtons(consent)}
                 </div>
             `;
-            
+
             return entry;
         }
 
@@ -2929,34 +2967,34 @@
 
         function filterConsents(status) {
             currentFilter = status;
-            
+
             // Update filter button states
             document.querySelectorAll('.filter-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
             event.target.classList.add('active');
-            
+
             displayConsentHistory();
         }
 
         function filterConsentData() {
             const searchTerm = document.getElementById('history-search').value.toLowerCase();
-            
+
             let filtered = consentHistoryData;
-            
+
             // Filter by status
             if (currentFilter !== 'all') {
                 filtered = filtered.filter(consent => consent.status === currentFilter);
             }
-            
+
             // Filter by search term
             if (searchTerm) {
-                filtered = filtered.filter(consent => 
+                filtered = filtered.filter(consent =>
                     consent.partnerName.toLowerCase().includes(searchTerm) ||
                     consent.details.toLowerCase().includes(searchTerm)
                 );
             }
-            
+
             return filtered;
         }
 
@@ -2983,10 +3021,10 @@
                     consent.status = 'withdrawn';
                     consent.withdrawnAt = new Date();
                     consent.details = 'Consent withdrawn by user request.';
-                    
+
                     updateHistoryStatistics();
                     displayConsentHistory();
-                    
+
                     addActivityItem('🚫', 'Withdrew consent agreement');
                     alert('✅ Consent has been withdrawn and recorded.');
                 }
@@ -3002,7 +3040,7 @@
         function toggleThreeDotsMenu() {
             const dropdown = document.getElementById('three-dots-dropdown');
             dropdown.classList.toggle('show');
-            
+
             // Close dropdown when clicking outside
             document.addEventListener('click', function closeDropdown(e) {
                 if (!e.target.closest('.three-dots-menu')) {
@@ -3051,10 +3089,10 @@
             const parts = consentId.split('_');
             if (parts.length >= 2) {
                 const referrerId = parts[1];
-                
+
                 // Add to partners list
                 if (!window.partners) window.partners = [];
-                
+
                 const newPartner = {
                     id: referrerId,
                     name: `Partner from consent`,
@@ -3062,13 +3100,13 @@
                     addedAt: new Date(),
                     consentId: consentId
                 };
-                
+
                 // Check if partner already exists
                 const existingPartner = window.partners.find(p => p.id === referrerId);
                 if (!existingPartner) {
                     window.partners.push(newPartner);
                     addActivityItem('👥', 'New partner added from consent link');
-                    
+
                     // Update partners list if on partners page
                     if (document.getElementById('beloved-page').classList.contains('active')) {
                         updateBelovedList();
@@ -3081,7 +3119,7 @@
         function checkForConsentLink() {
             const urlParams = new URLSearchParams(window.location.search);
             const startParam = urlParams.get('start');
-            
+
             if (startParam && startParam.startsWith('consent_')) {
                 addPartnerFromConsent(startParam);
                 // Show welcome message
@@ -3119,10 +3157,10 @@
             try {
                 // Неподдерживаемые события отправляем как custom-event
                 const supported = new Set([
-                    'app-init','app-hide','custom-event','connection-started','connection-completed','connection-error','connection-restoring-completed','connection-restoring-error','transaction-sent-for-signature','transaction-signed','transaction-signing-failed','disconnection'
+                    'app-init', 'app-hide', 'custom-event', 'connection-started', 'connection-completed', 'connection-error', 'connection-restoring-completed', 'connection-restoring-error', 'transaction-sent-for-signature', 'transaction-signed', 'transaction-signing-failed', 'disconnection'
                 ]);
                 const nameToSend = supported.has(eventName) ? eventName : 'custom-event';
-                const finalPayload = nameToSend === 'custom-event' ? { ...payload, custom_data: { original_event: eventName, ...(eventData||{}) } } : payload;
+                const finalPayload = nameToSend === 'custom-event' ? { ...payload, custom_data: { original_event: eventName, ...(eventData || {}) } } : payload;
                 sdk.track(nameToSend, finalPayload);
                 console.log('✅ Event sent via track');
             } catch (error) {
@@ -3145,7 +3183,7 @@
             try {
                 // Создаем манифест для TON Connect
                 const manifestUrl = window.location.origin + '/tonconnect-manifest.json';
-                
+
                 tonConnect = new window.TON_CONNECT_UI.TonConnectUI({
                     manifestUrl: manifestUrl,
                     buttonRootId: 'ton-connect-button',
@@ -3198,7 +3236,7 @@
                 balance.style.display = 'block';
                 actions.style.display = 'grid';
                 if (tonConnectBtn) tonConnectBtn.style.display = 'none';
-                
+
                 // Загружаем баланс
                 loadTonBalance();
             } else {
@@ -3240,20 +3278,20 @@
 
             try {
                 const balanceElement = document.getElementById('ton-balance-amount');
-                
+
                 // Показываем загрузку
                 balanceElement.textContent = 'Loading...';
-                
+
                 // Запрос к TON API для получения баланса
                 const address = tonWallet.account.address;
                 const response = await fetch(`https://toncenter.com/api/v2/getAddressBalance?address=${address}`);
                 const data = await response.json();
-                
+
                 if (data.ok) {
                     // Конвертируем из nanotons в TON (1 TON = 1,000,000,000 nanotons)
                     const balanceInTon = (parseInt(data.result) / 1000000000).toFixed(4);
                     balanceElement.textContent = balanceInTon;
-                    
+
                     trackEvent('ton_balance_loaded', {
                         address: address,
                         balance: balanceInTon,
@@ -3304,7 +3342,7 @@
                     <span class="activity-icon">${icon}</span>
                     <span class="activity-text">${text}</span>
                 `;
-                
+
                 // Добавляем в начало списка
                 if (activityList.children.length > 0) {
                     activityList.insertBefore(newItem, activityList.firstChild);
@@ -3316,7 +3354,7 @@
                 while (activityList.children.length > 3) {
                     activityList.removeChild(activityList.lastChild);
                 }
-                
+
                 // Отслеживаем активность
                 trackEvent('activity_added', {
                     icon: icon,
@@ -3329,15 +3367,15 @@
             fetch('/get_telegram_stars', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe?.user?.id })
-             })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('stars-count').textContent = data.telegram_stars;
-             })
-            .catch(error => console.error('Error fetching telegram stars:', error));
+                body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe?.user?.id, init_data: Telegram.WebApp.initData })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('stars-count').textContent = data.telegram_stars;
+                })
+                .catch(error => console.error('Error fetching telegram stars:', error));
         }
-        
+
         function sendDonateCommand() {
             Telegram.WebApp.sendData("/donate");
         }
@@ -3348,25 +3386,25 @@
 
         function selectAmount(amount) {
             selectedDonationAmount = amount;
-            
+
             // Убираем выделение со всех опций
             document.querySelectorAll('.amount-option').forEach(option => {
                 option.classList.remove('selected');
             });
-            
+
             // Выделяем выбранную опцию
             document.querySelector(`[data-amount="${amount}"]`).classList.add('selected');
-            
+
             // Очищаем кастомное поле
             document.getElementById('custom-amount').value = '';
-            
+
             // Обновляем кнопку
             updateDonateButton();
         }
 
         function selectCustomAmount(amount) {
             const numAmount = parseInt(amount);
-            
+
             if (amount === '' || isNaN(numAmount)) {
                 selectedDonationAmount = 0;
             } else if (numAmount < 50) {
@@ -3377,18 +3415,18 @@
             } else {
                 selectedDonationAmount = numAmount;
             }
-            
+
             // Убираем выделение с preset опций
             document.querySelectorAll('.amount-option').forEach(option => {
                 option.classList.remove('selected');
             });
-            
+
             updateDonateButton();
         }
 
         function updateDonateButton() {
             const button = document.getElementById('donate-btn');
-            
+
             if (selectedDonationAmount > 0) {
                 button.disabled = false;
                 button.textContent = `Donate ⭐ ${selectedDonationAmount} Stars`;
@@ -3408,7 +3446,7 @@
             if (!userId) {
                 alert("User not found.");
                 return;
-    }  
+            }
 
             // Показываем индикатор загрузки
             const button = document.getElementById('donate-btn');
@@ -3419,29 +3457,30 @@
             fetch('/get_donate_link', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     user_id: userId,
-                    amount: selectedDonationAmount 
+                    init_data: Telegram.WebApp.initData,
+                    amount: selectedDonationAmount
                 })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.invoice_link) {
-                     Telegram.WebApp.openInvoice(data.invoice_link);
-                 } else {
-                    alert("Error: " + (data.error || "Failed to create an invoice."));
-                 }
-     })
-            .catch(error => {
-                console.error('Error:', error);
-                alert("An error occurred while processing the donation.");
-            })
-            .finally(() => {
-                // Восстанавливаем кнопку
-                button.textContent = originalText;
-                button.disabled = selectedDonationAmount <= 0;
-    });
-}
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.invoice_link) {
+                        Telegram.WebApp.openInvoice(data.invoice_link);
+                    } else {
+                        alert("Error: " + (data.error || "Failed to create an invoice."));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert("An error occurred while processing the donation.");
+                })
+                .finally(() => {
+                    // Восстанавливаем кнопку
+                    button.textContent = originalText;
+                    button.disabled = selectedDonationAmount <= 0;
+                });
+        }
 
 
 
@@ -3452,35 +3491,35 @@
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe?.user?.id })
+                body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe?.user?.id, init_data: Telegram.WebApp.initData })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert(data.error);
-                } else {
-                    // Генерируем QR-код для ссылки на мини-апп
-                    fetch('/generate_referral_qr', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe?.user?.id })
-                    })
-                    .then(r => r.json())
-                    .then(qrData => {
-                        document.getElementById('qr-code').src = `data:image/png;base64,${qrData.qr_code}`;
-                    });
-                    
-                    // Сохраняем ссылку и сообщение
-                    document.getElementById('referral-link').setAttribute('data-link', data.invite_link);
-                    document.getElementById('referral-link').setAttribute('data-message', data.message);
-                    document.getElementById('referral-link').textContent = '';
-                    document.getElementById('referral-modal').style.display = 'flex';
-                    
-                    // Добавляем активность
-                    addActivityItem('🎁', 'Created friend invitation link');
-                }
-            })
-            .catch(error => console.error('Error:', error));
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                    } else {
+                        // Генерируем QR-код для ссылки на мини-апп
+                        fetch('/generate_referral_qr', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe?.user?.id, init_data: Telegram.WebApp.initData })
+                        })
+                            .then(r => r.json())
+                            .then(qrData => {
+                                document.getElementById('qr-code').src = `data:image/png;base64,${qrData.qr_code}`;
+                            });
+
+                        // Сохраняем ссылку и сообщение
+                        document.getElementById('referral-link').setAttribute('data-link', data.invite_link);
+                        document.getElementById('referral-link').setAttribute('data-message', data.message);
+                        document.getElementById('referral-link').textContent = '';
+                        document.getElementById('referral-modal').style.display = 'flex';
+
+                        // Добавляем активность
+                        addActivityItem('🎁', 'Created friend invitation link');
+                    }
+                })
+                .catch(error => console.error('Error:', error));
         }
 
         function closeReferralModal() {
@@ -3490,7 +3529,7 @@
         function sendReferralLink() {
             const referralLink = document.getElementById('referral-link').getAttribute('data-link');
             const message = document.getElementById('referral-link').getAttribute('data-message') || "Want to be my friend in Affinia? 🌟";
-            
+
             if (referralLink) {
                 // Отправляем сообщение с ссылкой на мини-апп
                 const shareText = `${message}\n\n${referralLink}`;
@@ -3522,7 +3561,7 @@
             });
 
             document.getElementById(pageId).classList.add('active');
-            
+
             // Отслеживаем переходы между страницами
             trackEvent('page_view', {
                 page: pageId,
@@ -3543,7 +3582,7 @@
                 initializeMissionSystem();  // Initialize mission system
             }
         }
-    
+
 
         async function fetchTelegramUserData(userId) {
             BOT_TOKEN = "REDACTED_BOT_TOKEN"
@@ -3585,20 +3624,20 @@
         async function updateFriendsList() {
             const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
             console.log('Updating friends list for user:', userId);
-            
+
             if (!userId) {
                 console.warn('No user ID available, skipping friends list update');
                 return;
             }
-            
+
             try {
                 const response = await fetch('/get_friends', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: userId })
+                    body: JSON.stringify({ user_id: userId, init_data: Telegram.WebApp.initData })
                 });
                 const data = await response.json();
-                
+
                 // Organize friends by trust levels
                 const friends = data.friends || [];
                 const emergencyContacts = friends.filter(f => f.trust_level === 'emergency');
@@ -3640,7 +3679,7 @@
         function calculateTrustScore(friends) {
             let score = 0;
             friends.forEach(friend => {
-                switch(friend.trust_level) {
+                switch (friend.trust_level) {
                     case 'emergency': score += 10; break;
                     case 'witness': score += 7; break;
                     case 'verified': score += 5; break;
@@ -3652,14 +3691,14 @@
 
         async function populateFriendCategory(containerId, friends) {
             const container = document.getElementById(containerId);
-            
+
             if (friends.length === 0) {
                 container.innerHTML = '<div style="text-align: center; color: rgba(255,255,255,0.5); padding: 15px; font-size: 14px;">No friends in this category</div>';
                 return;
             }
 
             for (const friend of friends) {
-                    const userInfo = await fetchTelegramUserData(friend.user_id);
+                const userInfo = await fetchTelegramUserData(friend.user_id);
                 const friendCard = createEnhancedFriendCard(friend, userInfo);
                 container.appendChild(friendCard);
             }
@@ -3668,9 +3707,9 @@
         function createEnhancedFriendCard(friend, userInfo) {
             const card = document.createElement('div');
             card.className = 'enhanced-friend-card';
-            
+
             const trustBadge = getTrustBadge(friend.trust_level);
-            
+
             card.innerHTML = `
                 <div class="friend-header">
                     <div class="friend-main-info">
@@ -3686,12 +3725,12 @@
                     ${getFriendActionButtons(friend)}
                 </div>
             `;
-            
+
             return card;
         }
 
         function getTrustBadge(trustLevel) {
-            switch(trustLevel) {
+            switch (trustLevel) {
                 case 'emergency':
                     return '<span class="trust-badge emergency">🆘 Emergency</span>';
                 case 'witness':
@@ -3730,25 +3769,25 @@
 
         function findNearbyUsers() {
             showNotification('Поиск поблизости', 'Ищем пользователей рядом с вами...', 'info');
-            
+
             // Имитация запроса геолокации
-            navigator.permissions.query({name:'geolocation'}).then(function(result) {
+            navigator.permissions.query({ name: 'geolocation' }).then(function (result) {
                 if (result.state === 'granted' || result.state === 'prompt') {
                     // Имитируем определение местоположения
                     setTimeout(() => {
                         // Генерируем случайное количество пользователей
                         const nearbyCount = Math.floor(Math.random() * 5) + 1;
-                        const resultsContainer = document.querySelector('.search-results') || 
-                                               document.querySelector('#friend-list');
-                        
+                        const resultsContainer = document.querySelector('.search-results') ||
+                            document.querySelector('#friend-list');
+
                         if (resultsContainer) {
                             resultsContainer.innerHTML = '<h3>Пользователи рядом с вами</h3>';
-                            
+
                             for (let i = 0; i < nearbyCount; i++) {
                                 const randomUserId = Math.floor(Math.random() * 1000000) + 1000000;
                                 const randomName = `User${randomUserId.toString().slice(-4)}`;
                                 const randomDistance = Math.floor(Math.random() * 10) + 1;
-                                
+
                                 const searchResult = document.createElement('div');
                                 searchResult.className = 'friend-info';
                                 searchResult.innerHTML = `
@@ -3761,10 +3800,10 @@
                                     </div>
                                     <button class="add-btn" onclick="sendFriendRequest('${randomUserId}')">Добавить</button>
                                 `;
-                                
+
                                 resultsContainer.appendChild(searchResult);
                             }
-                            
+
                             showNotification('Найдено', `Найдено ${nearbyCount} пользователей рядом с вами`, 'success');
                         }
                     }, 2000);
@@ -3780,19 +3819,19 @@
                 showNotification('Ошибка поиска', 'Пожалуйста, введите имя пользователя или номер телефона', 'error');
                 return;
             }
-            
+
             showNotification('Поиск', `Ищем пользователя "${searchTerm}"...`, 'info');
-            
+
             // Имитируем поиск с задержкой
             setTimeout(() => {
                 // Генерируем случайный результат поиска
                 const randomUserId = Math.floor(Math.random() * 1000000) + 1000000;
                 const randomName = `User${randomUserId.toString().slice(-4)}`;
-                
+
                 // Добавляем результат в список
                 const resultsContainer = document.querySelector('.search-results');
                 resultsContainer.innerHTML = '';
-                
+
                 const searchResult = document.createElement('div');
                 searchResult.className = 'friend-info';
                 searchResult.innerHTML = `
@@ -3805,15 +3844,15 @@
                     </div>
                     <button class="add-btn" onclick="sendFriendRequest('${randomUserId}')">Добавить</button>
                 `;
-                
+
                 resultsContainer.appendChild(searchResult);
                 showNotification('Готово', 'Поиск успешно завершен', 'success');
             }, 1500);
         }
-        
+
         function sendFriendRequest(userId) {
             showNotification('Запрос отправлен', `Запрос дружбы отправлен пользователю ID: ${userId}`, 'success');
-            
+
             // Отправляем запрос на сервер (имитация)
             setTimeout(() => {
                 updateFriendsList(); // Обновляем список друзей
@@ -3832,7 +3871,7 @@
             modal.style.justifyContent = 'center';
             modal.style.alignItems = 'center';
             modal.style.zIndex = '1000';
-            
+
             const content = document.createElement('div');
             content.style.backgroundColor = '#fff';
             content.style.borderRadius = '15px';
@@ -3840,7 +3879,7 @@
             content.style.width = '80%';
             content.style.maxWidth = '350px';
             content.style.color = '#333';
-            
+
             content.innerHTML = `
                 <h3 style="margin-top: 0;">Повысить уровень доверия</h3>
                 <p>Выберите новый уровень доверия для пользователя ID: ${friendId}</p>
@@ -3854,11 +3893,11 @@
                 
                 <button onclick="document.body.removeChild(this.parentNode.parentNode)" style="width: 100%; margin-top: 20px; padding: 10px; background: #f5f5f5; border: none; border-radius: 8px;">Отмена</button>
             `;
-            
+
             modal.appendChild(content);
             document.body.appendChild(modal);
         }
-        
+
         function applyTrustLevel(friendId, level) {
             // Уровни доверия: friend, verified, witness, emergency
             const levelNames = {
@@ -3867,16 +3906,16 @@
                 'witness': 'Свидетель',
                 'emergency': 'Экстренный контакт'
             };
-            
+
             // Имитация запроса к серверу
             showNotification('Уровень доверия', `Установлен новый уровень: ${levelNames[level]}`, 'success');
-            
+
             // Закрываем модальное окно
             const modal = document.querySelector('[style*="position: fixed"]');
             if (modal && modal.style.zIndex === '1000') {
                 document.body.removeChild(modal);
             }
-            
+
             // Обновляем интерфейс
             updateFriendsList();
         }
@@ -3894,7 +3933,7 @@
             modal.style.justifyContent = 'center';
             modal.style.alignItems = 'center';
             modal.style.zIndex = '1000';
-            
+
             const content = document.createElement('div');
             content.style.backgroundColor = '#fff';
             content.style.borderRadius = '15px';
@@ -3902,7 +3941,7 @@
             content.style.width = '80%';
             content.style.maxWidth = '350px';
             content.style.color = '#333';
-            
+
             // Получаем текущий баланс из интерфейса или используем дефолтное значение
             let currentBalance;
             try {
@@ -3911,7 +3950,7 @@
             } catch (e) {
                 currentBalance = 100;
             }
-            
+
             content.innerHTML = `
                 <h3 style="margin-top: 0;">Отправить AFN</h3>
                 <p>Отправка токенов пользователю ID: ${friendId}</p>
@@ -3935,24 +3974,24 @@
                     <button onclick="completeAFNTransfer('${friendId}')" style="flex: 1; padding: 10px; background: #1890ff; color: white; border: none; border-radius: 8px;">Отправить</button>
                 </div>
             `;
-            
+
             modal.appendChild(content);
             document.body.appendChild(modal);
         }
-        
+
         function completeAFNTransfer(friendId) {
             // Получаем количество и сообщение
             const amount = document.getElementById('afn-amount').value;
             const message = document.getElementById('afn-message').value;
-            
+
             if (!amount || amount <= 0) {
                 showNotification('Ошибка', 'Укажите корректное количество AFN', 'error');
                 return;
             }
-            
+
             // Имитация запроса к серверу
             showNotification('Отправка AFN', `Отправляем ${amount} AFN пользователю ID: ${friendId}...`, 'info');
-            
+
             // Имитация задержки сети
             setTimeout(() => {
                 // Обновляем баланс в интерфейсе
@@ -3961,9 +4000,9 @@
                     const currentBalance = parseInt(balanceElement.textContent);
                     balanceElement.textContent = currentBalance - parseInt(amount);
                 }
-                
+
                 showNotification('Успех', `${amount} AFN успешно отправлено! ${message ? 'С сообщением: ' + message : ''}`, 'success');
-                
+
                 // Закрываем модальное окно
                 const modal = document.querySelector('[style*="position: fixed"]');
                 if (modal && modal.style.zIndex === '1000') {
@@ -3974,7 +4013,7 @@
 
         function testEmergencyContact(friendId) {
             showNotification('Экстренный тест', 'Отправка тестового экстренного уведомления...', 'warning');
-            
+
             // Определяем местоположение (симуляция)
             const locations = [
                 "Москва, Центральный округ",
@@ -3983,13 +4022,13 @@
                 "Новосибирск, Красный проспект",
                 "Екатеринбург, ул. Вайнера"
             ];
-            
+
             const randomLocation = locations[Math.floor(Math.random() * locations.length)];
-            
+
             // Имитация задержки отправки экстренного сообщения
             setTimeout(() => {
                 showNotification('Уведомление отправлено', `Тестовое экстренное уведомление отправлено контакту ID: ${friendId}`, 'success');
-                
+
                 // Показываем подтверждение
                 const modal = document.createElement('div');
                 modal.style.position = 'fixed';
@@ -4002,7 +4041,7 @@
                 modal.style.justifyContent = 'center';
                 modal.style.alignItems = 'center';
                 modal.style.zIndex = '1000';
-                
+
                 const content = document.createElement('div');
                 content.style.backgroundColor = '#fff';
                 content.style.borderRadius = '15px';
@@ -4010,7 +4049,7 @@
                 content.style.width = '80%';
                 content.style.maxWidth = '350px';
                 content.style.color = '#333';
-                
+
                 content.innerHTML = `
                     <div style="text-align: center;">
                         <div style="width: 60px; height: 60px; margin: 0 auto; background: #52c41a; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
@@ -4031,7 +4070,7 @@
                         <button onclick="document.body.removeChild(this.parentNode.parentNode)" style="width: 100%; margin-top: 15px; padding: 10px; background: #1890ff; color: white; border: none; border-radius: 8px;">Понятно</button>
                     </div>
                 `;
-                
+
                 modal.appendChild(content);
                 document.body.appendChild(modal);
             }, 2000);
@@ -4044,7 +4083,7 @@
         };
 
         function startMission(missionId) {
-            switch(missionId) {
+            switch (missionId) {
                 case 'phone_verify':
                     showPhoneVerificationModal();
                     break;
@@ -4088,8 +4127,8 @@
 
         function showEducationalContent(courseId) {
             let title, content;
-            
-            switch(courseId) {
+
+            switch (courseId) {
                 case 'consent_basics':
                     title = '📚 Consent Basics Course';
                     content = `
@@ -4155,17 +4194,17 @@
 
             // Mark mission as completed
             missionData.completed.push(missionId);
-            
+
             // Update mission UI
             const missionElement = document.querySelector(`[data-mission="${missionId}"]`);
             if (missionElement) {
                 missionElement.classList.add('completed');
                 missionElement.classList.remove('locked');
-                
+
                 const statusBadge = missionElement.querySelector('.status-badge');
                 statusBadge.className = 'status-badge completed';
                 statusBadge.textContent = '✅ Completed';
-                
+
                 const button = missionElement.querySelector('.mission-button');
                 button.textContent = 'Done';
                 button.disabled = true;
@@ -4182,10 +4221,10 @@
 
             // Update verification progress
             updateVerificationProgress();
-            
+
             // Check for achievements
             checkAchievements();
-            
+
             // Update counter (AFN balance)
             updateCounter();
         }
@@ -4194,10 +4233,10 @@
             const completedCount = missionData.completed.length;
             const totalMissions = 11; // Total number of missions
             const percentage = Math.round((completedCount / totalMissions) * 100);
-            
+
             document.getElementById('verification-score').textContent = percentage + '%';
             document.getElementById('verification-progress-bar').style.width = percentage + '%';
-            
+
             let description = 'Start verifying to unlock premium features';
             if (percentage >= 80) {
                 description = 'Expert level! You are a trusted community member';
@@ -4208,25 +4247,25 @@
             } else if (percentage >= 20) {
                 description = 'Making progress! Keep going to unlock more features';
             }
-            
+
             document.getElementById('verification-description').textContent = description;
         }
 
         function checkAchievements() {
             const newAchievements = [];
-            
+
             // First mission achievement
             if (missionData.completed.length >= 1 && !missionData.achievements.includes('first_mission')) {
                 newAchievements.push({ id: 'first_mission', name: '🥇 First Steps', description: 'Completed first mission' });
             }
-            
+
             // Education enthusiast
             const educationMissions = ['consent_basics', 'legal_rights', 'emergency_protocols'];
             const completedEducation = educationMissions.filter(m => missionData.completed.includes(m));
             if (completedEducation.length >= 3 && !missionData.achievements.includes('education_complete')) {
                 newAchievements.push({ id: 'education_complete', name: '🎓 Safety Scholar', description: 'Completed all education courses' });
             }
-            
+
             // Verification master
             if (missionData.completed.length >= 8 && !missionData.achievements.includes('verification_master')) {
                 newAchievements.push({ id: 'verification_master', name: '🛡️ Verification Master', description: 'Completed most missions' });
@@ -4250,16 +4289,16 @@
         function updateAchievementShowcase() {
             const showcase = document.getElementById('achievement-showcase');
             const badges = document.getElementById('achievement-badges');
-            
+
             if (missionData.achievements.length > 0) {
                 showcase.style.display = 'block';
                 badges.innerHTML = '';
-                
+
                 missionData.achievements.forEach(achievementId => {
                     const badge = document.createElement('div');
                     badge.className = 'achievement-badge';
-                    
-                    switch(achievementId) {
+
+                    switch (achievementId) {
                         case 'first_mission':
                             badge.textContent = '🥇 First Steps';
                             break;
@@ -4270,7 +4309,7 @@
                             badge.textContent = '🛡️ Verification Master';
                             break;
                     }
-                    
+
                     badges.appendChild(badge);
                 });
             } else {
@@ -4288,51 +4327,52 @@
             fetch('/delete_friend', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     user_id: Telegram.WebApp.initDataUnsafe?.user?.id,
-                    friend_id: userId 
+                    init_data: Telegram.WebApp.initData,
+                    friend_id: userId
                 })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    updateFriendsList(); // Перезагружаем список друзей
-                } else {
-                    alert('Error: ' + data.error);
-                }
-            })
-            .catch(error => console.error('Error:', error));
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        updateFriendsList(); // Перезагружаем список друзей
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                })
+                .catch(error => console.error('Error:', error));
         }
 
         async function updateBelovedList() {
             const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
             console.log('Updating beloved list for user:', userId);
-            
+
             if (!userId) {
                 console.warn('No user ID available, skipping beloved list update');
                 return;
             }
-            
+
             try {
                 const response = await fetch('/get_beloved', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: userId })
+                    body: JSON.stringify({ user_id: userId, init_data: Telegram.WebApp.initData })
                 });
-        const data = await response.json();
+                const data = await response.json();
                 console.log('Beloved data received:', data);
-                
+
                 // Organize partners by relationship status
                 const beloved = data.beloved || [];
                 console.log('Beloved partners:', beloved);
                 const currentPartners = beloved.filter(p => p.relationship_status === 'current');
                 const potentialPartners = beloved.filter(p => p.relationship_status === 'potential');
                 const pastPartners = beloved.filter(p => p.relationship_status === 'past');
-                
+
                 console.log('Current partners:', currentPartners.length);
                 console.log('Potential partners:', potentialPartners.length);
                 console.log('Past partners:', pastPartners.length);
-                
+
                 // Update statistics
                 document.getElementById('current-partners').textContent = currentPartners.length;
                 document.getElementById('potential-partners').textContent = potentialPartners.length;
@@ -4351,7 +4391,7 @@
                 // Show/hide no partners message
                 if (beloved.length === 0) {
                     document.getElementById('no-partners-message').style.display = 'block';
-            return;
+                    return;
                 } else {
                     document.getElementById('no-partners-message').style.display = 'none';
                 }
@@ -4373,7 +4413,7 @@
 
         async function populatePartnerCategory(containerId, partners, category) {
             const container = document.getElementById(containerId);
-            
+
             if (partners.length === 0) {
                 container.innerHTML = '<div style="text-align: center; color: rgba(255,255,255,0.5); padding: 20px; font-size: 14px;">No partners in this category</div>';
                 return;
@@ -4389,10 +4429,10 @@
         function createPartnerCard(partner, userInfo, category) {
             const card = document.createElement('div');
             card.className = 'partner-card';
-            
+
             const consentStatus = getConsentStatus(partner);
             const relationshipStatus = getRelationshipStatusBadge(category);
-            
+
             card.innerHTML = `
                 <div class="partner-header">
                     <img src="${userInfo.avatar}" alt="Avatar" class="partner-avatar">
@@ -4417,7 +4457,7 @@
                     ${getPartnerActionButtons(partner, category)}
                 </div>
             `;
-            
+
             return card;
         }
 
@@ -4428,12 +4468,12 @@
                 { class: 'expired', text: 'Consent expired', time: '1 day ago', lastConsent: '1 day ago' },
                 { class: 'none', text: 'No active consent', time: 'Never', lastConsent: 'Never' }
             ];
-            
+
             return statuses[Math.floor(Math.random() * statuses.length)];
         }
 
         function getRelationshipStatusBadge(category) {
-            switch(category) {
+            switch (category) {
                 case 'current':
                     return '<span class="partner-status">💕 Current</span>';
                 case 'potential':
@@ -4483,7 +4523,7 @@
             const diff = now - timestamp;
             const hours = Math.floor(diff / (1000 * 60 * 60));
             const days = Math.floor(hours / 24);
-            
+
             if (days > 0) return `${days} days ago`;
             if (hours > 0) return `${hours} hours ago`;
             return 'Recently';
@@ -4496,7 +4536,7 @@
                 alert('Please enter a username or phone number to search.');
                 return;
             }
-            
+
             alert(`💖 Searching for "${searchTerm}"... This will search for potential partners and send them an invitation.`);
             // TODO: Implement actual partner search functionality
         }
@@ -4525,84 +4565,85 @@
         function removePartner(partnerId) {
             if (confirm('Are you sure you want to remove this partner? This action cannot be undone, but your consent history will be preserved for legal protection.')) {
                 deleteBeloved(partnerId);
-    }
-}
-
-
-function deleteBeloved(belovedId) {
-    fetch('/delete_beloved', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-            user_id: Telegram.WebApp.initDataUnsafe?.user?.id,
-            beloved_id: belovedId 
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            updateBelovedList();
-        } else {
-            alert('Error: ' + data.error);
+            }
         }
-    })
-    .catch(error => console.error('Error:', error));
-}
+
+
+        function deleteBeloved(belovedId) {
+            fetch('/delete_beloved', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: Telegram.WebApp.initDataUnsafe?.user?.id,
+                    init_data: Telegram.WebApp.initData,
+                    beloved_id: belovedId
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        updateBelovedList();
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
 
 
         window.onload = function () {
-        // Инициализация Telegram WebApp
-    if (window.Telegram && window.Telegram.WebApp) {
-        window.Telegram.WebApp.ready();
-        window.Telegram.WebApp.expand();
-        
-        // Настройка темы
-        const theme = window.Telegram.WebApp.colorScheme;
-        if (theme === 'dark') {
-            document.body.classList.add('dark-theme');
-        }
-        
-        // Отправка события инициализации
-        trackEvent('app_initialized', {
-            user_id: window.Telegram.WebApp.initDataUnsafe?.user?.id,
-            theme: theme
-        });
-    }
-    
-    // Analytics уже инициализирован в head
-    
-    // Отправляем стандартные события через универсальную обертку
-    if (window.telegramAnalytics) {
-        trackEvent('app-init');
-        trackEvent('custom-event', { custom_data: { event_type: 'app_launched', page: 'main' } });
-    }
-    
-    // Функция генерации session_id (UUID)
-    function generateSessionId() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-            const r = Math.random() * 16 | 0;
-            const v = c == 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
-    }
-    
-    // Инициализация TON Connect
-    setTimeout(() => {
-        initTonConnect();
-    }, 1000);
-    
-    updateUserInfo();
-    updateCounter();
-    showPage('main-page'); // Показываем страницу Main по умолчанию
+            // Инициализация Telegram WebApp
+            if (window.Telegram && window.Telegram.WebApp) {
+                window.Telegram.WebApp.ready();
+                window.Telegram.WebApp.expand();
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const consentParam = urlParams.get('consent');
-    if (consentParam) {
-        window.consentRequesterId = consentParam;
-        // Показываем модальное окно для выбора ответа
-        document.getElementById('consent-response-modal').style.display = 'flex';
-    }
-};
+                // Настройка темы
+                const theme = window.Telegram.WebApp.colorScheme;
+                if (theme === 'dark') {
+                    document.body.classList.add('dark-theme');
+                }
+
+                // Отправка события инициализации
+                trackEvent('app_initialized', {
+                    user_id: window.Telegram.WebApp.initDataUnsafe?.user?.id,
+                    theme: theme
+                });
+            }
+
+            // Analytics уже инициализирован в head
+
+            // Отправляем стандартные события через универсальную обертку
+            if (window.telegramAnalytics) {
+                trackEvent('app-init');
+                trackEvent('custom-event', { custom_data: { event_type: 'app_launched', page: 'main' } });
+            }
+
+            // Функция генерации session_id (UUID)
+            function generateSessionId() {
+                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+                    const r = Math.random() * 16 | 0;
+                    const v = c == 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+            }
+
+            // Инициализация TON Connect
+            setTimeout(() => {
+                initTonConnect();
+            }, 1000);
+
+            updateUserInfo();
+            updateCounter();
+            showPage('main-page'); // Показываем страницу Main по умолчанию
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const consentParam = urlParams.get('consent');
+            if (consentParam) {
+                window.consentRequesterId = consentParam;
+                // Показываем модальное окно для выбора ответа
+                document.getElementById('consent-response-modal').style.display = 'flex';
+            }
+        };
 
 
         function getConsentLink() {
@@ -4615,7 +4656,7 @@ function deleteBeloved(belovedId) {
             // Создаем уникальную ссылку для согласия
             const uniqueConsentId = `consent_${userId}_${Date.now()}`;
             const consentLink = `https://t.me/${BOT_USERNAME}?start=${uniqueConsentId}`;
-            
+
             // Показываем модальное окно с ссылкой
             document.getElementById('consent-link').setAttribute('data-link', consentLink);
             document.getElementById('consent-link').textContent = consentLink;
@@ -4624,110 +4665,111 @@ function deleteBeloved(belovedId) {
             fetch('/generate_consent_qr', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId })
+                body: JSON.stringify({ user_id: userId, init_data: Telegram.WebApp.initData })
             })
-            .then(r => r.json())
-            .then(qrData => {
-                if (qrData.qr_code) {
-                    document.getElementById('consent-qr-code').src = `data:image/png;base64,${qrData.qr_code}`;
-                }
-            })
-            .catch(() => {});
-            
+                .then(r => r.json())
+                .then(qrData => {
+                    if (qrData.qr_code) {
+                        document.getElementById('consent-qr-code').src = `data:image/png;base64,${qrData.qr_code}`;
+                    }
+                })
+                .catch(() => { });
+
             // Добавляем активность
             addActivityItem('🔐', 'Created new consent link for partner');
-            
+
             // Обновляем баланс
             updateCounter();
         }
 
-function closeConsentModal() {
-    document.getElementById('consent-modal').style.display = 'none';
-}
+        function closeConsentModal() {
+            document.getElementById('consent-modal').style.display = 'none';
+        }
 
         function sendConsentLink() {
             // Обновленная функция для отправки consent приглашения
             fetch('/send_consent_invite', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe?.user?.id })
+                body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe?.user?.id, init_data: Telegram.WebApp.initData })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert(data.error);
-                } else {
-                    const shareLink = `https://t.me/share/url?url=${encodeURIComponent(data.invite_link)}&text=${encodeURIComponent(data.message)}`;
-                    Telegram.WebApp.openTelegramLink(shareLink);
-                    addActivityItem('📤', 'Sent intimate connection request');
-                    closeConsentModal();
-                }
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                    } else {
+                        const shareLink = `https://t.me/share/url?url=${encodeURIComponent(data.invite_link)}&text=${encodeURIComponent(data.message)}`;
+                        Telegram.WebApp.openTelegramLink(shareLink);
+                        addActivityItem('📤', 'Sent intimate connection request');
+                        closeConsentModal();
+                    }
+                });
         }
 
-function sendConsentResponse(decision) {
-    const referrer_id = window.consentRequesterId; // ID отправителя consent-ссылки (из URL)
-    const new_user_id = Telegram.WebApp.initDataUnsafe?.user?.id;
-    if (!referrer_id || !new_user_id) {
-        alert("Missing data");
-        return;
-    }
+        function sendConsentResponse(decision) {
+            const referrer_id = window.consentRequesterId; // ID отправителя consent-ссылки (из URL)
+            const new_user_id = Telegram.WebApp.initDataUnsafe?.user?.id;
+            if (!referrer_id || !new_user_id) {
+                alert("Missing data");
+                return;
+            }
 
-    fetch('/consent_response', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            referrer_id: referrer_id,
-            new_user_id: new_user_id,
-            decision: decision
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Просто закрываем модальное окно без уведомления
-            document.getElementById('consent-response-modal').style.display = 'none';
-            // Обновляем список beloved на странице
-            updateBelovedList();
-        } else {
-            alert("Error: " + data.error);
+            fetch('/consent_response', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    referrer_id: referrer_id,
+                    new_user_id: new_user_id,
+                    init_data: Telegram.WebApp.initData,
+                    decision: decision
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Просто закрываем модальное окно без уведомления
+                        document.getElementById('consent-response-modal').style.display = 'none';
+                        // Обновляем список beloved на странице
+                        updateBelovedList();
+                    } else {
+                        alert("Error: " + data.error);
+                    }
+                })
+                .catch(error => console.error('Error:', error));
         }
-    })
-    .catch(error => console.error('Error:', error));
-}
 
         // Новые функции для обработки приглашений
         function checkForInvitations() {
             console.log('Checking for invitations...');
-            
+
             // Проверяем параметры URL
             const urlParams = new URLSearchParams(window.location.search);
             const inviteParam = urlParams.get('invite');
             const startapp = Telegram.WebApp.initDataUnsafe?.start_param;
-            
+
             console.log('URL invite param:', inviteParam);
             console.log('Start param:', startapp);
-            
+
             // Приоритет: сначала проверяем параметр invite из URL, потом start_param
             const inviteId = inviteParam || startapp;
-            
+
             if (inviteId) {
                 console.log('Found invite ID:', inviteId);
-                
+
                 if (inviteId.startsWith('friend_')) {
                     console.log('Processing friend invitation');
                     // Это приглашение в друзья
                     currentInviteId = inviteId;
                     const inviterId = inviteId.split('_')[1];
-                    
+
                     // Показываем модальное окно с подтверждением дружбы
                     const avatarElement = document.getElementById('friend-requester-avatar');
                     const nameElement = document.getElementById('friend-requester-name');
-                    
+
                     if (avatarElement && nameElement) {
                         avatarElement.src = `https://api.dicebear.com/6.x/avataaars/svg?seed=${inviterId}`;
                         nameElement.textContent = `User ${inviterId.substring(0, 6)}...`;
-                        
+
                         // Даем время на загрузку интерфейса
                         setTimeout(() => {
                             const modal = document.getElementById('friend-request-modal');
@@ -4741,21 +4783,21 @@ function sendConsentResponse(decision) {
                     } else {
                         console.error('Friend request elements not found');
                     }
-                    
+
                 } else if (inviteId.startsWith('consent_')) {
                     console.log('Processing consent invitation');
                     // Это приглашение для партнерства
                     currentInviteId = inviteId;
                     const inviterId = inviteId.split('_')[1];
-                    
+
                     // Показываем модальное окно с подтверждением партнерства
                     const avatarElement = document.getElementById('partner-requester-avatar');
                     const nameElement = document.getElementById('partner-requester-name');
-                    
+
                     if (avatarElement && nameElement) {
                         avatarElement.src = `https://api.dicebear.com/6.x/avataaars/svg?seed=${inviterId}`;
                         nameElement.textContent = `User ${inviterId.substring(0, 6)}...`;
-                        
+
                         // Даем время на загрузку интерфейса
                         setTimeout(() => {
                             const modal = document.getElementById('partner-request-modal');
@@ -4774,87 +4816,89 @@ function sendConsentResponse(decision) {
                 console.log('No invitation found in parameters');
             }
         }
-        
+
         function handleFriendRequest(decision) {
             const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
             if (!userId || !currentInviteId) {
                 alert('Error: Missing user information');
                 return;
             }
-            
+
             fetch('/handle_friend_invite', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     invite_id: currentInviteId,
                     invitee_id: userId,
+                    init_data: Telegram.WebApp.initData,
                     decision: decision === 'accept' ? 'accept' : 'decline'
                 })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    document.getElementById('friend-request-modal').style.display = 'none';
-                    
-                    if (decision === 'accept') {
-                        showNotification('✅ Friend request accepted!', `You earned ${data.tokens_earned} AFN!`, 'success');
-                        addActivityItem('🤝', `Accepted friend request and earned ${data.tokens_earned} AFN`);
-                        updateCounter();
-                        updateFriendsList();
-                    } else {
-                        // Показываем модальное окно с выбором продолжить или удалить профиль
-                        document.getElementById('app-choice-modal').style.display = 'flex';
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('friend-request-modal').style.display = 'none';
+
+                        if (decision === 'accept') {
+                            showNotification('✅ Friend request accepted!', `You earned ${data.tokens_earned} AFN!`, 'success');
+                            addActivityItem('🤝', `Accepted friend request and earned ${data.tokens_earned} AFN`);
+                            updateCounter();
+                            updateFriendsList();
+                        } else {
+                            // Показываем модальное окно с выбором продолжить или удалить профиль
+                            document.getElementById('app-choice-modal').style.display = 'flex';
+                        }
                     }
-                }
-            });
+                });
         }
-        
+
         function handlePartnerRequest(decision) {
             const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
             if (!userId || !currentInviteId) {
                 alert('Error: Missing user information');
                 return;
             }
-            
+
             fetch('/handle_consent_invite', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     invite_id: currentInviteId,
                     partner_id: userId,
+                    init_data: Telegram.WebApp.initData,
                     decision: decision === 'accept' ? 'accept' : 'decline'
                 })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    document.getElementById('partner-request-modal').style.display = 'none';
-                    
-                    if (decision === 'accept') {
-                        console.log('Partner request accepted, updating UI...');
-                        showNotification('💕 Connection established!', `You both earned ${data.tokens_earned} AFN!`, 'success');
-                        addActivityItem('💕', `Established intimate connection and earned ${data.tokens_earned} AFN`);
-                        
-                        // Обновляем все связанные данные с небольшой задержкой
-                        setTimeout(() => {
-                            updateCounter();
-                            updateBelovedList();
-                            updateConsentHistory();
-                            console.log('UI update completed after partner request acceptance');
-                        }, 1000);
-                    } else {
-                        // Показываем модальное окно с выбором продолжить или удалить профиль
-                        document.getElementById('app-choice-modal').style.display = 'flex';
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('partner-request-modal').style.display = 'none';
+
+                        if (decision === 'accept') {
+                            console.log('Partner request accepted, updating UI...');
+                            showNotification('💕 Connection established!', `You both earned ${data.tokens_earned} AFN!`, 'success');
+                            addActivityItem('💕', `Established intimate connection and earned ${data.tokens_earned} AFN`);
+
+                            // Обновляем все связанные данные с небольшой задержкой
+                            setTimeout(() => {
+                                updateCounter();
+                                updateBelovedList();
+                                updateConsentHistory();
+                                console.log('UI update completed after partner request acceptance');
+                            }, 1000);
+                        } else {
+                            // Показываем модальное окно с выбором продолжить или удалить профиль
+                            document.getElementById('app-choice-modal').style.display = 'flex';
+                        }
                     }
-                }
-            });
+                });
         }
-        
+
         function continueUsingApp() {
             document.getElementById('app-choice-modal').style.display = 'none';
             showNotification('👍 Welcome back!', 'Continue enjoying Affinia', 'info');
         }
-        
+
         function deleteProfile() {
             if (confirm('Are you sure you want to delete your profile? This action cannot be undone!')) {
                 // Здесь можно добавить логику удаления профиля
@@ -4862,20 +4906,20 @@ function sendConsentResponse(decision) {
                 document.getElementById('app-choice-modal').style.display = 'none';
             }
         }
-        
+
         function showNotification(title, message, type = 'info') {
             const container = document.getElementById('notifications-container');
             if (!container) return;
-            
+
             const notification = document.createElement('div');
-            
+
             const colors = {
                 success: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
                 error: 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)',
                 info: 'linear-gradient(135deg, #2196F3 0%, #1976D2 100%)',
                 warning: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)'
             };
-            
+
             notification.style.cssText = `
                 background: ${colors[type]};
                 color: white;
@@ -4885,80 +4929,80 @@ function sendConsentResponse(decision) {
                 box-shadow: 0 4px 12px rgba(0,0,0,0.2);
                 animation: slideInRight 0.3s ease;
             `;
-            
+
             notification.innerHTML = `
                 <div style="font-weight: bold; margin-bottom: 5px;">${title}</div>
                 <div style="font-size: 14px;">${message}</div>
             `;
-            
+
             container.appendChild(notification);
-            
+
             // Автоматически удаляем через 5 секунд
             setTimeout(() => {
                 notification.style.animation = 'slideOutRight 0.3s ease';
                 setTimeout(() => notification.remove(), 300);
             }, 5000);
         }
-        
+
         function checkForNotifications() {
             const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
             console.log('Checking for notifications for user:', userId);
-            
+
             if (!userId) return;
-            
+
             fetch('/get_notifications', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId })
+                body: JSON.stringify({ user_id: userId, init_data: Telegram.WebApp.initData })
             })
-            .then(response => response.json())
-            .then(data => {
-                console.log('Notifications received:', data);
-                if (data.notifications && data.notifications.length > 0) {
-                    data.notifications.forEach(notif => {
-                        const type = notif.type.includes('accepted') ? 'success' : 
-                                    notif.type.includes('declined') ? 'warning' : 'info';
-                        showNotification(notif.message, '', type);
-                        
-                        // Также добавляем в историю активности
-                        if (notif.type === 'friend_accepted') {
-                            addActivityItem('✅', notif.message);
-                        } else if (notif.type === 'friend_declined') {
-                            addActivityItem('❌', notif.message);
-                        } else if (notif.type === 'consent_accepted') {
-                            addActivityItem('💕', notif.message);
-                        } else if (notif.type === 'consent_declined') {
-                            addActivityItem('💔', notif.message);
-                        }
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error checking notifications:', error);
-            });
-            
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Notifications received:', data);
+                    if (data.notifications && data.notifications.length > 0) {
+                        data.notifications.forEach(notif => {
+                            const type = notif.type.includes('accepted') ? 'success' :
+                                notif.type.includes('declined') ? 'warning' : 'info';
+                            showNotification(notif.message, '', type);
+
+                            // Также добавляем в историю активности
+                            if (notif.type === 'friend_accepted') {
+                                addActivityItem('✅', notif.message);
+                            } else if (notif.type === 'friend_declined') {
+                                addActivityItem('❌', notif.message);
+                            } else if (notif.type === 'consent_accepted') {
+                                addActivityItem('💕', notif.message);
+                            } else if (notif.type === 'consent_declined') {
+                                addActivityItem('💔', notif.message);
+                            }
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking notifications:', error);
+                });
+
             // Проверяем уведомления каждые 15 секунд
             setTimeout(checkForNotifications, 15000);
         }
-        
+
         function updateFriendBadges() {
             const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
             if (!userId) return;
-            
+
             fetch('/get_new_friends_count', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId })
+                body: JSON.stringify({ user_id: userId, init_data: Telegram.WebApp.initData })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.new_friends_count > 0) {
-                    // Добавляем значок к кнопке Trust
-                    const trustBtn = document.querySelector('[onclick*="friends-page"]');
-                    if (trustBtn && !trustBtn.querySelector('.badge')) {
-                        const badge = document.createElement('span');
-                        badge.className = 'badge';
-                        badge.style.cssText = `
+                .then(response => response.json())
+                .then(data => {
+                    if (data.new_friends_count > 0) {
+                        // Добавляем значок к кнопке Trust
+                        const trustBtn = document.querySelector('[onclick*="friends-page"]');
+                        if (trustBtn && !trustBtn.querySelector('.badge')) {
+                            const badge = document.createElement('span');
+                            badge.className = 'badge';
+                            badge.style.cssText = `
                             position: absolute;
                             top: -5px;
                             right: -5px;
@@ -4973,60 +5017,60 @@ function sendConsentResponse(decision) {
                             font-size: 12px;
                             font-weight: bold;
                         `;
-                        badge.textContent = data.new_friends_count;
-                        badge.id = 'friends-badge';
-                        trustBtn.style.position = 'relative';
-                        trustBtn.appendChild(badge);
+                            badge.textContent = data.new_friends_count;
+                            badge.id = 'friends-badge';
+                            trustBtn.style.position = 'relative';
+                            trustBtn.appendChild(badge);
+                        }
                     }
-                }
-            });
+                });
         }
-        
+
         function clearFriendsBadge() {
             const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
             if (!userId) return;
-            
+
             const badge = document.getElementById('friends-badge');
             if (badge) {
                 badge.remove();
             }
-            
+
             fetch('/clear_new_friends', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId })
+                body: JSON.stringify({ user_id: userId, init_data: Telegram.WebApp.initData })
             });
         }
-        
+
         function updateConsentHistory() {
             const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
             if (!userId) return;
-            
+
             fetch('/get_consent_history', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId })
+                body: JSON.stringify({ user_id: userId, init_data: Telegram.WebApp.initData })
             })
-            .then(response => response.json())
-            .then(data => {
-                // Обновляем счетчики
-                const totalElement = document.getElementById('total-consents');
-                const activeElement = document.getElementById('active-consents');
-                const monthElement = document.getElementById('month-consents');
-                
-                if (totalElement) totalElement.textContent = data.total_consents || 0;
-                if (activeElement) activeElement.textContent = data.active_consents || 0;
-                if (monthElement) monthElement.textContent = data.this_month_consents || 0;
-                
-                // Обновляем историю consent
-                const historyContainer = document.getElementById('consent-history-container');
-                if (historyContainer && data.consent_history) {
-                    historyContainer.innerHTML = '';
-                    
-                    data.consent_history.forEach(consent => {
-                        const consentCard = document.createElement('div');
-                        consentCard.className = 'consent-card';
-                        consentCard.style.cssText = `
+                .then(response => response.json())
+                .then(data => {
+                    // Обновляем счетчики
+                    const totalElement = document.getElementById('total-consents');
+                    const activeElement = document.getElementById('active-consents');
+                    const monthElement = document.getElementById('month-consents');
+
+                    if (totalElement) totalElement.textContent = data.total_consents || 0;
+                    if (activeElement) activeElement.textContent = data.active_consents || 0;
+                    if (monthElement) monthElement.textContent = data.this_month_consents || 0;
+
+                    // Обновляем историю consent
+                    const historyContainer = document.getElementById('consent-history-container');
+                    if (historyContainer && data.consent_history) {
+                        historyContainer.innerHTML = '';
+
+                        data.consent_history.forEach(consent => {
+                            const consentCard = document.createElement('div');
+                            consentCard.className = 'consent-card';
+                            consentCard.style.cssText = `
                             background: white;
                             border-radius: 10px;
                             padding: 15px;
@@ -5035,11 +5079,11 @@ function sendConsentResponse(decision) {
                             align-items: center;
                             gap: 15px;
                         `;
-                        
-                        const statusColor = consent.status === 'active' ? '#4CAF50' : '#9E9E9E';
-                        const date = new Date(consent.timestamp * 1000).toLocaleDateString();
-                        
-                        consentCard.innerHTML = `
+
+                            const statusColor = consent.status === 'active' ? '#4CAF50' : '#9E9E9E';
+                            const date = new Date(consent.timestamp * 1000).toLocaleDateString();
+
+                            consentCard.innerHTML = `
                             <img src="https://api.dicebear.com/6.x/avataaars/svg?seed=${consent.partner_id}" 
                                  style="width: 50px; height: 50px; border-radius: 50%;">
                             <div style="flex: 1;">
@@ -5050,11 +5094,11 @@ function sendConsentResponse(decision) {
                                 ${consent.status.toUpperCase()}
                             </div>
                         `;
-                        
-                        historyContainer.appendChild(consentCard);
-                    });
-                }
-            });
+
+                            historyContainer.appendChild(consentCard);
+                        });
+                    }
+                });
         }
 
         // Функции верификации
@@ -5070,7 +5114,7 @@ function sendConsentResponse(decision) {
             modal.style.justifyContent = 'center';
             modal.style.alignItems = 'center';
             modal.style.zIndex = '1000';
-            
+
             const content = document.createElement('div');
             content.style.backgroundColor = '#fff';
             content.style.borderRadius = '15px';
@@ -5078,7 +5122,7 @@ function sendConsentResponse(decision) {
             content.style.width = '80%';
             content.style.maxWidth = '350px';
             content.style.color = '#333';
-            
+
             content.innerHTML = `
                 <h3 style="margin-top: 0;">Подтверждение телефона</h3>
                 <p>Введите ваш номер телефона для получения SMS-кода.</p>
@@ -5101,25 +5145,25 @@ function sendConsentResponse(decision) {
                     <button id="verify-phone-button" onclick="verifyPhone()" style="flex: 1; padding: 10px; background: #1890ff; color: white; border: none; border-radius: 8px;">Подтвердить</button>
                 </div>
             `;
-            
+
             modal.appendChild(content);
             document.body.appendChild(modal);
         }
-        
+
         function verifyPhone() {
             const phoneNumber = document.getElementById('phone-number').value.trim();
             if (!phoneNumber) {
                 showNotification('Ошибка', 'Введите корректный номер телефона', 'error');
                 return;
             }
-            
+
             const codeContainer = document.getElementById('verification-code-container');
             const verifyButton = document.getElementById('verify-phone-button');
-            
+
             if (codeContainer.style.display === 'none') {
                 // Первый этап - отправка кода
                 showNotification('Отправка кода', 'Отправляем SMS с кодом подтверждения...', 'info');
-                
+
                 setTimeout(() => {
                     codeContainer.style.display = 'block';
                     verifyButton.textContent = 'Проверить код';
@@ -5128,47 +5172,47 @@ function sendConsentResponse(decision) {
                 }, 1500);
             }
         }
-        
+
         function verifyPhoneCode() {
             const code = document.getElementById('verification-code').value.trim();
             if (code.length !== 6) {
                 showNotification('Ошибка', 'Введите 6-значный код из SMS', 'error');
                 return;
             }
-            
+
             showNotification('Проверка', 'Проверяем код подтверждения...', 'info');
-            
+
             setTimeout(() => {
                 // Закрываем модальное окно
                 const modal = document.querySelector('[style*="position: fixed"]');
                 if (modal && modal.style.zIndex === '1000') {
                     document.body.removeChild(modal);
                 }
-                
+
                 // Обновляем прогресс верификации
                 missionData.completed.push('phone_verify');
                 updateVerificationProgress();
-                
+
                 // Добавляем монеты
                 const balanceElement = document.querySelector('#balance-value');
                 if (balanceElement) {
                     const currentBalance = parseInt(balanceElement.textContent);
                     balanceElement.textContent = currentBalance + 10;
                 }
-                
+
                 showNotification('Успех', 'Телефон успешно подтвержден! +10 AFN', 'success');
                 completeMission('phone_verify', '10 AFN');
             }, 2000);
         }
-        
+
         function resendVerificationCode() {
             showNotification('Отправка кода', 'Отправляем новый SMS-код...', 'info');
-            
+
             setTimeout(() => {
                 showNotification('Код отправлен', 'Новый код подтверждения отправлен', 'success');
             }, 1500);
         }
-        
+
         function showEmailVerificationModal() {
             const modal = document.createElement('div');
             modal.style.position = 'fixed';
@@ -5181,7 +5225,7 @@ function sendConsentResponse(decision) {
             modal.style.justifyContent = 'center';
             modal.style.alignItems = 'center';
             modal.style.zIndex = '1000';
-            
+
             const content = document.createElement('div');
             content.style.backgroundColor = '#fff';
             content.style.borderRadius = '15px';
@@ -5189,7 +5233,7 @@ function sendConsentResponse(decision) {
             content.style.width = '80%';
             content.style.maxWidth = '350px';
             content.style.color = '#333';
-            
+
             content.innerHTML = `
                 <h3 style="margin-top: 0;">Подтверждение email</h3>
                 <p>Введите ваш email для получения кода подтверждения.</p>
@@ -5212,25 +5256,25 @@ function sendConsentResponse(decision) {
                     <button id="verify-email-button" onclick="verifyEmail()" style="flex: 1; padding: 10px; background: #1890ff; color: white; border: none; border-radius: 8px;">Подтвердить</button>
                 </div>
             `;
-            
+
             modal.appendChild(content);
             document.body.appendChild(modal);
         }
-        
+
         function verifyEmail() {
             const email = document.getElementById('email-address').value.trim();
             if (!email || !email.includes('@')) {
                 showNotification('Ошибка', 'Введите корректный email адрес', 'error');
                 return;
             }
-            
+
             const codeContainer = document.getElementById('email-code-container');
             const verifyButton = document.getElementById('verify-email-button');
-            
+
             if (codeContainer.style.display === 'none') {
                 // Первый этап - отправка кода
                 showNotification('Отправка кода', 'Отправляем письмо с кодом подтверждения...', 'info');
-                
+
                 setTimeout(() => {
                     codeContainer.style.display = 'block';
                     verifyButton.textContent = 'Проверить код';
@@ -5239,47 +5283,47 @@ function sendConsentResponse(decision) {
                 }, 1500);
             }
         }
-        
+
         function verifyEmailCode() {
             const code = document.getElementById('email-code').value.trim();
             if (code.length !== 6) {
                 showNotification('Ошибка', 'Введите 6-значный код подтверждения', 'error');
                 return;
             }
-            
+
             showNotification('Проверка', 'Проверяем код подтверждения...', 'info');
-            
+
             setTimeout(() => {
                 // Закрываем модальное окно
                 const modal = document.querySelector('[style*="position: fixed"]');
                 if (modal && modal.style.zIndex === '1000') {
                     document.body.removeChild(modal);
                 }
-                
+
                 // Обновляем прогресс верификации
                 missionData.completed.push('email_verify');
                 updateVerificationProgress();
-                
+
                 // Добавляем монеты
                 const balanceElement = document.querySelector('#balance-value');
                 if (balanceElement) {
                     const currentBalance = parseInt(balanceElement.textContent);
                     balanceElement.textContent = currentBalance + 15;
                 }
-                
+
                 showNotification('Успех', 'Email успешно подтвержден! +15 AFN', 'success');
                 completeMission('email_verify', '15 AFN');
             }, 2000);
         }
-        
+
         function resendEmailCode() {
             showNotification('Отправка кода', 'Отправляем новый код подтверждения на email...', 'info');
-            
+
             setTimeout(() => {
                 showNotification('Код отправлен', 'Новый код подтверждения отправлен на email', 'success');
             }, 1500);
         }
-        
+
         function showIDDocumentModal() {
             const modal = document.createElement('div');
             modal.style.position = 'fixed';
@@ -5292,7 +5336,7 @@ function sendConsentResponse(decision) {
             modal.style.justifyContent = 'center';
             modal.style.alignItems = 'center';
             modal.style.zIndex = '1000';
-            
+
             const content = document.createElement('div');
             content.style.backgroundColor = '#fff';
             content.style.borderRadius = '15px';
@@ -5300,7 +5344,7 @@ function sendConsentResponse(decision) {
             content.style.width = '80%';
             content.style.maxWidth = '350px';
             content.style.color = '#333';
-            
+
             content.innerHTML = `
                 <h3 style="margin-top: 0;">Подтверждение документа</h3>
                 <p>Загрузите фото паспорта или другого документа для подтверждения личности.</p>
@@ -5340,28 +5384,28 @@ function sendConsentResponse(decision) {
                     <button id="verify-document-button" onclick="verifyDocument()" style="flex: 1; padding: 10px; background: #1890ff; color: white; border: none; border-radius: 8px;">Отправить</button>
                 </div>
             `;
-            
+
             modal.appendChild(content);
             document.body.appendChild(modal);
         }
-        
+
         function simulateFileUpload(element) {
             element.style.backgroundColor = '#f0f9ff';
             element.style.borderColor = '#91d5ff';
-            
+
             showNotification('Загрузка', 'Загружаем документ...', 'info');
-            
+
             setTimeout(() => {
                 document.getElementById('upload-preview').style.display = 'block';
                 element.style.display = 'none';
                 showNotification('Загружено', 'Файл успешно загружен', 'success');
             }, 1500);
         }
-        
+
         function removeUploadedFile() {
             const previewElement = document.getElementById('upload-preview');
             const uploadZone = document.querySelector('[style*="border: 2px dashed"]');
-            
+
             if (previewElement && uploadZone) {
                 previewElement.style.display = 'none';
                 uploadZone.style.display = 'block';
@@ -5369,39 +5413,39 @@ function sendConsentResponse(decision) {
                 uploadZone.style.borderColor = '#ddd';
             }
         }
-        
+
         function verifyDocument() {
             const previewElement = document.getElementById('upload-preview');
-            
+
             if (!previewElement || previewElement.style.display === 'none') {
                 showNotification('Ошибка', 'Загрузите фото документа', 'error');
                 return;
             }
-            
+
             showNotification('Проверка', 'Отправляем документ на проверку...', 'info');
-            
+
             setTimeout(() => {
                 // Закрываем модальное окно
                 const modal = document.querySelector('[style*="position: fixed"]');
                 if (modal && modal.style.zIndex === '1000') {
                     document.body.removeChild(modal);
                 }
-                
+
                 showNotification('Проверка документа', 'Документ отправлен на проверку. Результат будет доступен в течение 24 часов.', 'success');
-                
+
                 // Показываем статус проверки
                 setTimeout(() => {
                     // Обновляем прогресс верификации
                     missionData.completed.push('id_document');
                     updateVerificationProgress();
-                    
+
                     // Добавляем монеты
                     const balanceElement = document.querySelector('#balance-value');
                     if (balanceElement) {
                         const currentBalance = parseInt(balanceElement.textContent);
                         balanceElement.textContent = currentBalance + 50;
                     }
-                    
+
                     showNotification('Документ подтвержден', 'Ваш документ успешно прошел проверку! +50 AFN', 'success');
                     completeMission('id_document', '50 AFN');
                 }, 5000);
@@ -5409,6 +5453,7 @@ function sendConsentResponse(decision) {
         }
     </script>
 </head>
+
 <body>
     <!-- Шапка сайта: заголовок по центру, под ним аватар+ник+коины слева и кнопка настроек справа -->
     <header>
@@ -5517,14 +5562,15 @@ function sendConsentResponse(decision) {
                 <!-- Crypto Roadmap тизер -->
                 <div class="crypto-roadmap">
                     <div class="crypto-title">🚀 AFN Token Coming Soon</div>
-                    <div class="crypto-subtitle">Your AFN will become a real cryptocurrency with blockchain protection</div>
+                    <div class="crypto-subtitle">Your AFN will become a real cryptocurrency with blockchain protection
+                    </div>
                 </div>
 
                 <!-- Контейнер для кнопки SOS -->
-            <div class="sos-container">
-                <button class="sos-button" onclick="window.location.href='tel:112';">SOS</button>
+                <div class="sos-container">
+                    <button class="sos-button" onclick="window.location.href='tel:112';">SOS</button>
                 </div>
-            </div>                          
+            </div>
         </div>
 
         <!-- Trust Network Page -->
@@ -5563,8 +5609,10 @@ function sendConsentResponse(decision) {
                 <!-- Add Friend Section -->
                 <div class="add-friend-section">
                     <div class="add-friend-title">🤝 Build Your Trust Network</div>
-                    <div class="add-friend-subtitle">Add people you trust for consent verification and emergency support</div>
-                    <input type="text" class="search-input" placeholder="Search by username or phone..." id="friend-search">
+                    <div class="add-friend-subtitle">Add people you trust for consent verification and emergency support
+                    </div>
+                    <input type="text" class="search-input" placeholder="Search by username or phone..."
+                        id="friend-search">
                     <button class="trust-action-btn" onclick="searchFriends()" style="margin-top: 10px;">
                         Search Users
                     </button>
@@ -5579,10 +5627,10 @@ function sendConsentResponse(decision) {
                         <span>👋</span>
                         <span>Friends</span>
                     </div>
-            <div id="friends-list">
+                    <div id="friends-list">
                         <!-- Regular friends will be populated here -->
-            </div>        
-        </div>
+                    </div>
+                </div>
 
                 <!-- Verified Friends -->
                 <div class="trust-level-section">
@@ -5632,7 +5680,8 @@ function sendConsentResponse(decision) {
                 <!-- Mission Header -->
                 <div class="mission-header">
                     <div class="mission-title">🛡️ Safety & Verification</div>
-                    <div class="mission-subtitle">Complete missions to enhance your account security and build trust in the Affinia community</div>
+                    <div class="mission-subtitle">Complete missions to enhance your account security and build trust in
+                        the Affinia community</div>
                 </div>
 
                 <!-- Verification Progress -->
@@ -5642,7 +5691,8 @@ function sendConsentResponse(decision) {
                     <div class="progress-bar-container">
                         <div class="progress-bar" id="verification-progress-bar" style="width: 0%"></div>
                     </div>
-                    <div class="progress-description" id="verification-description">Start verifying to unlock premium features</div>
+                    <div class="progress-description" id="verification-description">Start verifying to unlock premium
+                        features</div>
                 </div>
 
                 <!-- Achievement Showcase -->
@@ -5655,7 +5705,7 @@ function sendConsentResponse(decision) {
 
                 <!-- Mission Categories -->
                 <div class="mission-categories">
-                    
+
                     <!-- Identity Verification -->
                     <div class="mission-category">
                         <div class="category-header">
@@ -5668,7 +5718,8 @@ function sendConsentResponse(decision) {
                                     <h4 class="mission-name">Phone Verification</h4>
                                     <span class="mission-reward">+10 AFN</span>
                                 </div>
-                                <p class="mission-description">Verify your phone number to increase account security and enable SMS notifications.</p>
+                                <p class="mission-description">Verify your phone number to increase account security and
+                                    enable SMS notifications.</p>
                                 <div class="mission-status">
                                     <span class="status-badge available">Available</span>
                                     <button class="mission-button" onclick="startMission('phone_verify')">Start</button>
@@ -5680,7 +5731,8 @@ function sendConsentResponse(decision) {
                                     <h4 class="mission-name">Email Verification</h4>
                                     <span class="mission-reward">+10 AFN</span>
                                 </div>
-                                <p class="mission-description">Link your email for account recovery and important security notifications.</p>
+                                <p class="mission-description">Link your email for account recovery and important
+                                    security notifications.</p>
                                 <div class="mission-status">
                                     <span class="status-badge available">Available</span>
                                     <button class="mission-button" onclick="startMission('email_verify')">Start</button>
@@ -5692,7 +5744,8 @@ function sendConsentResponse(decision) {
                                     <h4 class="mission-name">ID Document Scan</h4>
                                     <span class="mission-reward">+50 AFN</span>
                                 </div>
-                                <p class="mission-description">Upload government ID for premium verification. Enables witness mode and legal protection.</p>
+                                <p class="mission-description">Upload government ID for premium verification. Enables
+                                    witness mode and legal protection.</p>
                                 <div class="mission-status">
                                     <span class="status-badge locked">🔒 Requires phone + email</span>
                                     <button class="mission-button" disabled>Locked</button>
@@ -5713,10 +5766,12 @@ function sendConsentResponse(decision) {
                                     <h4 class="mission-name">Consent Basics Course</h4>
                                     <span class="mission-reward">+15 AFN</span>
                                 </div>
-                                <p class="mission-description">Learn the fundamentals of digital consent and how Affinia protects you.</p>
+                                <p class="mission-description">Learn the fundamentals of digital consent and how Affinia
+                                    protects you.</p>
                                 <div class="mission-status">
                                     <span class="status-badge available">Available</span>
-                                    <button class="mission-button" onclick="startMission('consent_basics')">Learn</button>
+                                    <button class="mission-button"
+                                        onclick="startMission('consent_basics')">Learn</button>
                                 </div>
                             </div>
 
@@ -5725,7 +5780,8 @@ function sendConsentResponse(decision) {
                                     <h4 class="mission-name">Know Your Rights</h4>
                                     <span class="mission-reward">+20 AFN</span>
                                 </div>
-                                <p class="mission-description">Understand your legal rights and how digital consent is recognized by law.</p>
+                                <p class="mission-description">Understand your legal rights and how digital consent is
+                                    recognized by law.</p>
                                 <div class="mission-status">
                                     <span class="status-badge available">Available</span>
                                     <button class="mission-button" onclick="startMission('legal_rights')">Learn</button>
@@ -5737,10 +5793,12 @@ function sendConsentResponse(decision) {
                                     <h4 class="mission-name">Emergency Protocols</h4>
                                     <span class="mission-reward">+25 AFN</span>
                                 </div>
-                                <p class="mission-description">Learn how to use emergency features and set up your safety network.</p>
+                                <p class="mission-description">Learn how to use emergency features and set up your
+                                    safety network.</p>
                                 <div class="mission-status">
                                     <span class="status-badge available">Available</span>
-                                    <button class="mission-button" onclick="startMission('emergency_protocols')">Learn</button>
+                                    <button class="mission-button"
+                                        onclick="startMission('emergency_protocols')">Learn</button>
                                 </div>
                             </div>
                         </div>
@@ -5758,10 +5816,12 @@ function sendConsentResponse(decision) {
                                     <h4 class="mission-name">First Referral</h4>
                                     <span class="mission-reward">+30 AFN</span>
                                 </div>
-                                <p class="mission-description">Invite your first friend to Affinia and help grow our safety community.</p>
+                                <p class="mission-description">Invite your first friend to Affinia and help grow our
+                                    safety community.</p>
                                 <div class="mission-status">
                                     <span class="status-badge available">Available</span>
-                                    <button class="mission-button" onclick="startMission('first_referral')">Invite</button>
+                                    <button class="mission-button"
+                                        onclick="startMission('first_referral')">Invite</button>
                                 </div>
                             </div>
 
@@ -5770,10 +5830,12 @@ function sendConsentResponse(decision) {
                                     <h4 class="mission-name">Build Trust Network</h4>
                                     <span class="mission-reward">+40 AFN</span>
                                 </div>
-                                <p class="mission-description">Add 3 verified friends to your trust network for enhanced security.</p>
+                                <p class="mission-description">Add 3 verified friends to your trust network for enhanced
+                                    security.</p>
                                 <div class="mission-status">
                                     <span class="status-badge available">Available</span>
-                                    <button class="mission-button" onclick="startMission('trust_network')">Start</button>
+                                    <button class="mission-button"
+                                        onclick="startMission('trust_network')">Start</button>
                                 </div>
                             </div>
 
@@ -5782,10 +5844,12 @@ function sendConsentResponse(decision) {
                                     <h4 class="mission-name">Witness Training</h4>
                                     <span class="mission-reward">+60 AFN</span>
                                 </div>
-                                <p class="mission-description">Complete training to become a trusted witness for consent verification.</p>
+                                <p class="mission-description">Complete training to become a trusted witness for consent
+                                    verification.</p>
                                 <div class="mission-status">
                                     <span class="status-badge available">Available</span>
-                                    <button class="mission-button" onclick="startMission('witness_training')">Train</button>
+                                    <button class="mission-button"
+                                        onclick="startMission('witness_training')">Train</button>
                                 </div>
                             </div>
                         </div>
@@ -5803,10 +5867,12 @@ function sendConsentResponse(decision) {
                                     <h4 class="mission-name">Support Development</h4>
                                     <span class="mission-reward">Premium Badge</span>
                                 </div>
-                                <p class="mission-description">Make your first donation to support Affinia development and unlock premium features.</p>
+                                <p class="mission-description">Make your first donation to support Affinia development
+                                    and unlock premium features.</p>
                                 <div class="mission-status">
                                     <span class="status-badge available">Available</span>
-                                    <button class="mission-button" onclick="startMission('first_donation')">Donate</button>
+                                    <button class="mission-button"
+                                        onclick="startMission('first_donation')">Donate</button>
                                 </div>
                             </div>
 
@@ -5815,7 +5881,8 @@ function sendConsentResponse(decision) {
                                     <h4 class="mission-name">Blockchain Verification</h4>
                                     <span class="mission-reward">🚀 Future Feature</span>
                                 </div>
-                                <p class="mission-description">Get your identity verified on blockchain for maximum security (Coming with AFN token launch).</p>
+                                <p class="mission-description">Get your identity verified on blockchain for maximum
+                                    security (Coming with AFN token launch).</p>
                                 <div class="mission-status">
                                     <span class="status-badge locked">🚀 Coming Soon</span>
                                     <button class="mission-button" disabled>Soon</button>
@@ -5829,7 +5896,7 @@ function sendConsentResponse(decision) {
                 <div class="legal-info">
                     <div class="legal-title">⚖️ Legal Protection</div>
                     <div class="legal-text">
-                        All completed verifications and consents are stored with legal-grade security. 
+                        All completed verifications and consents are stored with legal-grade security.
                         Your verified identity helps ensure consent validity and provides protection in legal scenarios.
                         Data is encrypted and stored according to GDPR and privacy regulations.
                     </div>
@@ -5860,16 +5927,18 @@ function sendConsentResponse(decision) {
                     <div class="partner-stat-card">
                         <span class="stat-number-pink" id="active-consents">0</span>
                         <span class="stat-label-pink">Active Consents</span>
-            </div>
-        </div>
+                    </div>
+                </div>
 
                 <!-- Add Partner Section -->
                 <div class="add-partner-section">
                     <div class="add-partner-title">💕 Add New Partner</div>
                     <div class="add-partner-description">
-                        Connect with someone special. They'll receive an invitation to join your trusted relationship circle.
+                        Connect with someone special. They'll receive an invitation to join your trusted relationship
+                        circle.
                     </div>
-                    <input type="text" class="partner-search-input" placeholder="Search by username or phone..." id="partner-search">
+                    <input type="text" class="partner-search-input" placeholder="Search by username or phone..."
+                        id="partner-search">
                     <button class="add-partner-btn" onclick="searchPartners()">
                         💖 Find Partner
                     </button>
@@ -5877,7 +5946,7 @@ function sendConsentResponse(decision) {
 
                 <!-- Partners Categories -->
                 <div class="partners-categories">
-                    
+
                     <!-- Current Partners -->
                     <div class="partner-category">
                         <div class="category-header-beloved">
@@ -5933,7 +6002,7 @@ function sendConsentResponse(decision) {
                         <img src="/static/telegram-stars-icon.png" alt="Telegram Stars" class="stars-icon">
                         <div class="stars-details">
                             <h3>Telegram Stars</h3>
-                </div>
+                        </div>
                     </div>
                     <div class="stars-count" id="stars-count">0</div>
                 </div>
@@ -5944,7 +6013,7 @@ function sendConsentResponse(decision) {
                     <div class="amount-description">
                         Choose an amount to support our development and get premium features!
                     </div>
-                    
+
                     <!-- Сетка с суммами -->
                     <div class="amount-grid">
                         <div class="amount-option" data-amount="50" onclick="selectAmount(50)">
@@ -5969,15 +6038,9 @@ function sendConsentResponse(decision) {
 
                     <!-- Поле для кастомной суммы -->
                     <div class="custom-amount-container">
-                        <input 
-                            type="number" 
-                            class="custom-amount-input" 
-                            id="custom-amount" 
-                            placeholder="Enter custom amount (50-10000)" 
-                            min="50" 
-                            max="10000"
-                            oninput="selectCustomAmount(this.value)"
-                        >
+                        <input type="number" class="custom-amount-input" id="custom-amount"
+                            placeholder="Enter custom amount (50-10000)" min="50" max="10000"
+                            oninput="selectCustomAmount(this.value)">
                     </div>
 
                     <!-- Кнопка доната -->
@@ -5998,7 +6061,7 @@ function sendConsentResponse(decision) {
                     <div class="ton-description">
                         Connect your TON wallet to access blockchain features and manage TON tokens
                     </div>
-                    
+
                     <!-- TON Wallet Status -->
                     <div id="ton-wallet-status" class="ton-wallet-card">
                         <div class="ton-wallet-info">
@@ -6011,7 +6074,8 @@ function sendConsentResponse(decision) {
                         <div id="ton-balance" class="ton-balance" style="display: none;">
                             <span id="ton-balance-amount">0</span>
                             <span class="ton-currency">TON</span>
-                            <button onclick="loadTonBalance()" class="refresh-balance-btn" title="Refresh balance">🔄</button>
+                            <button onclick="loadTonBalance()" class="refresh-balance-btn"
+                                title="Refresh balance">🔄</button>
                         </div>
                     </div>
 
@@ -6035,161 +6099,193 @@ function sendConsentResponse(decision) {
                     <div id="ton-connect-button"></div>
                 </div>
             </div>
-        </div>        
-
-    <!-- Навигационная панель снизу с 4 кнопками -->
-    <div class="nav-bar">
-        <button data-page="main-page" onclick="showPage('main-page')">
-            <span class="icon-wrap"><img src="/static/main-page-passive.png" alt="Main"></span>
-            <span>Main</span>
-        </button>
-        <button data-page="friends-page" onclick="showPage('friends-page')">
-            <span class="icon-wrap"><img src="/static/friends-page-passive.png" alt="Friends"></span>
-            <span>Friends</span>
-        </button>
-        <button data-page="beloved-page" onclick="showPage('beloved-page')">
-            <span class="icon-wrap"><img src="/static/beloved-page-passive.png" alt="Beloved"></span>
-            <span>Beloved</span>
-        </button>
-        <button data-page="mission-page" onclick="showPage('mission-page')">
-            <span class="icon-wrap"><img src="/static/mission-page-passive.png" alt="Mission"></span>
-            <span>Mission</span>
-        </button>
-        <button data-page="wallet-page" onclick="showPage('wallet-page')">
-            <span class="icon-wrap"><img src="/static/wallet-page-passive.png" alt="Wallet"></span>
-            <span>Wallet</span>
-        </button>
-    </div>
-
-    <!-- Модальное окно реферальной ссылки -->
-    <div id="referral-modal">
-        <div id="referral-modal-content">
-            <button id="close-referral-modal" onclick="closeReferralModal()">×</button>
-            <h3>Your Referral Link</h3>
-            <img id="qr-code" src="" alt="QR Code" style="width:200px; height:200px; image-rendering: pixelated;">
-            <!-- Текст ссылки скрыт, но значение хранится в data-link -->
-            <p id="referral-link" style="visibility: hidden;"></p>
-            <button onclick="sendReferralLink()" class="pixel-button" style="margin-top: 10px;">Send</button>
         </div>
-    </div>
 
-    <!-- Friend Request Modal -->
-    <div id="friend-request-modal" style="display: none; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 10001;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 20px; text-align: center; width: 320px; position: relative; color: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
-            <h3 style="margin-bottom: 20px; font-size: 24px;">🌟 Friend Request</h3>
-            <p style="margin-bottom: 10px; font-size: 16px;">You have received a friend request from:</p>
-            <div style="display: flex; align-items: center; justify-content: center; margin: 20px 0;">
-                <img id="friend-requester-avatar" src="" alt="Avatar" style="width: 60px; height: 60px; border-radius: 50%; margin-right: 15px;">
-                <span id="friend-requester-name" style="font-size: 18px; font-weight: bold;"></span>
-            </div>
-            <p style="margin-bottom: 20px; font-size: 14px;">Accept to become friends and earn 25 AFN!</p>
-            <div style="display: flex; gap: 10px;">
-                <button onclick="handleFriendRequest('accept')" style="flex: 1; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 10px; font-size: 16px; cursor: pointer;">Accept ✅</button>
-                <button onclick="handleFriendRequest('decline')" style="flex: 1; padding: 12px; background: #f44336; color: white; border: none; border-radius: 10px; font-size: 16px; cursor: pointer;">Decline ❌</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Partner Request Modal -->
-    <div id="partner-request-modal" style="display: none; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 10001;">
-        <div style="background: linear-gradient(135deg, #ff6b6b 0%, #ff4757 100%); padding: 30px; border-radius: 20px; text-align: center; width: 320px; position: relative; color: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
-            <h3 style="margin-bottom: 20px; font-size: 24px;">💕 Intimate Connection Request</h3>
-            <p style="margin-bottom: 10px; font-size: 16px;">You have received an intimate connection request from:</p>
-            <div style="display: flex; align-items: center; justify-content: center; margin: 20px 0;">
-                <img id="partner-requester-avatar" src="" alt="Avatar" style="width: 60px; height: 60px; border-radius: 50%; margin-right: 15px;">
-                <span id="partner-requester-name" style="font-size: 18px; font-weight: bold;"></span>
-            </div>
-            <p style="margin-bottom: 20px; font-size: 14px;">Accept to establish an intimate connection and both earn 100 AFN!</p>
-            <div style="display: flex; gap: 10px;">
-                <button onclick="handlePartnerRequest('accept')" style="flex: 1; padding: 12px; background: #ff1744; color: white; border: none; border-radius: 10px; font-size: 16px; cursor: pointer;">Accept 💕</button>
-                <button onclick="handlePartnerRequest('decline')" style="flex: 1; padding: 12px; background: #424242; color: white; border: none; border-radius: 10px; font-size: 16px; cursor: pointer;">Decline 💔</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- App Choice Modal (after declining) -->
-    <div id="app-choice-modal" style="display: none; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 10002;">
-        <div style="background: #2c3e50; padding: 30px; border-radius: 20px; text-align: center; width: 320px; position: relative; color: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
-            <h3 style="margin-bottom: 20px; font-size: 20px;">Continue using Affinia?</h3>
-            <p style="margin-bottom: 20px; font-size: 14px;">You declined the request. Would you like to continue using Affinia?</p>
-            <div style="display: flex; gap: 10px;">
-                <button onclick="continueUsingApp()" style="flex: 1; padding: 12px; background: #27ae60; color: white; border: none; border-radius: 10px; font-size: 16px; cursor: pointer;">Continue ✅</button>
-                <button onclick="deleteProfile()" style="flex: 1; padding: 12px; background: #e74c3c; color: white; border: none; border-radius: 10px; font-size: 16px; cursor: pointer;">Delete Profile 🗑️</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Notifications Container -->
-    <div id="notifications-container" style="position: fixed; top: 20px; right: 20px; z-index: 10000; max-width: 350px;"></div>
-
-    <!-- Consent Modal (для создания consent-ссылки) -->
-<div id="consent-modal" style="display: none; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.55); z-index: 10003;">
-    <div id="consent-modal-content" style="background: rgba(20,20,24,0.55); border: 1px solid rgba(255,255,255,0.15); backdrop-filter: blur(14px) saturate(160%); -webkit-backdrop-filter: blur(14px) saturate(160%); padding: 20px; border-radius: 12px; text-align: center; width: 320px; position: relative; color: #fff; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
-        <button id="close-consent-modal" onclick="closeConsentModal()" style="position: absolute; top: 10px; right: 10px; font-size: 18px; font-weight: bold; color: #ddd; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); width: 28px; height: 28px; border-radius: 8px;">×</button>
-        <h3>Your Consent Link</h3>
-        <img id="consent-qr-code" src="" alt="QR Code" style="width:200px; height:200px; image-rendering: pixelated;">
-        <!-- Скрытый элемент для хранения ссылки -->
-        <p id="consent-link" style="visibility: hidden;"></p>
-        <button onclick="sendConsentLink()" class="pixel-button" style="margin-top: 10px;">Send</button>
-    </div>
-</div>
-
-<!-- Consent Response Modal -->
-<div id="consent-response-modal" style="display: none; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
-    <div id="consent-response-content" style="background-color: #fff; padding: 20px; border-radius: 10px; text-align: center; width: 300px; position: relative; color: #000;">
-        <h3>Please choose</h3>
-        <button onclick="sendConsentResponse('consent')">Consent</button>
-        <button onclick="sendConsentResponse('decline')">Decline</button>
-    </div>
-    </div>
-
-    <!-- Consent History Modal -->
-    <div id="consent-history-modal" class="consent-history-modal">
-        <div class="consent-history-content">
-            <!-- Header -->
-            <div class="history-header">
-                <h2 class="history-title">📋 Consent History</h2>
-                <button class="close-history-btn" onclick="closeConsentHistory()">×</button>
-            </div>
-
-            <!-- Statistics -->
-            <div class="history-stats">
-                <div class="history-stat">
-                    <span class="history-stat-number" id="total-consents">0</span>
-                    <span class="history-stat-label">Total</span>
-                </div>
-                <div class="history-stat">
-                    <span class="history-stat-number" id="active-consents-count">0</span>
-                    <span class="history-stat-label">Active</span>
-                </div>
-                <div class="history-stat">
-                    <span class="history-stat-number" id="this-month-consents">0</span>
-                    <span class="history-stat-label">This Month</span>
-                </div>
-            </div>
-
-            <!-- Filters -->
-            <div class="history-filters">
-                <div class="filter-buttons">
-                    <button class="filter-btn active" onclick="filterConsents('all')">All</button>
-                    <button class="filter-btn" onclick="filterConsents('active')">Active</button>
-                    <button class="filter-btn" onclick="filterConsents('expired')">Expired</button>
-                    <button class="filter-btn" onclick="filterConsents('withdrawn')">Withdrawn</button>
-                </div>
-                <input type="text" class="search-filter" placeholder="Search by partner name..." id="history-search" oninput="searchHistory()">
-            </div>
-
-            <!-- History List -->
-            <div class="history-list" id="consent-history-list">
-                <!-- Consent entries will be populated here -->
-            </div>
-
-            <!-- Export Button -->
-            <button class="export-btn" onclick="exportConsentHistory()">
-                📥 Export for Legal Use
+        <!-- Навигационная панель снизу с 4 кнопками -->
+        <div class="nav-bar">
+            <button data-page="main-page" onclick="showPage('main-page')">
+                <span class="icon-wrap"><img src="/static/main-page-passive.png" alt="Main"></span>
+                <span>Main</span>
             </button>
-    </div>
-</div>
+            <button data-page="friends-page" onclick="showPage('friends-page')">
+                <span class="icon-wrap"><img src="/static/friends-page-passive.png" alt="Friends"></span>
+                <span>Friends</span>
+            </button>
+            <button data-page="beloved-page" onclick="showPage('beloved-page')">
+                <span class="icon-wrap"><img src="/static/beloved-page-passive.png" alt="Beloved"></span>
+                <span>Beloved</span>
+            </button>
+            <button data-page="mission-page" onclick="showPage('mission-page')">
+                <span class="icon-wrap"><img src="/static/mission-page-passive.png" alt="Mission"></span>
+                <span>Mission</span>
+            </button>
+            <button data-page="wallet-page" onclick="showPage('wallet-page')">
+                <span class="icon-wrap"><img src="/static/wallet-page-passive.png" alt="Wallet"></span>
+                <span>Wallet</span>
+            </button>
+        </div>
+
+        <!-- Модальное окно реферальной ссылки -->
+        <div id="referral-modal">
+            <div id="referral-modal-content">
+                <button id="close-referral-modal" onclick="closeReferralModal()">×</button>
+                <h3>Your Referral Link</h3>
+                <img id="qr-code" src="" alt="QR Code" style="width:200px; height:200px; image-rendering: pixelated;">
+                <!-- Текст ссылки скрыт, но значение хранится в data-link -->
+                <p id="referral-link" style="visibility: hidden;"></p>
+                <button onclick="sendReferralLink()" class="pixel-button" style="margin-top: 10px;">Send</button>
+            </div>
+        </div>
+
+        <!-- Friend Request Modal -->
+        <div id="friend-request-modal"
+            style="display: none; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 10001;">
+            <div
+                style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 20px; text-align: center; width: 320px; position: relative; color: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+                <h3 style="margin-bottom: 20px; font-size: 24px;">🌟 Friend Request</h3>
+                <p style="margin-bottom: 10px; font-size: 16px;">You have received a friend request from:</p>
+                <div style="display: flex; align-items: center; justify-content: center; margin: 20px 0;">
+                    <img id="friend-requester-avatar" src="" alt="Avatar"
+                        style="width: 60px; height: 60px; border-radius: 50%; margin-right: 15px;">
+                    <span id="friend-requester-name" style="font-size: 18px; font-weight: bold;"></span>
+                </div>
+                <p style="margin-bottom: 20px; font-size: 14px;">Accept to become friends and earn 25 AFN!</p>
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="handleFriendRequest('accept')"
+                        style="flex: 1; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 10px; font-size: 16px; cursor: pointer;">Accept
+                        ✅</button>
+                    <button onclick="handleFriendRequest('decline')"
+                        style="flex: 1; padding: 12px; background: #f44336; color: white; border: none; border-radius: 10px; font-size: 16px; cursor: pointer;">Decline
+                        ❌</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Partner Request Modal -->
+        <div id="partner-request-modal"
+            style="display: none; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 10001;">
+            <div
+                style="background: linear-gradient(135deg, #ff6b6b 0%, #ff4757 100%); padding: 30px; border-radius: 20px; text-align: center; width: 320px; position: relative; color: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+                <h3 style="margin-bottom: 20px; font-size: 24px;">💕 Intimate Connection Request</h3>
+                <p style="margin-bottom: 10px; font-size: 16px;">You have received an intimate connection request from:
+                </p>
+                <div style="display: flex; align-items: center; justify-content: center; margin: 20px 0;">
+                    <img id="partner-requester-avatar" src="" alt="Avatar"
+                        style="width: 60px; height: 60px; border-radius: 50%; margin-right: 15px;">
+                    <span id="partner-requester-name" style="font-size: 18px; font-weight: bold;"></span>
+                </div>
+                <p style="margin-bottom: 20px; font-size: 14px;">Accept to establish an intimate connection and both
+                    earn 100 AFN!</p>
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="handlePartnerRequest('accept')"
+                        style="flex: 1; padding: 12px; background: #ff1744; color: white; border: none; border-radius: 10px; font-size: 16px; cursor: pointer;">Accept
+                        💕</button>
+                    <button onclick="handlePartnerRequest('decline')"
+                        style="flex: 1; padding: 12px; background: #424242; color: white; border: none; border-radius: 10px; font-size: 16px; cursor: pointer;">Decline
+                        💔</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- App Choice Modal (after declining) -->
+        <div id="app-choice-modal"
+            style="display: none; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 10002;">
+            <div
+                style="background: #2c3e50; padding: 30px; border-radius: 20px; text-align: center; width: 320px; position: relative; color: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+                <h3 style="margin-bottom: 20px; font-size: 20px;">Continue using Affinia?</h3>
+                <p style="margin-bottom: 20px; font-size: 14px;">You declined the request. Would you like to continue
+                    using Affinia?</p>
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="continueUsingApp()"
+                        style="flex: 1; padding: 12px; background: #27ae60; color: white; border: none; border-radius: 10px; font-size: 16px; cursor: pointer;">Continue
+                        ✅</button>
+                    <button onclick="deleteProfile()"
+                        style="flex: 1; padding: 12px; background: #e74c3c; color: white; border: none; border-radius: 10px; font-size: 16px; cursor: pointer;">Delete
+                        Profile 🗑️</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notifications Container -->
+        <div id="notifications-container"
+            style="position: fixed; top: 20px; right: 20px; z-index: 10000; max-width: 350px;"></div>
+
+        <!-- Consent Modal (для создания consent-ссылки) -->
+        <div id="consent-modal"
+            style="display: none; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.55); z-index: 10003;">
+            <div id="consent-modal-content"
+                style="background: rgba(20,20,24,0.55); border: 1px solid rgba(255,255,255,0.15); backdrop-filter: blur(14px) saturate(160%); -webkit-backdrop-filter: blur(14px) saturate(160%); padding: 20px; border-radius: 12px; text-align: center; width: 320px; position: relative; color: #fff; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
+                <button id="close-consent-modal" onclick="closeConsentModal()"
+                    style="position: absolute; top: 10px; right: 10px; font-size: 18px; font-weight: bold; color: #ddd; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); width: 28px; height: 28px; border-radius: 8px;">×</button>
+                <h3>Your Consent Link</h3>
+                <img id="consent-qr-code" src="" alt="QR Code"
+                    style="width:200px; height:200px; image-rendering: pixelated;">
+                <!-- Скрытый элемент для хранения ссылки -->
+                <p id="consent-link" style="visibility: hidden;"></p>
+                <button onclick="sendConsentLink()" class="pixel-button" style="margin-top: 10px;">Send</button>
+            </div>
+        </div>
+
+        <!-- Consent Response Modal -->
+        <div id="consent-response-modal"
+            style="display: none; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+            <div id="consent-response-content"
+                style="background-color: #fff; padding: 20px; border-radius: 10px; text-align: center; width: 300px; position: relative; color: #000;">
+                <h3>Please choose</h3>
+                <button onclick="sendConsentResponse('consent')">Consent</button>
+                <button onclick="sendConsentResponse('decline')">Decline</button>
+            </div>
+        </div>
+
+        <!-- Consent History Modal -->
+        <div id="consent-history-modal" class="consent-history-modal">
+            <div class="consent-history-content">
+                <!-- Header -->
+                <div class="history-header">
+                    <h2 class="history-title">📋 Consent History</h2>
+                    <button class="close-history-btn" onclick="closeConsentHistory()">×</button>
+                </div>
+
+                <!-- Statistics -->
+                <div class="history-stats">
+                    <div class="history-stat">
+                        <span class="history-stat-number" id="total-consents">0</span>
+                        <span class="history-stat-label">Total</span>
+                    </div>
+                    <div class="history-stat">
+                        <span class="history-stat-number" id="active-consents-count">0</span>
+                        <span class="history-stat-label">Active</span>
+                    </div>
+                    <div class="history-stat">
+                        <span class="history-stat-number" id="this-month-consents">0</span>
+                        <span class="history-stat-label">This Month</span>
+                    </div>
+                </div>
+
+                <!-- Filters -->
+                <div class="history-filters">
+                    <div class="filter-buttons">
+                        <button class="filter-btn active" onclick="filterConsents('all')">All</button>
+                        <button class="filter-btn" onclick="filterConsents('active')">Active</button>
+                        <button class="filter-btn" onclick="filterConsents('expired')">Expired</button>
+                        <button class="filter-btn" onclick="filterConsents('withdrawn')">Withdrawn</button>
+                    </div>
+                    <input type="text" class="search-filter" placeholder="Search by partner name..." id="history-search"
+                        oninput="searchHistory()">
+                </div>
+
+                <!-- History List -->
+                <div class="history-list" id="consent-history-list">
+                    <!-- Consent entries will be populated here -->
+                </div>
+
+                <!-- Export Button -->
+                <button class="export-btn" onclick="exportConsentHistory()">
+                    📥 Export for Legal Use
+                </button>
+            </div>
+        </div>
 
 </body>
+
 </html>
