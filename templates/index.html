@@ -3584,39 +3584,36 @@
         }
 
 
+        // Имя и аватар другого пользователя запрашиваются у нашего бэкенда:
+        // токен бота на клиенте не используется, сервер отдаёт данные только о связанных пользователях.
+        const userCardCache = new Map();
+
         async function fetchTelegramUserData(userId) {
-            BOT_TOKEN = "REDACTED_BOT_TOKEN"
+            const key = String(userId);
+            if (userCardCache.has(key)) return userCardCache.get(key);
+
+            const fallback = {
+                username: `User ${key.substring(0, 6)}...`,
+                avatar: `https://api.dicebear.com/6.x/avataaars/svg?seed=${key}`
+            };
+
             try {
-                // 1. Получаем основные данные пользователя
-                let response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getChat?chat_id=${userId}`);
-                let data = await response.json();
-
-                let username = data.ok
-                    ? (data.result.username ? `@${data.result.username}` : `${data.result.first_name} ${data.result.last_name || ''}`)
-                    : "@unknown";
-
-                // 2. Запрашиваем фото пользователя (если есть)
-                response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUserProfilePhotos?user_id=${userId}&limit=1`);
-                data = await response.json();
-
-                let avatar = "https://via.placeholder.com/80"; // Заглушка на случай отсутствия фото
-
-                if (data.ok && data.result.photos.length > 0) {
-                    const fileId = data.result.photos[0][0].file_id; // Берем первый аватар пользователя
-
-                    // 3. Запрашиваем URL файла
-                    response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`);
-                    data = await response.json();
-
-                    if (data.ok) {
-                        avatar = `https://api.telegram.org/file/bot${BOT_TOKEN}/${data.result.file_path}`;
-                    }
-                }
-
-                return { username, avatar };
+                const response = await fetch('/user_card', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ target_id: key, init_data: Telegram.WebApp.initData })
+                });
+                if (!response.ok) return fallback;
+                const data = await response.json();
+                const result = {
+                    username: data.display_name || fallback.username,
+                    avatar: data.avatar || fallback.avatar
+                };
+                userCardCache.set(key, result);
+                return result;
             } catch (error) {
-                console.error("Error fetching Telegram user data:", error);
-                return { username: "@unknown", avatar: "https://via.placeholder.com/80" };
+                console.error("Error fetching user card:", error);
+                return fallback;
             }
         }
 
