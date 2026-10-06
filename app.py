@@ -1344,6 +1344,86 @@ def delete_friend():
     return jsonify({'error': 'Friend not found'}), 400
 
 
+def run_bot_coro(coro, timeout: float = 10):
+    """Выполняет корутину Telegram Bot API в event loop бота из потока Flask."""
+    if bot_loop is None or not bot_loop.is_running():
+        coro.close()
+        raise RuntimeError('Bot event loop is not running')
+    return asyncio.run_coroutine_threadsafe(coro, bot_loop).result(timeout=timeout)
+
+
+# Кэш аватарок: user_id -> (expires_at, data_url | None). Токен бота на клиент не уходит.
+_avatar_cache: dict = {}
+AVATAR_CACHE_TTL = 3600
+AVATAR_CACHE_MAX = 2000
+
+
+async def _fetch_avatar_data_url(user_id: str):
+    photos = await application.bot.get_user_profile_photos(int(user_id), limit=1)
+    if not photos or not photos.photos:
+        return None
+    smallest = photos.photos[0][0]
+    tg_file = await application.bot.get_file(smallest.file_id)
+    raw = await tg_file.download_as_bytearray()
+    return 'data:image/jpeg;base64,' + b64encode(bytes(raw)).decode('ascii')
+
+
+def get_avatar_data_url(user_id: str):
+    now = time()
+    cached = _avatar_cache.get(user_id)
+    if cached and cached[0] > now:
+        return cached[1]
+    try:
+        data_url = run_bot_coro(_fetch_avatar_data_url(user_id))
+    except Exception as e:
+        logging.warning(f'Avatar fetch failed for {user_id}: {e}')
+        data_url = None
+    if len(_avatar_cache) >= AVATAR_CACHE_MAX:
+        _avatar_cache.clear()
+    _avatar_cache[user_id] = (now + AVATAR_CACHE_TTL, data_url)
+    return data_url
+
+
+def is_connected(user_id: str, target_id: str) -> bool:
+    """Связаны ли пользователи (друзья или партнёры)."""
+    if user_id == target_id:
+        return True
+    return target_id in referrals.get(user_id, []) or target_id in beloveds.get(user_id, [])
+
+
+@app.route('/user_card', methods=['POST'])
+def user_card():
+    """Имя и аватар другого пользователя — только для связанных с запрашивающим."""
+    data = request.json or {}
+
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        return jsonify({'error': 'Invalid authentication'}), 401
+
+    user_id = validated_user['user_id']
+    target_id = str(data.get('target_id', '')).strip()
+    if not target_id.isdigit():
+        return jsonify({'error': 'target_id is required'}), 400
+
+    if not is_connected(user_id, target_id):
+        return jsonify({'error': 'Not allowed'}), 403
+
+    profile = user_profiles.get(target_id, {})
+    username = profile.get('username', '')
+    first_name = profile.get('first_name', '')
+    last_name = profile.get('last_name', '')
+    if username:
+        display_name = f'@{username}'
+    elif first_name or last_name:
+        display_name = f'{first_name} {last_name}'.strip()
+    else:
+        display_name = f'User {target_id[:6]}...'
+
+    avatar = get_avatar_data_url(target_id) or f'https://api.dicebear.com/6.x/avataaars/svg?seed={target_id}'
+
+    return jsonify({'user_id': target_id, 'display_name': display_name, 'avatar': avatar})
+
+
 @app.route('/get_telegram_stars', methods=['POST'])
 def get_telegram_stars():
     data = request.json or {}
