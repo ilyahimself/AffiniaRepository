@@ -21,24 +21,14 @@ load_dotenv()
 
 bot_loop = None
 
-from json.decoder import JSONDecodeError
-
-# PostgreSQL Database Service
-try:
-    from services.database_service import DatabaseService
-    USE_DATABASE = True
-except ImportError:
-    USE_DATABASE = False
-    logging.warning("⚠️ DatabaseService not available, using JSON fallback")
+# PostgreSQL is the only storage (see services/database_service.py)
+from services.database_service import DatabaseService
 
 # Настройка логирования с безопасностью
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('affinia.log')
-    ]
+    handlers=[logging.StreamHandler()]  # stdout → Heroku logs; файловая система дайно эфемерна
 )
 
 # Отключаем логирование чувствительной информации
@@ -246,46 +236,29 @@ def get_user_display_name(user_id: str) -> str:
 
 
 def ensure_user_record(user_id: str) -> bool:
-    """Гарантирует, что пользователь есть в user_tokens (и PostgreSQL), даже с нулевым балансом."""
-    if not user_id:
+    """Гарантирует, что пользователь есть в PostgreSQL (и в кэше), даже с нулевым балансом."""
+    if not user_id or not str(user_id).isdigit():
         return False
 
-    created = False
-    
-    # Check/create in PostgreSQL first
-    if USE_DATABASE:
-        try:
-            user, was_created = DatabaseService.ensure_user(user_id)
-            created = was_created
-        except Exception as e:
-            logging.error(f"Database error in ensure_user_record: {e}")
-    
-    # Also maintain local cache
+    try:
+        user, created = DatabaseService.ensure_user(user_id)
+        balance = user.balance or 0
+    except Exception as e:
+        logging.error(f"Database error in ensure_user_record: {e}")
+        return False
+
     with data_lock:
-        if user_id not in user_tokens:
-            user_tokens[user_id] = 0
-            if not USE_DATABASE:
-                created = True
+        user_tokens.setdefault(user_id, balance)
 
     if created:
         display_name = get_user_display_name(user_id)
         logging.info(f'🆕 NEW USER REGISTERED: {display_name} with 0 AFN')
-        save_data()
 
-        # Отправка уведомления админу
+        # Уведомление админу о новом пользователе
         if ADMIN_ID and user_id != ADMIN_ID:
+            msg = f"🆕 <b>NEW USER REGISTERED!</b>\n\n👤 <b>User:</b> {display_name}\n🆔 <b>ID:</b> <code>{user_id}</code>"
             try:
-                msg = f"🆕 <b>NEW USER REGISTERED!</b>\n\n👤 <b>User:</b> {display_name}\n🆔 <b>ID:</b> <code>{user_id}</code>"
-                try:
-                    loop = asyncio.get_event_loop()
-                except RuntimeError:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                
-                if loop.is_running():
-                    loop.create_task(bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode='HTML'))
-                else:
-                    loop.run_until_complete(bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode='HTML'))
+                run_bot_coro(application.bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode='HTML'), wait=False)
             except Exception as e:
                 logging.error(f"Failed to send admin notification: {e}")
 
@@ -309,32 +282,23 @@ def update_user_profile(tg_user) -> None:
         'is_premium': bool(getattr(tg_user, 'is_premium', False))
     }
 
-    # Update in PostgreSQL first
-    if USE_DATABASE:
-        try:
-            DatabaseService.update_profile(
-                user_id,
-                username=profile['username'],
-                first_name=profile['first_name'],
-                last_name=profile['last_name'],
-                language_code=profile['language_code'],
-                is_premium=profile['is_premium']
-            )
-        except Exception as e:
-            logging.error(f"Database error updating profile: {e}")
-
-    # Check if profile was empty before
-    is_new_profile = user_id not in user_profiles or not user_profiles[user_id]
-
-    updated = False
     with data_lock:
-        if user_profiles.get(user_id) != profile:
-            user_profiles[user_id] = profile
-            updated = True
+        unchanged = user_profiles.get(user_id) == profile
+        user_profiles[user_id] = profile
+    if unchanged:
+        return
 
-    if updated:
-        logging.info(f'👤 Stored profile for user {user_id}: @{profile["username"] or "unknown"}')
-        save_data()
+    try:
+        DatabaseService.update_profile(
+            user_id,
+            username=profile['username'],
+            first_name=profile['first_name'],
+            last_name=profile['last_name'],
+            language_code=profile['language_code'],
+            is_premium=profile['is_premium']
+        )
+    except Exception as e:
+        logging.error(f"Database error updating profile: {e}")
 
 # Безопасная загрузка конфигурации
 API_TOKEN = os.getenv('API_TOKEN')
@@ -372,155 +336,97 @@ except Exception as e:
 URL = WEBAPP_URL
 
 
-def init_database():
-    """Initialize PostgreSQL database connection"""
-    global USE_DATABASE
-    if not USE_DATABASE:
-        return False
-    
+def run_bot_coro(coro, timeout: float = 10, wait: bool = True):
+    """Выполняет корутину Telegram Bot API в event loop бота.
+
+    Из потока Flask — через run_coroutine_threadsafe; изнутри самого loop бота —
+    планирует задачу (блокироваться там нельзя, иначе deadlock).
+    """
+    loop = bot_loop
+    if loop is None or not loop.is_running():
+        coro.close()
+        raise RuntimeError('Bot event loop is not running')
+    try:
+        current = asyncio.get_running_loop()
+    except RuntimeError:
+        current = None
+    if current is loop:
+        return loop.create_task(coro)
+    future = asyncio.run_coroutine_threadsafe(coro, loop)
+    return future.result(timeout=timeout) if wait else future
+
+
+def init_database() -> None:
+    """Connect to PostgreSQL. The database is the only storage: fail fast if it is unavailable."""
     db_url = os.getenv('HEROKU_POSTGRESQL_COBALT_URL') or os.getenv('DATABASE_URL')
-    if db_url:
-        success = DatabaseService.initialize(db_url)
-        if success:
-            logging.info("✅ PostgreSQL database initialized")
-            return True
-        else:
-            logging.error("❌ Failed to initialize PostgreSQL, falling back to JSON")
-            USE_DATABASE = False
-            return False
-    else:
-        logging.warning("⚠️ No database URL found, using JSON storage")
-        USE_DATABASE = False
-        return False
+    if not db_url:
+        logging.error('❌ CRITICAL: no HEROKU_POSTGRESQL_COBALT_URL / DATABASE_URL set')
+        sys.exit(1)
+    if not DatabaseService.initialize(db_url):
+        logging.error('❌ CRITICAL: database connection failed')
+        sys.exit(1)
+    logging.info('✅ PostgreSQL database initialized')
 
 
 def load_data():
+    """Rebuild the in-memory read cache from PostgreSQL."""
     global user_tokens, referrals, beloveds, user_stars, user_profiles
     global pending_friend_requests, pending_consent_requests
     global user_notifications, new_friends_count, new_partners_count, consent_history
-    
-    # Try to initialize database first
-    init_database()
-    
-    # If using PostgreSQL, load from there
-    if USE_DATABASE:
-        try:
-            # Load users from PostgreSQL
-            db_users = DatabaseService.get_all_users()
-            if db_users:
-                user_tokens = db_users
-                logging.info(f"✅ Loaded {len(db_users)} users from PostgreSQL")
-            else:
-                user_tokens = {}
-            
-            # Load relationships
-            referrals = {}
-            beloveds = {}
-            user_profiles = {}
-            
-            # For each user, get their friends and partners
-            for user_id in user_tokens.keys():
-                friends = DatabaseService.get_friends(user_id)
-                if friends:
-                    referrals[user_id] = friends
-                
-                partners = DatabaseService.get_partners(user_id)
-                if partners:
-                    beloveds[user_id] = partners
-                
-                # Get profile
-                user = DatabaseService.get_user(user_id)
-                if user and (user.username or user.first_name):
-                    user_profiles[user_id] = {
-                        'username': user.username or '',
-                        'first_name': user.first_name or '',
-                        'last_name': user.last_name or '',
-                        'language_code': user.language_code or '',
-                        'is_premium': user.is_premium or False
-                    }
-            
-            # Initialize other dicts
-            user_stars = {}
-            pending_friend_requests = {}
-            pending_consent_requests = {}
-            user_notifications = {}
-            new_friends_count = {}
-            new_partners_count = {}
-            consent_history = {}
-            logging.info(f"✅ Loaded data from PostgreSQL: {len(user_tokens)} users")
-            return
-        except Exception as e:
-            logging.error(f"Error loading from PostgreSQL: {e}, falling back to JSON")
-    
-    # Fallback to JSON file
-    try:
-        with open('user_tokens.json', 'r') as f:
-            data = json.load(f)
-            user_tokens = data.get('user_tokens', {})
-            referrals = data.get('referrals', {})
-            beloveds = data.get('beloveds', {})
-            user_stars = data.get('user_stars', {})
-            user_profiles = data.get('user_profiles', {})
-            pending_friend_requests = data.get('pending_friend_requests', {})
-            pending_consent_requests = data.get('pending_consent_requests', {})
-            user_notifications = data.get('user_notifications', {})
-            new_friends_count = data.get('new_friends_count', {})
-            new_partners_count = data.get('new_partners_count', {})
-            consent_history = data.get('consent_history', {})
-            print(f"Loaded data from JSON: {len(user_tokens)} users")
-    except FileNotFoundError:
-        user_tokens = {}
-        referrals = {}
-        beloveds = {}
-        user_stars = {}
-        user_profiles = {}
-        pending_friend_requests = {}
-        pending_consent_requests = {}
-        user_notifications = {}
-        new_friends_count = {}
-        new_partners_count = {}
-        consent_history = {}
-        print("Data file not found, starting with empty dictionary")
-    except JSONDecodeError:
-        logging.error('Error decoding JSON from user_tokens.json. Starting with empty data.')
-        user_tokens = {}
-        referrals = {}
-        beloveds = {}
-        user_stars = {}
-        user_profiles = {}
-    except Exception as e:
-        logging.error(f"Unexpected error while loading data: {e}")
-        user_tokens = {}
-        referrals = {}
-        beloveds = {}
-        user_stars = {}
-        user_profiles = {}
 
-def save_data():
-    """Save data to PostgreSQL and JSON file"""
-    # Save to JSON as backup
-    try:
-        with data_lock:
-            with open('user_tokens.json', 'w') as f:
-                json.dump({
-                    'user_tokens': user_tokens,
-                    'referrals': referrals,
-                    'beloveds': beloveds,
-                    'user_stars': user_stars,
-                    'user_profiles': user_profiles,
-                    'pending_friend_requests': pending_friend_requests,
-                    'pending_consent_requests': pending_consent_requests,
-                    'user_notifications': user_notifications,
-                    'new_friends_count': new_friends_count,
-                    'new_partners_count': new_partners_count,
-                    'consent_history': consent_history
-                }, f)
-        logging.debug(f"Saved data to JSON: {len(user_tokens)} users")
-    except Exception as e:
-        logging.error(f"Error saving to JSON: {e}")
-    
-    # PostgreSQL is updated in real-time via DatabaseService methods
-    # No need to sync here as we update DB directly in ensure_user_record, etc.
+    init_database()
+    snap = DatabaseService.load_snapshot()
+    with data_lock:
+        user_tokens = snap['user_tokens']
+        referrals = snap['referrals']
+        beloveds = snap['beloveds']
+        user_stars = snap['user_stars']
+        user_profiles = snap['user_profiles']
+        pending_friend_requests = snap['pending_friend_requests']
+        pending_consent_requests = snap['pending_consent_requests']
+        user_notifications = snap['user_notifications']
+        new_friends_count = snap['new_friends_count']
+        new_partners_count = snap['new_partners_count']
+        consent_history = snap['consent_history']
+    logging.info(
+        f"✅ Loaded from PostgreSQL: {len(user_tokens)} users, "
+        f"{sum(len(v) for v in referrals.values()) // 2} friend links, "
+        f"{sum(len(v) for v in beloveds.values()) // 2} partner links, "
+        f"{sum(len(v) for v in consent_history.values()) // 2} consents"
+    )
+
+
+def _link_both(cache: dict, a: str, b: str) -> None:
+    """Mirror a bidirectional link into the read cache."""
+    with data_lock:
+        cache.setdefault(a, [])
+        cache.setdefault(b, [])
+        if b not in cache[a]:
+            cache[a].append(b)
+        if a not in cache[b]:
+            cache[b].append(a)
+
+
+def _unlink_both(cache: dict, a: str, b: str) -> None:
+    with data_lock:
+        if b in cache.get(a, []):
+            cache[a].remove(b)
+        if a in cache.get(b, []):
+            cache[b].remove(a)
+
+
+def credit_afn(user_id: str, delta: int, reason: str, ref: str = None) -> int:
+    """Change AFN balance in the DB (atomic) and mirror into the cache. Returns new balance."""
+    new_balance = DatabaseService.add_balance(user_id, delta, reason, ref)
+    with data_lock:
+        user_tokens[user_id] = new_balance
+    return new_balance
+
+
+def notify(user_id: str, type_: str, from_user: str, message: str) -> None:
+    record = DatabaseService.add_notification(user_id, type_, from_user, message)
+    with data_lock:
+        user_notifications.setdefault(user_id, []).append(record)
 
 
 # Flask-маршруты
@@ -608,28 +514,17 @@ def get_balance():
         'is_premium': validated_user.get('is_premium', False)
     }
     
-    # Сохраняем профиль
+    # Создаём запись пользователя и сохраняем профиль (в БД пишется только при изменении)
+    ensure_user_record(user_id)
     with data_lock:
-        if user_id not in user_profiles or user_profiles.get(user_id) != profile:
-            user_profiles[user_id] = profile
-            logging.info(f'👤 Profile from Mini App: {user_id} → @{profile["username"] or "unknown"}')
-    
-    # Сохраняем в PostgreSQL
-    if USE_DATABASE:
+        changed = user_profiles.get(user_id) != profile
+        user_profiles[user_id] = profile
+    if changed:
+        logging.info(f'👤 Profile from Mini App: {user_id} → @{profile["username"] or "unknown"}')
         try:
-            DatabaseService.update_profile(
-                user_id,
-                username=profile['username'],
-                first_name=profile['first_name'],
-                last_name=profile['last_name'],
-                language_code=profile['language_code'],
-                is_premium=profile['is_premium']
-            )
+            DatabaseService.update_profile(user_id, **profile)
         except Exception as e:
             logging.error(f"DB error saving profile: {e}")
-    
-    # Создаём запись пользователя
-    ensure_user_record(user_id)
     
     # Rate limiting по user_id
     if not check_rate_limit(user_id):
@@ -755,43 +650,35 @@ def consent_response():
         return jsonify({'error': 'Missing parameters'}), 400
 
     referrer_id = str(data['referrer_id'])
-    ensure_user_record(referrer_id)
+    if not referrer_id.isdigit() or referrer_id == new_user_id or referrer_id not in user_tokens:
+        return jsonify({'error': 'Invalid referrer'}), 400
     ensure_user_record(new_user_id)
     decision = data['decision']
 
     if decision == 'consent':
-        if referrer_id not in beloveds:
-            beloveds[referrer_id] = []
-        if new_user_id not in beloveds:
-            beloveds[new_user_id] = []
-        if new_user_id not in beloveds[referrer_id]:
-            beloveds[referrer_id].append(new_user_id)
-        if referrer_id not in beloveds[new_user_id]:
-            beloveds[new_user_id].append(referrer_id)
+        if DatabaseService.add_partner(referrer_id, new_user_id):
+            consent = DatabaseService.add_consent(referrer_id, new_user_id)
+            with data_lock:
+                consent_history.setdefault(referrer_id, []).append({**consent, 'partner_id': new_user_id})
+                consent_history.setdefault(new_user_id, []).append({**consent, 'partner_id': referrer_id})
+        _link_both(beloveds, referrer_id, new_user_id)
 
-        save_data()
+        logging.info(f'❤️ CONSENT ACCEPTED: {new_user_id} ← {referrer_id}')
 
-        # Logging
-        referrer_display = get_user_display_name(referrer_id)
-        new_user_display = get_user_display_name(new_user_id)
-        logging.info(f'❤️ CONSENT ACCEPTED: {new_user_display} accepted request from {referrer_display}')
-
-        # Отправляем уведомление отправителю через бота, чтобы он знал, что связь установлена
         try:
-            bot.send_message(
+            run_bot_coro(application.bot.send_message(
                 chat_id=referrer_id,
                 text='Your consent request has been accepted. Check your Beloved page for the new connection.'
-            )
+            ), wait=False)
         except Exception as e:
             logging.error(f"Error sending bot message: {e}")
         return jsonify({'success': True})
     elif decision == 'decline':
-        # Logging
-        referrer_display = get_user_display_name(referrer_id)
-        new_user_display = get_user_display_name(new_user_id)
-        logging.info(f'💔 CONSENT DECLINED: {new_user_display} declined request from {referrer_display}')
+        logging.info(f'💔 CONSENT DECLINED: {new_user_id} ← {referrer_id}')
         try:
-            bot.send_message(chat_id=referrer_id, text='Your consent request has been declined.')
+            run_bot_coro(application.bot.send_message(
+                chat_id=referrer_id, text='Your consent request has been declined.'
+            ), wait=False)
         except Exception as e:
             logging.error(f"Error sending message: {e}")
         return jsonify({'success': True})
@@ -812,26 +699,26 @@ def get_beloved():
     if user_id not in beloveds:
         return jsonify({'beloved': []})
     
-    # Создаем полную структуру данных для партнеров
     beloved_data = []
-    for b_id in beloveds[user_id]:
-        # Определяем статус отношений на основе consent_history
-        relationship_status = 'potential'  # по умолчанию
-        
-        if user_id in consent_history:
-            for consent in consent_history[user_id]:
-                if consent.get('partner_id') == b_id and consent.get('status') == 'active':
-                    relationship_status = 'current'
-                    break
-        
-        partner_data = {
+    with data_lock:
+        partner_ids = list(beloveds.get(user_id, []))
+        history = list(consent_history.get(user_id, []))
+    for b_id in partner_ids:
+        # Статус и дата — из реальных записей consents
+        pair = [c for c in history if c.get('partner_id') == b_id]
+        active = [c for c in pair if c.get('status') == 'active']
+        relationship_status = 'current' if active else ('past' if pair else 'potential')
+        added_ts = min((c.get('timestamp', 0) for c in pair), default=0)
+
+        beloved_data.append({
             "user_id": b_id,
             "relationship_status": relationship_status,
             "trust_level": "partner",
-            "added_date": int(time()),  # временная метка
-            "consent_type": "intimate"
-        }
-        beloved_data.append(partner_data)
+            "added_date": added_ts * 1000 if added_ts else None,  # мс для фронтенда
+            "consent_type": "intimate",
+            "active_consent_id": active[-1].get('id') if active else None,
+            "last_consent_at": max((c.get('timestamp', 0) for c in pair), default=None),
+        })
     
     return jsonify({'beloved': beloved_data})
 
@@ -849,13 +736,10 @@ def delete_beloved():
         return jsonify({'error': 'beloved_id is required'}), 400
     beloved_id = str(data['beloved_id'])
     ensure_user_record(user_id)
-    ensure_user_record(beloved_id)
 
-    if user_id in beloveds and beloved_id in beloveds[user_id]:
-        beloveds[user_id].remove(beloved_id)
-        if beloved_id in beloveds and user_id in beloveds[beloved_id]:
-            beloveds[beloved_id].remove(user_id)
-        save_data()
+    if beloved_id in beloveds.get(user_id, []):
+        DatabaseService.remove_partner(user_id, beloved_id)
+        _unlink_both(beloveds, user_id, beloved_id)
         return jsonify({'success': True})
     return jsonify({'error': 'Beloved not found'}), 400
 
@@ -893,26 +777,20 @@ def get_donate_link():
     else:
         tier = "Elite Support"
 
-    # Запускаем корутину в event loop, сохранённом в bot_loop
-    future = asyncio.run_coroutine_threadsafe(
-        bot.create_invoice_link(
+    try:
+        invoice_link = run_bot_coro(application.bot.create_invoice_link(
             title=f"Support Affinia - {tier}",
             description=f"Thank you for supporting our app with {amount} Telegram Stars! 💖",
             payload=f"donation_{user_id}_{amount}",
             provider_token="",  # Для Telegram Stars оставляем пустым
             currency="XTR",     # Валюта Telegram Stars
             prices=[LabeledPrice(label=f"{tier} ({amount} Stars)", amount=amount)]
-        ),
-        bot_loop  # Используем сохранённый event loop
-    )
-
-    try:
-        invoice_link = future.result(timeout=10)
+        ))
         logging.info(f'Donation invoice created for user {user_id}: {amount} stars, tier: {tier}')
         return jsonify({'success': True, 'invoice_link': invoice_link})
     except Exception as e:
         logging.error(f"Error creating invoice for user {user_id}: {e}")
-        return jsonify({'error': f'Failed to create donation invoice: {e}'}), 500
+        return jsonify({'error': 'Failed to create donation invoice'}), 500
 
 # ===== Хендлеры бота =====
 
@@ -983,27 +861,14 @@ async def referral_start(update: Update, context: CallbackContext, referrer_id: 
         error_text = 'You cannot use your own referral link.'
         await update.message.reply_text(error_text)
     else:
-        if referrer_id not in referrals:
-            referrals[referrer_id] = []
+        # add_friend возвращает True только если связи ещё не было — награда начисляется один раз
+        if DatabaseService.add_friend(referrer_id, new_user_id):
+            _link_both(referrals, referrer_id, new_user_id)
+            ref = f'referral:{referrer_id}:{new_user_id}'
+            credit_afn(referrer_id, 10, 'referral_inviter', ref)
+            credit_afn(new_user_id, 5, 'referral_joined', ref)
 
-        if new_user_id not in referrals[referrer_id]:
-            # Добавляем нового пользователя в список друзей рефери
-            referrals[referrer_id].append(new_user_id)
-
-            # Обратная связь: добавляем рефери в список друзей нового пользователя
-            if new_user_id not in referrals:
-                referrals[new_user_id] = []
-            if referrer_id not in referrals[new_user_id]:
-                referrals[new_user_id].append(referrer_id)
-
-            user_tokens[referrer_id] = user_tokens.get(referrer_id, 0) + 10
-            user_tokens[new_user_id] = user_tokens.get(new_user_id, 0) + 5
-            save_data()
-            
-            # Логирование реферальной регистрации
-            referrer_display = get_user_display_name(referrer_id)
-            new_user_display = get_user_display_name(new_user_id)
-            logging.info(f'🎉 REFERRAL SUCCESS! {new_user_display} invited by {referrer_display} | Rewards: +10 AFN (referrer), +5 AFN (new user)')
+            logging.info(f'🎉 REFERRAL SUCCESS! {new_user_id} invited by {referrer_id} | +10 / +5 AFN')
 
             referrer_text = 'You have been credited with 10 AffinyCoin for inviting a new user.'
             new_user_text = ('Thank you for registering! You have been credited with 5 AffinyCoin.\n'
@@ -1272,21 +1137,25 @@ async def successful_payment_callback(update: Update, context: CallbackContext) 
     update_user_profile(user)
     ensure_user_record(user_id)
     
-    # Получаем сумму из payload
-    payload = update.message.successful_payment.invoice_payload
-    try:
-        # Payload формата: "donation_userid_amount"
-        parts = payload.split('_')
-        if len(parts) >= 3:
-            amount = int(parts[2])
-        else:
-            amount = 100  # Значение по умолчанию для старых платежей
-    except (ValueError, IndexError):
-        amount = 100
+    # Сумма и id платежа — из самого платежа, а не из payload (payload формирует наш же код, ему доверять нельзя)
+    payment = update.message.successful_payment
+    amount = payment.total_amount
+    charge_id = payment.telegram_payment_charge_id
 
-    # Обновляем баланс звёзд пользователя
-    user_stars[user_id] = user_stars.get(user_id, 0) + amount
-    save_data()
+    try:
+        new_total = DatabaseService.record_payment(
+            charge_id, user_id, amount, payment.currency, payment.invoice_payload
+        )
+    except Exception as e:
+        logging.error(f'Failed to record payment {charge_id}: {e}')
+        new_total = None
+
+    if new_total is None:
+        logging.warning(f'Duplicate or failed payment {charge_id} for {user_id}, not crediting again')
+    else:
+        with data_lock:
+            user_stars[user_id] = new_total
+        logging.info(f'⭐ PAYMENT: {user_id} +{amount} {payment.currency} (charge {charge_id})')
 
     # Отправляем персонализированное сообщение
     if amount >= 1000:
@@ -1330,26 +1199,13 @@ def delete_friend():
         return jsonify({'error': 'friend_id is required'}), 400
     friend_id = str(data['friend_id'])
     ensure_user_record(user_id)
-    ensure_user_record(friend_id)
 
-    if user_id in referrals and friend_id in referrals[user_id]:
-        # Удаляем друга у пользователя
-        referrals[user_id].remove(friend_id)
-        # Удаляем пользователя у друга, если связь существует
-        if friend_id in referrals and user_id in referrals[friend_id]:
-            referrals[friend_id].remove(user_id)
-        save_data()
+    if friend_id in referrals.get(user_id, []):
+        DatabaseService.remove_friend(user_id, friend_id)
+        _unlink_both(referrals, user_id, friend_id)
         return jsonify({'success': True})
 
     return jsonify({'error': 'Friend not found'}), 400
-
-
-def run_bot_coro(coro, timeout: float = 10):
-    """Выполняет корутину Telegram Bot API в event loop бота из потока Flask."""
-    if bot_loop is None or not bot_loop.is_running():
-        coro.close()
-        raise RuntimeError('Bot event loop is not running')
-    return asyncio.run_coroutine_threadsafe(coro, bot_loop).result(timeout=timeout)
 
 
 # Кэш аватарок: user_id -> (expires_at, data_url | None). Токен бота на клиент не уходит.
@@ -1452,17 +1308,13 @@ def send_friend_invite():
     
     # Генерируем уникальный ID приглашения
     invite_id = f"friend_{user_id}_{int(time())}"
-    
-    # Сохраняем приглашение
-    if user_id not in pending_friend_requests:
-        pending_friend_requests[user_id] = []
-    pending_friend_requests[user_id].append(invite_id)
-    
-    # Создаем ссылку на бот с параметром для обработки
+
+    DatabaseService.create_invite(invite_id, user_id, 'friend')
+    with data_lock:
+        pending_friend_requests.setdefault(user_id, []).append(invite_id)
+
     invite_link = f"https://t.me/{BOT_USERNAME}?start={invite_id}"
-    
-    save_data()
-    
+
     return jsonify({
         'invite_link': invite_link,
         'message': "Want to be my friend in Affinia? 🌟"
@@ -1495,57 +1347,33 @@ def handle_friend_invite():
         return jsonify({'error': 'Invalid invite ID format'}), 400
     
     inviter_id = parts[1]
-    ensure_user_record(inviter_id)
-    
+    if not inviter_id.isdigit() or inviter_id == invitee_id or inviter_id not in user_tokens:
+        return jsonify({'error': 'Invalid invite ID'}), 400
+
     if decision == 'accept':
-        # Добавляем друзей друг к другу
-        if inviter_id not in referrals:
-            referrals[inviter_id] = []
-        if invitee_id not in referrals:
-            referrals[invitee_id] = []
-        
-        if invitee_id not in referrals[inviter_id]:
-            referrals[inviter_id].append(invitee_id)
-            new_friends_count[inviter_id] = new_friends_count.get(inviter_id, 0) + 1
-        
-        if inviter_id not in referrals[invitee_id]:
-            referrals[invitee_id].append(inviter_id)
-        
-        # Начисляем AFN токены
-        user_tokens[inviter_id] = user_tokens.get(inviter_id, 0) + 50  # 50 AFN приглашающему
-        user_tokens[invitee_id] = user_tokens.get(invitee_id, 0) + 25  # 25 AFN принявшему
-        
-        # Добавляем уведомление для приглашающего
-        if inviter_id not in user_notifications:
-            user_notifications[inviter_id] = []
-        user_notifications[inviter_id].append({
-            'type': 'friend_accepted',
-            'from_user': invitee_id,
-            'timestamp': int(time()),
-            'message': f'User accepted your friend request! 🎉'
-        })
-        
-        save_data()
-        
+        tokens_earned = 0
+        # add_friend возвращает True только для новой связи — награда и уведомление один раз
+        if DatabaseService.add_friend(inviter_id, invitee_id):
+            _link_both(referrals, inviter_id, invitee_id)
+            credit_afn(inviter_id, 50, 'friend_invite_inviter', invite_id)
+            credit_afn(invitee_id, 25, 'friend_invite_accepted', invite_id)
+            tokens_earned = 25
+            DatabaseService.bump_unseen(inviter_id, friends=1)
+            with data_lock:
+                new_friends_count[inviter_id] = new_friends_count.get(inviter_id, 0) + 1
+            notify(inviter_id, 'friend_accepted', invitee_id, 'User accepted your friend request! 🎉')
+        DatabaseService.mark_invite_used(invite_id, invitee_id, 'accept')
+
         return jsonify({
             'success': True,
             'message': 'Friend request accepted!',
-            'tokens_earned': 25
+            'tokens_earned': tokens_earned
         })
-    
+
     elif decision == 'decline':
-        # Добавляем уведомление для приглашающего о отклонении
-        if inviter_id not in user_notifications:
-            user_notifications[inviter_id] = []
-        user_notifications[inviter_id].append({
-            'type': 'friend_declined',
-            'from_user': invitee_id,
-            'timestamp': int(time()),
-            'message': f'User declined your friend request 😔'
-        })
-        
-        save_data()
-        
+        notify(inviter_id, 'friend_declined', invitee_id, 'User declined your friend request 😔')
+        DatabaseService.mark_invite_used(invite_id, invitee_id, 'decline')
+
         return jsonify({
             'success': True,
             'message': 'Friend request declined'
@@ -1567,17 +1395,13 @@ def send_consent_invite():
     
     # Генерируем уникальный ID приглашения
     invite_id = f"consent_{user_id}_{int(time())}"
-    
-    # Сохраняем приглашение
-    if user_id not in pending_consent_requests:
-        pending_consent_requests[user_id] = []
-    pending_consent_requests[user_id].append(invite_id)
-    
-    # Создаем ссылку на бот с параметром для обработки
+
+    DatabaseService.create_invite(invite_id, user_id, 'consent')
+    with data_lock:
+        pending_consent_requests.setdefault(user_id, []).append(invite_id)
+
     invite_link = f"https://t.me/{BOT_USERNAME}?start={invite_id}"
-    
-    save_data()
-    
+
     return jsonify({
         'invite_link': invite_link,
         'message': "Ready to explore an intimate connection? 💕"
@@ -1610,80 +1434,40 @@ def handle_consent_invite():
         return jsonify({'error': 'Invalid invite ID format'}), 400
     
     inviter_id = parts[1]
-    ensure_user_record(inviter_id)
-    
+    if not inviter_id.isdigit() or inviter_id == partner_id or inviter_id not in user_tokens:
+        return jsonify({'error': 'Invalid invite ID'}), 400
+
     if decision == 'accept':
-        # Добавляем партнеров друг к другу
-        if inviter_id not in beloveds:
-            beloveds[inviter_id] = []
-        if partner_id not in beloveds:
-            beloveds[partner_id] = []
-        
-        if partner_id not in beloveds[inviter_id]:
-            beloveds[inviter_id].append(partner_id)
-            new_partners_count[inviter_id] = new_partners_count.get(inviter_id, 0) + 1
-        
-        if inviter_id not in beloveds[partner_id]:
-            beloveds[partner_id].append(inviter_id)
-        
-        # Начисляем AFN токены обоим
-        user_tokens[inviter_id] = user_tokens.get(inviter_id, 0) + 100  # 100 AFN обоим
-        user_tokens[partner_id] = user_tokens.get(partner_id, 0) + 100
-        
-        # Добавляем в историю consent
-        timestamp = int(time())
-        if inviter_id not in consent_history:
-            consent_history[inviter_id] = []
-        if partner_id not in consent_history:
-            consent_history[partner_id] = []
-        
-        consent_record = {
-            'partner_id': partner_id,
-            'timestamp': timestamp,
-            'status': 'active',
-            'type': 'intimate'
-        }
-        consent_history[inviter_id].append(consent_record)
-        
-        consent_record_partner = {
-            'partner_id': inviter_id,
-            'timestamp': timestamp,
-            'status': 'active',
-            'type': 'intimate'
-        }
-        consent_history[partner_id].append(consent_record_partner)
-        
-        # Добавляем уведомление для приглашающего
-        if inviter_id not in user_notifications:
-            user_notifications[inviter_id] = []
-        user_notifications[inviter_id].append({
-            'type': 'consent_accepted',
-            'from_user': partner_id,
-            'timestamp': timestamp,
-            'message': f'Your intimate connection request was accepted! 💕'
-        })
-        
-        save_data()
-        
+        tokens_earned = 0
+        # add_partner возвращает True только для новой связи — награда, consent и уведомление один раз
+        if DatabaseService.add_partner(inviter_id, partner_id):
+            _link_both(beloveds, inviter_id, partner_id)
+            credit_afn(inviter_id, 100, 'consent_inviter', invite_id)
+            credit_afn(partner_id, 100, 'consent_accepted', invite_id)
+            tokens_earned = 100
+
+            consent = DatabaseService.add_consent(inviter_id, partner_id, 'intimate')
+            with data_lock:
+                consent_history.setdefault(inviter_id, []).append({**consent, 'partner_id': partner_id})
+                consent_history.setdefault(partner_id, []).append({**consent, 'partner_id': inviter_id})
+
+            DatabaseService.bump_unseen(inviter_id, partners=1)
+            with data_lock:
+                new_partners_count[inviter_id] = new_partners_count.get(inviter_id, 0) + 1
+            notify(inviter_id, 'consent_accepted', partner_id, 'Your intimate connection request was accepted! 💕')
+            logging.info(f'❤️ CONSENT ACCEPTED: {partner_id} ← {inviter_id}')
+        DatabaseService.mark_invite_used(invite_id, partner_id, 'accept')
+
         return jsonify({
             'success': True,
             'message': 'Consent request accepted!',
-            'tokens_earned': 100
+            'tokens_earned': tokens_earned
         })
-    
+
     elif decision == 'decline':
-        # Добавляем уведомление для приглашающего о отклонении
-        if inviter_id not in user_notifications:
-            user_notifications[inviter_id] = []
-        user_notifications[inviter_id].append({
-            'type': 'consent_declined',
-            'from_user': partner_id,
-            'timestamp': int(time()),
-            'message': f'Your intimate connection request was declined 💔'
-        })
-        
-        save_data()
-        
+        notify(inviter_id, 'consent_declined', partner_id, 'Your intimate connection request was declined 💔')
+        DatabaseService.mark_invite_used(invite_id, partner_id, 'decline')
+
         return jsonify({
             'success': True,
             'message': 'Consent request declined'
@@ -1702,13 +1486,13 @@ def get_notifications():
     
     user_id = validated_user['user_id']
     ensure_user_record(user_id)
-    notifications = user_notifications.get(user_id, [])
-    
-    # Очищаем уведомления после отправки
-    if user_id in user_notifications:
-        user_notifications[user_id] = []
-        save_data()
-    
+    with data_lock:
+        notifications = user_notifications.pop(user_id, [])
+
+    # Доставлено один раз: в БД помечаем, в кэше убираем
+    if notifications:
+        DatabaseService.mark_notifications_delivered(user_id)
+
     return jsonify({'notifications': notifications})
 
 
@@ -1737,10 +1521,50 @@ def clear_new_friends():
     
     user_id = validated_user['user_id']
     ensure_user_record(user_id)
-    if user_id in new_friends_count:
-        new_friends_count[user_id] = 0
-        save_data()
-    
+    if new_friends_count.get(user_id):
+        DatabaseService.clear_unseen(user_id, friends=True)
+        with data_lock:
+            new_friends_count[user_id] = 0
+
+    return jsonify({'success': True})
+
+
+@app.route('/revoke_consent', methods=['POST'])
+def revoke_consent():
+    """Отзыв согласия одной из сторон. Запись не удаляется — меняется статус."""
+    data = request.json or {}
+
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        return jsonify({'error': 'Invalid authentication'}), 401
+
+    user_id = validated_user['user_id']
+    try:
+        consent_id = int(data.get('consent_id'))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'consent_id is required'}), 400
+
+    if not DatabaseService.revoke_consent(consent_id, user_id):
+        return jsonify({'error': 'Consent not found'}), 404
+
+    revoked_ts = int(time())
+    other_id = None
+    with data_lock:
+        for record in consent_history.get(user_id, []):
+            if record.get('id') == consent_id:
+                record['status'] = 'revoked'
+                record['revoked_at'] = revoked_ts
+                other_id = record.get('partner_id')
+        if other_id:
+            for record in consent_history.get(other_id, []):
+                if record.get('id') == consent_id:
+                    record['status'] = 'revoked'
+                    record['revoked_at'] = revoked_ts
+
+    if other_id:
+        notify(other_id, 'consent_revoked', user_id, 'A consent with you has been withdrawn.')
+        logging.info(f'🚫 CONSENT REVOKED: id={consent_id} by {user_id}')
+
     return jsonify({'success': True})
 
 

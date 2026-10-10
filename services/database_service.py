@@ -1,21 +1,34 @@
 """
 Database Service for Affinia
-Handles PostgreSQL database operations using SQLAlchemy
+Handles PostgreSQL database operations using SQLAlchemy.
+
+PostgreSQL is the single source of truth. The in-memory dicts in app.py are a
+read cache that is rebuilt from `load_snapshot()` on startup; every mutation
+must go through a method here (write-through).
 """
 
 import os
 import logging
 from typing import Optional, Dict, List, Any
-from datetime import datetime
+from datetime import datetime, timezone
 
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Table
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, scoped_session, relationship
+from sqlalchemy import (
+    create_engine, Column, Integer, BigInteger, String, Boolean, DateTime, Text,
+    ForeignKey, Table, select, update, text, func,
+)
+from sqlalchemy.orm import DeclarativeBase, sessionmaker, scoped_session, relationship
 from sqlalchemy.pool import QueuePool
 
 logger = logging.getLogger(__name__)
 
-Base = declarative_base()
+
+def utcnow() -> datetime:
+    """Naive UTC timestamp (columns are timezone-naive)."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+class Base(DeclarativeBase):
+    pass
 
 
 # Association tables for many-to-many relationships
@@ -39,19 +52,23 @@ class User(Base):
     __tablename__ = 'users'
 
     user_id = Column(String(50), primary_key=True)
-    balance = Column(Integer, default=0)
-    stars = Column(Integer, default=0)
-    
+    balance = Column(Integer, default=0, nullable=False)
+    stars = Column(Integer, default=0, nullable=False)
+
     # Profile info
     username = Column(String(100), nullable=True)
     first_name = Column(String(100), nullable=True)
     last_name = Column(String(100), nullable=True)
     language_code = Column(String(10), nullable=True)
     is_premium = Column(Boolean, default=False)
-    
+
+    # Unseen counters shown as badges in the Mini App
+    unseen_friends = Column(Integer, default=0, nullable=False)
+    unseen_partners = Column(Integer, default=0, nullable=False)
+
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     # Relationships
     friends = relationship(
@@ -61,7 +78,7 @@ class User(Base):
         secondaryjoin=user_id == referral_friends.c.friend_id,
         backref='referred_by'
     )
-    
+
     partners = relationship(
         'User',
         secondary=beloved_partners,
@@ -71,53 +88,141 @@ class User(Base):
     )
 
 
+class Consent(Base):
+    """An accepted consent between two users. One row per pair."""
+    __tablename__ = 'consents'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    inviter_id = Column(String(50), ForeignKey('users.user_id'), nullable=False, index=True)
+    partner_id = Column(String(50), ForeignKey('users.user_id'), nullable=False, index=True)
+    kind = Column(String(30), default='intimate', nullable=False)
+    status = Column(String(20), default='active', nullable=False)  # active | revoked
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+    revoked_at = Column(DateTime, nullable=True)
+    revoked_by = Column(String(50), nullable=True)
+
+
+class Invite(Base):
+    """Invitation link issued by a user (friend or consent)."""
+    __tablename__ = 'invites'
+
+    token = Column(String(120), primary_key=True)
+    inviter_id = Column(String(50), ForeignKey('users.user_id'), nullable=False, index=True)
+    kind = Column(String(20), nullable=False)  # friend | consent
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=True)
+    used_by = Column(String(50), nullable=True)
+    used_at = Column(DateTime, nullable=True)
+    decision = Column(String(20), nullable=True)  # accept | decline
+
+
+class Notification(Base):
+    """In-app notification for a user; delivered once via /get_notifications."""
+    __tablename__ = 'notifications'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(50), ForeignKey('users.user_id'), nullable=False, index=True)
+    type = Column(String(50), nullable=False)
+    from_user = Column(String(50), nullable=True)
+    message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+    delivered_at = Column(DateTime, nullable=True)
+
+
+class Payment(Base):
+    """Telegram Stars payment, keyed by Telegram's charge id (idempotent)."""
+    __tablename__ = 'payments'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    charge_id = Column(String(120), unique=True, nullable=False)
+    user_id = Column(String(50), ForeignKey('users.user_id'), nullable=False, index=True)
+    amount = Column(Integer, nullable=False)
+    currency = Column(String(10), nullable=False, default='XTR')
+    payload = Column(String(200), nullable=True)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+
+
+class LedgerEntry(Base):
+    """Every AFN balance change, for audit and idempotent rewards."""
+    __tablename__ = 'ledger'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(50), ForeignKey('users.user_id'), nullable=False, index=True)
+    delta = Column(Integer, nullable=False)
+    reason = Column(String(50), nullable=False)
+    ref = Column(String(120), nullable=True)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+
+
+def _ts(dt: Optional[datetime]) -> int:
+    if dt is None:
+        return 0
+    return int(dt.replace(tzinfo=timezone.utc).timestamp())
+
+
 class DatabaseService:
     """Singleton service for database operations"""
-    
+
     _engine = None
     _session_factory = None
     _initialized = False
 
     @classmethod
-    def initialize(cls, database_url: Optional[str] = None) -> bool:
-        """Initialize database connection"""
+    def initialize(cls, database_url: Optional[str] = None, create_tables: bool = False) -> bool:
+        """Initialize database connection.
+
+        Schema is managed by Alembic (release phase on Heroku). `create_tables`
+        is only for tests / local sqlite.
+        """
         if cls._initialized:
             return True
-            
+
         if database_url is None:
             database_url = os.getenv('HEROKU_POSTGRESQL_COBALT_URL') or os.getenv('DATABASE_URL')
-        
+
         if not database_url:
             logger.error("❌ No database URL provided!")
             return False
-        
+
         # Fix postgres:// to postgresql:// for SQLAlchemy 2.0
         if database_url.startswith('postgres://'):
             database_url = database_url.replace('postgres://', 'postgresql://', 1)
-        
+
         try:
-            logger.info(f"🔌 Connecting to PostgreSQL...")
-            cls._engine = create_engine(
-                database_url,
-                poolclass=QueuePool,
-                pool_size=5,
-                max_overflow=10,
-                pool_pre_ping=True,
-                echo=False
-            )
-            
+            logger.info("🔌 Connecting to database...")
+            engine_kwargs: Dict[str, Any] = {'pool_pre_ping': True, 'echo': False}
+            if not database_url.startswith('sqlite'):
+                engine_kwargs.update(poolclass=QueuePool, pool_size=5, max_overflow=10)
+            cls._engine = create_engine(database_url, **engine_kwargs)
             cls._session_factory = scoped_session(sessionmaker(bind=cls._engine))
-            
-            # Create tables if they don't exist
-            Base.metadata.create_all(cls._engine)
-            
+
+            if create_tables:
+                Base.metadata.create_all(cls._engine)
+
+            # Fail fast if the connection is broken
+            with cls._engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+
             cls._initialized = True
-            logger.info("✅ PostgreSQL connected successfully!")
+            logger.info("✅ Database connected successfully!")
             return True
-            
+
         except Exception as e:
             logger.error(f"❌ Database connection failed: {e}")
+            cls._engine = None
+            cls._session_factory = None
             return False
+
+    @classmethod
+    def reset(cls):
+        """Dispose engine (tests)."""
+        if cls._session_factory:
+            cls._session_factory.remove()
+        if cls._engine:
+            cls._engine.dispose()
+        cls._engine = None
+        cls._session_factory = None
+        cls._initialized = False
 
     @classmethod
     def get_session(cls):
@@ -139,37 +244,29 @@ class DatabaseService:
         """Get user by ID"""
         session = cls.get_session()
         try:
-            return session.query(User).filter(User.user_id == user_id).first()
+            return session.get(User, user_id)
         finally:
             cls.close_session()
 
     @classmethod
-    def create_user(cls, user_id: str, balance: int = 0) -> User:
-        """Create a new user"""
-        session = cls.get_session()
-        try:
-            user = User(user_id=user_id, balance=balance)
+    def _get_or_create(cls, session, user_id: str) -> User:
+        user = session.get(User, user_id)
+        if not user:
+            user = User(user_id=user_id, balance=0, stars=0, unseen_friends=0, unseen_partners=0)
             session.add(user)
-            session.commit()
-            logger.info(f"🆕 Created user {user_id} with balance {balance}")
-            return user
-        except Exception as e:
-            session.rollback()
-            logger.error(f"Error creating user {user_id}: {e}")
-            raise
-        finally:
-            cls.close_session()
+            session.flush()
+        return user
 
     @classmethod
     def ensure_user(cls, user_id: str) -> tuple[User, bool]:
         """Ensure user exists, create if not. Returns (user, was_created)"""
         session = cls.get_session()
         try:
-            user = session.query(User).filter(User.user_id == user_id).first()
+            user = session.get(User, user_id)
             if user:
                 return user, False
-            
-            user = User(user_id=user_id, balance=0)
+
+            user = User(user_id=user_id, balance=0, stars=0, unseen_friends=0, unseen_partners=0)
             session.add(user)
             session.commit()
             logger.info(f"🆕 NEW USER: {user_id}")
@@ -188,36 +285,33 @@ class DatabaseService:
         return user.balance if user else 0
 
     @classmethod
-    def update_balance(cls, user_id: str, amount: int) -> int:
-        """Update user balance by amount. Returns new balance."""
+    def add_balance(cls, user_id: str, delta: int, reason: str, ref: Optional[str] = None) -> int:
+        """Atomically change balance and write a ledger entry. Returns new balance."""
         session = cls.get_session()
         try:
-            user = session.query(User).filter(User.user_id == user_id).first()
-            if not user:
-                user = User(user_id=user_id, balance=amount)
-                session.add(user)
-            else:
-                user.balance += amount
+            cls._get_or_create(session, user_id)
+            session.execute(
+                update(User).where(User.user_id == user_id).values(balance=User.balance + delta)
+            )
+            session.add(LedgerEntry(user_id=user_id, delta=delta, reason=reason, ref=ref))
             session.commit()
-            return user.balance
+            return session.execute(select(User.balance).where(User.user_id == user_id)).scalar_one()
         except Exception as e:
             session.rollback()
-            logger.error(f"Error updating balance for {user_id}: {e}")
+            logger.error(f"Error adding balance for {user_id}: {e}")
             raise
         finally:
             cls.close_session()
 
     @classmethod
     def set_balance(cls, user_id: str, balance: int) -> int:
-        """Set user balance to exact value. Returns new balance."""
+        """Set user balance to exact value (admin/repair). Returns new balance."""
         session = cls.get_session()
         try:
-            user = session.query(User).filter(User.user_id == user_id).first()
-            if not user:
-                user = User(user_id=user_id, balance=balance)
-                session.add(user)
-            else:
-                user.balance = balance
+            user = cls._get_or_create(session, user_id)
+            old = user.balance or 0
+            user.balance = balance
+            session.add(LedgerEntry(user_id=user_id, delta=balance - old, reason='set_balance'))
             session.commit()
             return user.balance
         except Exception as e:
@@ -230,16 +324,13 @@ class DatabaseService:
     # ===== Profile Operations =====
 
     @classmethod
-    def update_profile(cls, user_id: str, username: str = None, first_name: str = None, 
+    def update_profile(cls, user_id: str, username: str = None, first_name: str = None,
                        last_name: str = None, language_code: str = None, is_premium: bool = None) -> User:
         """Update user profile info"""
         session = cls.get_session()
         try:
-            user = session.query(User).filter(User.user_id == user_id).first()
-            if not user:
-                user = User(user_id=user_id)
-                session.add(user)
-            
+            user = cls._get_or_create(session, user_id)
+
             if username is not None:
                 user.username = username
             if first_name is not None:
@@ -250,7 +341,7 @@ class DatabaseService:
                 user.language_code = language_code
             if is_premium is not None:
                 user.is_premium = is_premium
-            
+
             session.commit()
             logger.info(f"👤 Updated profile for {user_id}: @{username or 'unknown'}")
             return user
@@ -267,7 +358,7 @@ class DatabaseService:
         user = cls.get_user(user_id)
         if not user:
             return f"User {user_id}"
-        
+
         if user.username:
             return f"@{user.username} (ID: {user_id})"
         elif user.first_name or user.last_name:
@@ -279,22 +370,22 @@ class DatabaseService:
 
     @classmethod
     def add_friend(cls, user_id: str, friend_id: str) -> bool:
-        """Add friend relationship (bidirectional)"""
+        """Add friend relationship (bidirectional). Returns True if a new link was created."""
         session = cls.get_session()
         try:
-            user = session.query(User).filter(User.user_id == user_id).first()
-            friend = session.query(User).filter(User.user_id == friend_id).first()
-            
-            if not user or not friend:
-                return False
-            
+            user = cls._get_or_create(session, user_id)
+            friend = cls._get_or_create(session, friend_id)
+
+            created = False
             if friend not in user.friends:
                 user.friends.append(friend)
+                created = True
             if user not in friend.friends:
                 friend.friends.append(user)
-            
+                created = True
+
             session.commit()
-            return True
+            return created
         except Exception as e:
             session.rollback()
             logger.error(f"Error adding friend: {e}")
@@ -307,7 +398,7 @@ class DatabaseService:
         """Get list of friend user IDs"""
         session = cls.get_session()
         try:
-            user = session.query(User).filter(User.user_id == user_id).first()
+            user = session.get(User, user_id)
             if not user:
                 return []
             return [f.user_id for f in user.friends]
@@ -319,21 +410,22 @@ class DatabaseService:
         """Remove friend relationship"""
         session = cls.get_session()
         try:
-            user = session.query(User).filter(User.user_id == user_id).first()
-            friend = session.query(User).filter(User.user_id == friend_id).first()
-            
+            user = session.get(User, user_id)
+            friend = session.get(User, friend_id)
+
             if not user or not friend:
                 return False
-            
+
             if friend in user.friends:
                 user.friends.remove(friend)
             if user in friend.friends:
                 friend.friends.remove(user)
-            
+
             session.commit()
             return True
         except Exception as e:
             session.rollback()
+            logger.error(f"Error removing friend: {e}")
             return False
         finally:
             cls.close_session()
@@ -342,22 +434,22 @@ class DatabaseService:
 
     @classmethod
     def add_partner(cls, user_id: str, partner_id: str) -> bool:
-        """Add partner relationship (bidirectional)"""
+        """Add partner relationship (bidirectional). Returns True if a new link was created."""
         session = cls.get_session()
         try:
-            user = session.query(User).filter(User.user_id == user_id).first()
-            partner = session.query(User).filter(User.user_id == partner_id).first()
-            
-            if not user or not partner:
-                return False
-            
+            user = cls._get_or_create(session, user_id)
+            partner = cls._get_or_create(session, partner_id)
+
+            created = False
             if partner not in user.partners:
                 user.partners.append(partner)
+                created = True
             if user not in partner.partners:
                 partner.partners.append(user)
-            
+                created = True
+
             session.commit()
-            return True
+            return created
         except Exception as e:
             session.rollback()
             logger.error(f"Error adding partner: {e}")
@@ -370,7 +462,7 @@ class DatabaseService:
         """Get list of partner user IDs"""
         session = cls.get_session()
         try:
-            user = session.query(User).filter(User.user_id == user_id).first()
+            user = session.get(User, user_id)
             if not user:
                 return []
             return [p.user_id for p in user.partners]
@@ -382,22 +474,211 @@ class DatabaseService:
         """Remove partner relationship"""
         session = cls.get_session()
         try:
-            user = session.query(User).filter(User.user_id == user_id).first()
-            partner = session.query(User).filter(User.user_id == partner_id).first()
-            
+            user = session.get(User, user_id)
+            partner = session.get(User, partner_id)
+
             if not user or not partner:
                 return False
-            
+
             if partner in user.partners:
                 user.partners.remove(partner)
             if user in partner.partners:
                 partner.partners.remove(user)
-            
+
             session.commit()
             return True
         except Exception as e:
             session.rollback()
+            logger.error(f"Error removing partner: {e}")
             return False
+        finally:
+            cls.close_session()
+
+    # ===== Consents =====
+
+    @classmethod
+    def add_consent(cls, inviter_id: str, partner_id: str, kind: str = 'intimate') -> Dict[str, Any]:
+        """Record an accepted consent. Returns dict in the app's consent_history shape."""
+        session = cls.get_session()
+        try:
+            cls._get_or_create(session, inviter_id)
+            cls._get_or_create(session, partner_id)
+            consent = Consent(inviter_id=inviter_id, partner_id=partner_id, kind=kind, status='active')
+            session.add(consent)
+            session.commit()
+            return {
+                'id': consent.id,
+                'inviter_id': inviter_id,
+                'partner_id': partner_id,
+                'timestamp': _ts(consent.created_at),
+                'status': consent.status,
+                'type': consent.kind,
+            }
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error adding consent: {e}")
+            raise
+        finally:
+            cls.close_session()
+
+    @classmethod
+    def revoke_consent(cls, consent_id: int, by_user_id: str) -> bool:
+        """Revoke a consent; only one of the two parties may do it."""
+        session = cls.get_session()
+        try:
+            consent = session.get(Consent, consent_id)
+            if not consent or by_user_id not in (consent.inviter_id, consent.partner_id):
+                return False
+            if consent.status == 'active':
+                consent.status = 'revoked'
+                consent.revoked_at = utcnow()
+                consent.revoked_by = by_user_id
+                session.commit()
+            return True
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error revoking consent: {e}")
+            return False
+        finally:
+            cls.close_session()
+
+    # ===== Invites =====
+
+    @classmethod
+    def create_invite(cls, token: str, inviter_id: str, kind: str, expires_at: Optional[datetime] = None) -> bool:
+        session = cls.get_session()
+        try:
+            cls._get_or_create(session, inviter_id)
+            session.add(Invite(token=token, inviter_id=inviter_id, kind=kind, expires_at=expires_at))
+            session.commit()
+            return True
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error creating invite: {e}")
+            return False
+        finally:
+            cls.close_session()
+
+    @classmethod
+    def get_invite(cls, token: str) -> Optional[Invite]:
+        session = cls.get_session()
+        try:
+            return session.get(Invite, token)
+        finally:
+            cls.close_session()
+
+    @classmethod
+    def mark_invite_used(cls, token: str, used_by: str, decision: str) -> bool:
+        session = cls.get_session()
+        try:
+            invite = session.get(Invite, token)
+            if not invite:
+                return False
+            invite.used_by = used_by
+            invite.used_at = utcnow()
+            invite.decision = decision
+            session.commit()
+            return True
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error marking invite used: {e}")
+            return False
+        finally:
+            cls.close_session()
+
+    # ===== Notifications =====
+
+    @classmethod
+    def add_notification(cls, user_id: str, type_: str, from_user: Optional[str], message: str) -> Dict[str, Any]:
+        session = cls.get_session()
+        try:
+            cls._get_or_create(session, user_id)
+            n = Notification(user_id=user_id, type=type_, from_user=from_user, message=message)
+            session.add(n)
+            session.commit()
+            return {'type': type_, 'from_user': from_user, 'timestamp': _ts(n.created_at), 'message': message}
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error adding notification: {e}")
+            raise
+        finally:
+            cls.close_session()
+
+    @classmethod
+    def mark_notifications_delivered(cls, user_id: str) -> None:
+        session = cls.get_session()
+        try:
+            session.execute(
+                update(Notification)
+                .where(Notification.user_id == user_id, Notification.delivered_at.is_(None))
+                .values(delivered_at=utcnow())
+            )
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error marking notifications delivered: {e}")
+        finally:
+            cls.close_session()
+
+    # ===== Unseen counters =====
+
+    @classmethod
+    def bump_unseen(cls, user_id: str, friends: int = 0, partners: int = 0) -> None:
+        session = cls.get_session()
+        try:
+            cls._get_or_create(session, user_id)
+            session.execute(
+                update(User).where(User.user_id == user_id).values(
+                    unseen_friends=User.unseen_friends + friends,
+                    unseen_partners=User.unseen_partners + partners,
+                )
+            )
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error bumping unseen counters: {e}")
+        finally:
+            cls.close_session()
+
+    @classmethod
+    def clear_unseen(cls, user_id: str, friends: bool = False, partners: bool = False) -> None:
+        values = {}
+        if friends:
+            values['unseen_friends'] = 0
+        if partners:
+            values['unseen_partners'] = 0
+        if not values:
+            return
+        session = cls.get_session()
+        try:
+            session.execute(update(User).where(User.user_id == user_id).values(**values))
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error clearing unseen counters: {e}")
+        finally:
+            cls.close_session()
+
+    # ===== Payments =====
+
+    @classmethod
+    def record_payment(cls, charge_id: str, user_id: str, amount: int, currency: str = 'XTR',
+                       payload: Optional[str] = None) -> Optional[int]:
+        """Record a Stars payment and credit stars. Returns new stars total, or None if duplicate."""
+        session = cls.get_session()
+        try:
+            existing = session.execute(select(Payment.id).where(Payment.charge_id == charge_id)).first()
+            if existing:
+                return None
+            cls._get_or_create(session, user_id)
+            session.add(Payment(charge_id=charge_id, user_id=user_id, amount=amount, currency=currency, payload=payload))
+            session.execute(update(User).where(User.user_id == user_id).values(stars=User.stars + amount))
+            session.commit()
+            return session.execute(select(User.stars).where(User.user_id == user_id)).scalar_one()
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error recording payment {charge_id}: {e}")
+            raise
         finally:
             cls.close_session()
 
@@ -408,8 +689,8 @@ class DatabaseService:
         """Get all users as dict {user_id: balance}"""
         session = cls.get_session()
         try:
-            users = session.query(User).all()
-            return {u.user_id: u.balance for u in users}
+            rows = session.execute(select(User.user_id, User.balance)).all()
+            return {uid: bal or 0 for uid, bal in rows}
         finally:
             cls.close_session()
 
@@ -418,72 +699,80 @@ class DatabaseService:
         """Get total user count"""
         session = cls.get_session()
         try:
-            return session.query(User).count()
+            return session.execute(select(func.count()).select_from(User)).scalar_one()
         finally:
             cls.close_session()
 
     @classmethod
-    def migrate_from_json(cls, data: Dict[str, Any]) -> bool:
-        """Migrate data from JSON format to PostgreSQL"""
+    def load_snapshot(cls) -> Dict[str, Any]:
+        """Load the whole state in a handful of queries (no N+1) in app.py's cache shape."""
         session = cls.get_session()
         try:
-            user_tokens = data.get('user_tokens', {})
-            referrals = data.get('referrals', {})
-            beloveds = data.get('beloveds', {})
-            user_profiles = data.get('user_profiles', {})
-            user_stars = data.get('user_stars', {})
-            
-            # Create all users first
-            for user_id, balance in user_tokens.items():
-                user = session.query(User).filter(User.user_id == user_id).first()
-                if not user:
-                    user = User(user_id=user_id)
-                    session.add(user)
-                user.balance = balance
-                user.stars = user_stars.get(user_id, 0)
-                
-                # Update profile if exists
-                if user_id in user_profiles:
-                    profile = user_profiles[user_id]
-                    user.username = profile.get('username', '')
-                    user.first_name = profile.get('first_name', '')
-                    user.last_name = profile.get('last_name', '')
-                    user.language_code = profile.get('language_code', '')
-                    user.is_premium = profile.get('is_premium', False)
-            
-            session.commit()
-            logger.info(f"✅ Migrated {len(user_tokens)} users")
-            
-            # Add friend relationships
-            for user_id, friends in referrals.items():
-                user = session.query(User).filter(User.user_id == user_id).first()
-                if user:
-                    for friend_id in friends:
-                        friend = session.query(User).filter(User.user_id == friend_id).first()
-                        if friend and friend not in user.friends:
-                            user.friends.append(friend)
-            
-            session.commit()
-            logger.info(f"✅ Migrated referral relationships")
-            
-            # Add partner relationships
-            for user_id, partners in beloveds.items():
-                user = session.query(User).filter(User.user_id == user_id).first()
-                if user:
-                    for partner_id in partners:
-                        partner = session.query(User).filter(User.user_id == partner_id).first()
-                        if partner and partner not in user.partners:
-                            user.partners.append(partner)
-            
-            session.commit()
-            logger.info(f"✅ Migrated beloved relationships")
-            
-            return True
-            
-        except Exception as e:
-            session.rollback()
-            logger.error(f"❌ Migration failed: {e}")
-            return False
+            users = session.execute(select(User)).scalars().all()
+
+            user_tokens: Dict[str, int] = {}
+            user_stars: Dict[str, int] = {}
+            user_profiles: Dict[str, Dict[str, Any]] = {}
+            new_friends_count: Dict[str, int] = {}
+            new_partners_count: Dict[str, int] = {}
+            for u in users:
+                user_tokens[u.user_id] = u.balance or 0
+                if u.stars:
+                    user_stars[u.user_id] = u.stars
+                if u.username or u.first_name:
+                    user_profiles[u.user_id] = {
+                        'username': u.username or '',
+                        'first_name': u.first_name or '',
+                        'last_name': u.last_name or '',
+                        'language_code': u.language_code or '',
+                        'is_premium': bool(u.is_premium),
+                    }
+                if u.unseen_friends:
+                    new_friends_count[u.user_id] = u.unseen_friends
+                if u.unseen_partners:
+                    new_partners_count[u.user_id] = u.unseen_partners
+
+            referrals: Dict[str, List[str]] = {}
+            for uid, fid in session.execute(select(referral_friends.c.user_id, referral_friends.c.friend_id)).all():
+                referrals.setdefault(uid, []).append(fid)
+
+            beloveds: Dict[str, List[str]] = {}
+            for uid, pid in session.execute(select(beloved_partners.c.user_id, beloved_partners.c.partner_id)).all():
+                beloveds.setdefault(uid, []).append(pid)
+
+            consent_history: Dict[str, List[Dict[str, Any]]] = {}
+            for c in session.execute(select(Consent).order_by(Consent.created_at)).scalars().all():
+                base = {'id': c.id, 'timestamp': _ts(c.created_at), 'status': c.status, 'type': c.kind}
+                consent_history.setdefault(c.inviter_id, []).append({**base, 'partner_id': c.partner_id})
+                consent_history.setdefault(c.partner_id, []).append({**base, 'partner_id': c.inviter_id})
+
+            user_notifications: Dict[str, List[Dict[str, Any]]] = {}
+            for n in session.execute(
+                select(Notification).where(Notification.delivered_at.is_(None)).order_by(Notification.created_at)
+            ).scalars().all():
+                user_notifications.setdefault(n.user_id, []).append({
+                    'type': n.type, 'from_user': n.from_user, 'timestamp': _ts(n.created_at), 'message': n.message,
+                })
+
+            pending_friend_requests: Dict[str, List[str]] = {}
+            pending_consent_requests: Dict[str, List[str]] = {}
+            for inv in session.execute(select(Invite).where(Invite.used_at.is_(None))).scalars().all():
+                target = pending_friend_requests if inv.kind == 'friend' else pending_consent_requests
+                target.setdefault(inv.inviter_id, []).append(inv.token)
+
+            return {
+                'user_tokens': user_tokens,
+                'referrals': referrals,
+                'beloveds': beloveds,
+                'user_stars': user_stars,
+                'user_profiles': user_profiles,
+                'pending_friend_requests': pending_friend_requests,
+                'pending_consent_requests': pending_consent_requests,
+                'user_notifications': user_notifications,
+                'new_friends_count': new_friends_count,
+                'new_partners_count': new_partners_count,
+                'consent_history': consent_history,
+            }
         finally:
             cls.close_session()
 
@@ -492,7 +781,7 @@ class DatabaseService:
         """Test database connection"""
         try:
             session = cls.get_session()
-            session.execute("SELECT 1")
+            session.execute(text("SELECT 1"))
             cls.close_session()
             return True
         except Exception as e:
