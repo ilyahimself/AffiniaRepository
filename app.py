@@ -359,10 +359,17 @@ if not WEBAPP_URL:
     logging.warning('⚠️ WARNING: WEBAPP_URL not set, using default Heroku URL')
     WEBAPP_URL = "https://affinia.herokuapp.com"
 
+async def _remember_bot_loop(_application) -> None:
+    """post_init: запоминаем loop, в котором реально крутится бот (не полагаемся на то, какой loop выберет PTB)."""
+    global bot_loop
+    bot_loop = asyncio.get_running_loop()
+
+
 # Инициализация бота с проверкой токена
 try:
     bot = Bot(token=API_TOKEN)
-    application = Application.builder().token(API_TOKEN).connection_pool_size(50).build()
+    application = (Application.builder().token(API_TOKEN).connection_pool_size(50)
+                   .post_init(_remember_bot_loop).build())
     logging.info(f'✅ Bot initialized successfully with username: @{BOT_USERNAME}')
 except Exception as e:
     logging.error(f'❌ Failed to initialize bot: {e}')
@@ -1020,7 +1027,6 @@ def setup_handlers():
 def run_bot_polling():
     """Запуск бота в режиме polling"""
     global bot_loop
-    # Создаем новый event loop для polling (современный способ)
     bot_loop = asyncio.new_event_loop()
     asyncio.set_event_loop(bot_loop)
     
