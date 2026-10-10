@@ -27,6 +27,11 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
+# Placeholder that replaces an erased user's id in records shared with other people
+# (their consent history, payment records). Not a real Telegram id, so it can never log in.
+DELETED_USER_ID = 'deleted'
+
+
 class Base(DeclarativeBase):
     pass
 
@@ -683,6 +688,102 @@ class DatabaseService:
         finally:
             cls.close_session()
 
+    # ===== GDPR: access and erasure =====
+
+    @classmethod
+    def export_user(cls, user_id: str) -> Optional[Dict[str, Any]]:
+        """Everything stored about one user, as plain JSON-serialisable data (right of access)."""
+        session = cls.get_session()
+        try:
+            u = session.get(User, user_id)
+            if u is None:
+                return None
+            iso = lambda dt: dt.isoformat() + 'Z' if dt else None  # noqa: E731
+            return {
+                'user': {
+                    'user_id': u.user_id, 'balance': u.balance, 'stars': u.stars,
+                    'username': u.username, 'first_name': u.first_name, 'last_name': u.last_name,
+                    'language_code': u.language_code, 'is_premium': bool(u.is_premium),
+                    'created_at': iso(u.created_at), 'updated_at': iso(u.updated_at),
+                },
+                'friends': [fid for (fid,) in session.execute(
+                    select(referral_friends.c.friend_id).where(referral_friends.c.user_id == user_id)).all()],
+                'partners': [pid for (pid,) in session.execute(
+                    select(beloved_partners.c.partner_id).where(beloved_partners.c.user_id == user_id)).all()],
+                'consents': [
+                    {'id': c.id, 'inviter_id': c.inviter_id, 'partner_id': c.partner_id, 'kind': c.kind,
+                     'status': c.status, 'created_at': iso(c.created_at), 'revoked_at': iso(c.revoked_at),
+                     'revoked_by': c.revoked_by}
+                    for c in session.execute(select(Consent).where(
+                        (Consent.inviter_id == user_id) | (Consent.partner_id == user_id))).scalars().all()
+                ],
+                'invites_issued': [
+                    {'kind': i.kind, 'created_at': iso(i.created_at), 'expires_at': iso(i.expires_at),
+                     'used_at': iso(i.used_at), 'decision': i.decision}
+                    for i in session.execute(select(Invite).where(Invite.inviter_id == user_id)).scalars().all()
+                ],
+                'payments': [
+                    {'charge_id': p.charge_id, 'amount': p.amount, 'currency': p.currency, 'created_at': iso(p.created_at)}
+                    for p in session.execute(select(Payment).where(Payment.user_id == user_id)).scalars().all()
+                ],
+                'ledger': [
+                    {'delta': e.delta, 'reason': e.reason, 'ref': e.ref, 'created_at': iso(e.created_at)}
+                    for e in session.execute(select(LedgerEntry).where(LedgerEntry.user_id == user_id)).scalars().all()
+                ],
+            }
+        finally:
+            cls.close_session()
+
+    @classmethod
+    def delete_user(cls, user_id: str) -> bool:
+        """Erase a user (right to erasure).
+
+        Everything owned by the user is deleted. Records that also belong to someone else
+        (the other party's consent history, payment records) are kept with the user's id
+        replaced by the DELETED_USER_ID placeholder; active consents are revoked.
+        """
+        if user_id == DELETED_USER_ID:
+            return False
+        session = cls.get_session()
+        try:
+            if session.get(User, user_id) is None:
+                return False
+            if session.get(User, DELETED_USER_ID) is None:
+                session.add(User(user_id=DELETED_USER_ID, balance=0, stars=0, first_name='Deleted user'))
+                session.flush()
+            now = utcnow()
+
+            session.execute(referral_friends.delete().where(
+                (referral_friends.c.user_id == user_id) | (referral_friends.c.friend_id == user_id)))
+            session.execute(beloved_partners.delete().where(
+                (beloved_partners.c.user_id == user_id) | (beloved_partners.c.partner_id == user_id)))
+
+            session.execute(update(Consent).where(
+                ((Consent.inviter_id == user_id) | (Consent.partner_id == user_id)) & (Consent.status == 'active')
+            ).values(status='revoked', revoked_at=now, revoked_by=DELETED_USER_ID))
+            session.execute(update(Consent).where(Consent.inviter_id == user_id).values(inviter_id=DELETED_USER_ID))
+            session.execute(update(Consent).where(Consent.partner_id == user_id).values(partner_id=DELETED_USER_ID))
+            session.execute(update(Consent).where(Consent.revoked_by == user_id).values(revoked_by=DELETED_USER_ID))
+
+            session.execute(Invite.__table__.delete().where(Invite.inviter_id == user_id))
+            session.execute(update(Invite).where(Invite.used_by == user_id).values(used_by=DELETED_USER_ID))
+
+            session.execute(Notification.__table__.delete().where(Notification.user_id == user_id))
+            session.execute(update(Notification).where(Notification.from_user == user_id).values(from_user=DELETED_USER_ID))
+
+            session.execute(LedgerEntry.__table__.delete().where(LedgerEntry.user_id == user_id))
+            session.execute(update(Payment).where(Payment.user_id == user_id).values(user_id=DELETED_USER_ID))
+
+            session.execute(User.__table__.delete().where(User.user_id == user_id))
+            session.commit()
+            return True
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error deleting user: {e}")
+            raise
+        finally:
+            cls.close_session()
+
     # ===== Bulk Operations =====
 
     @classmethod
@@ -717,6 +818,8 @@ class DatabaseService:
             new_friends_count: Dict[str, int] = {}
             new_partners_count: Dict[str, int] = {}
             for u in users:
+                if u.user_id == DELETED_USER_ID:
+                    continue
                 user_tokens[u.user_id] = u.balance or 0
                 if u.stars:
                     user_stars[u.user_id] = u.stars

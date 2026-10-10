@@ -90,7 +90,8 @@ def enforce_rate_limit(key: str, limit: int, window: int, message: str = None) -
         bucket = _rate_buckets[key]
         bucket[:] = [t for t in bucket if now - t < window]
         if len(bucket) >= limit:
-            logging.warning(f'🛡️ rate limit exceeded: {key}')
+            bucket_name, _, subject = key.partition(':')
+            logging.warning(f'🛡️ rate limit exceeded: {bucket_name}:{utag(subject)}')
             raise RateLimited(message or RateLimited().message)
         bucket.append(now)
         # Периодически выбрасываем протухшие ключи, чтобы словарь не рос бесконечно
@@ -251,8 +252,20 @@ def is_valid_referrer(referrer_id: str, user_id: str) -> bool:
     return referrer_id in user_tokens
 
 
+def utag(user_id) -> str:
+    """Псевдоним пользователя для логов: стабильный, но не раскрывает Telegram ID и имя.
+
+    Логи уходят на сторону хостинга; по тегу можно связать события одного пользователя
+    при отладке, а восстановить ID без LOG_SALT нельзя.
+    """
+    if not user_id:
+        return 'u:none'
+    digest = hmac.new(LOG_SALT.encode(), str(user_id).encode(), hashlib.sha256).hexdigest()
+    return f'u:{digest[:10]}'
+
+
 def get_user_display_name(user_id: str) -> str:
-    """Получает отображаемое имя пользователя (никнейм или имя)"""
+    """Имя пользователя для сообщений людям (например, админу). В логи не писать — есть utag()."""
     if not user_id:
         return "Unknown"
     
@@ -286,11 +299,11 @@ def ensure_user_record(user_id: str) -> bool:
         user_tokens.setdefault(user_id, balance)
 
     if created:
-        display_name = get_user_display_name(user_id)
-        logging.info(f'🆕 NEW USER REGISTERED: {display_name} with 0 AFN')
+        logging.info(f'🆕 New user registered: {utag(user_id)}')
 
         # Уведомление админу о новом пользователе
         if ADMIN_ID and user_id != ADMIN_ID:
+            display_name = get_user_display_name(user_id)
             msg = f"🆕 <b>NEW USER REGISTERED!</b>\n\n👤 <b>User:</b> {display_name}\n🆔 <b>ID:</b> <code>{user_id}</code>"
             try:
                 run_bot_coro(application.bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode='HTML'), wait=False)
@@ -356,8 +369,12 @@ if not BOT_USERNAME:
     sys.exit(1)
 
 if not WEBAPP_URL:
-    logging.warning('⚠️ WARNING: WEBAPP_URL not set, using default Heroku URL')
-    WEBAPP_URL = "https://affinia.herokuapp.com"
+    logging.error('❌ CRITICAL: WEBAPP_URL environment variable is not set!')
+    sys.exit(1)
+WEBAPP_URL = WEBAPP_URL.rstrip('/')
+
+# Соль для псевдонимов в логах. Отдельная переменная, чтобы ротация токена бота не меняла теги.
+LOG_SALT = os.getenv('LOG_SALT') or API_TOKEN
 
 async def _remember_bot_loop(_application) -> None:
     """post_init: запоминаем loop, в котором реально крутится бот (не полагаемся на то, какой loop выберет PTB)."""
@@ -591,7 +608,7 @@ def get_balance():
         changed = user_profiles.get(user_id) != profile
         user_profiles[user_id] = profile
     if changed:
-        logging.info(f'👤 Profile from Mini App: {user_id} → @{profile["username"] or "unknown"}')
+        logging.info(f'👤 Profile updated from Mini App: {utag(user_id)}')
         try:
             DatabaseService.update_profile(user_id, **profile)
         except Exception as e:
@@ -600,8 +617,7 @@ def get_balance():
     with data_lock:
         balance = user_tokens.get(user_id, 0)
     
-    display_name = get_user_display_name(user_id)
-    logging.info(f'💰 Balance check: {display_name} → {balance} AFN')
+    logging.info(f'💰 Balance check: {utag(user_id)} → {balance} AFN')
     return jsonify({'balance': balance})
 
 
@@ -617,8 +633,7 @@ def create_referral_link():
     ensure_user_record(user_id)
     
     referral_link = f"https://t.me/{BOT_USERNAME}?start={user_id}"
-    display_name = get_user_display_name(user_id)
-    logging.info(f'🔗 Referral link created: {display_name}')
+    logging.info(f'🔗 Referral link created: {utag(user_id)}')
     return jsonify({'link': referral_link})
 
 
@@ -775,7 +790,7 @@ def get_donate_link():
     
     # Валидация суммы
     if not isinstance(amount, int) or amount < 50 or amount > 10000:
-        logging.warning(f'Invalid donation amount from user {user_id}: {amount}')
+        logging.warning(f'Invalid donation amount from {utag(user_id)}: {amount}')
         return jsonify({'error': 'Amount must be between 50 and 10000 stars'}), 400
 
     # Создаем описание в зависимости от суммы
@@ -797,10 +812,10 @@ def get_donate_link():
             currency="XTR",     # Валюта Telegram Stars
             prices=[LabeledPrice(label=f"{tier} ({amount} Stars)", amount=amount)]
         ))
-        logging.info(f'Donation invoice created for user {user_id}: {amount} stars, tier: {tier}')
+        logging.info(f'Donation invoice created for {utag(user_id)}: {amount} stars, tier: {tier}')
         return jsonify({'success': True, 'invoice_link': invoice_link})
     except Exception as e:
-        logging.error(f"Error creating invoice for user {user_id}: {e}")
+        logging.error(f"Error creating invoice for {utag(user_id)}: {e}")
         return jsonify({'error': 'Failed to create donation invoice'}), 500
 
 # ===== Хендлеры бота =====
@@ -815,8 +830,7 @@ async def start(update: Update, context: CallbackContext) -> None:
     ensure_user_record(user_id)
     
     # Логируем вход пользователя
-    display_name = get_user_display_name(user_id)
-    logging.info(f'👤 User started bot: {display_name}')
+    logging.info(f'👤 User started bot: {utag(user_id)}')
     
     if args:
         arg = args[0]
@@ -824,7 +838,7 @@ async def start(update: Update, context: CallbackContext) -> None:
         # ВАЖНО: Проверяем, не является ли это зарезервированным параметром
         if is_reserved_start_payload(arg):
             # Это системный параметр (webapp, appcenter и т.д.) - просто показываем меню
-            logging.info(f'User {user_id} started with reserved payload: {arg}')
+            logging.info(f'{utag(user_id)} started with reserved payload: {arg}')
             await show_menu(update, context, user_id)
             return
         
@@ -839,12 +853,12 @@ async def start(update: Update, context: CallbackContext) -> None:
                 await referral_start(update, context, arg)
             else:
                 # ID числовой, но пользователь не существует или это сам пользователь
-                logging.warning(f'Invalid referral link (user not found): {arg} for user {user_id}')
+                logging.warning(f'Invalid referral link (user not found) for {utag(user_id)}')
                 await update.message.reply_text("Invalid referral link.")
                 await show_menu(update, context, user_id)
         else:
             # Параметр не числовой и не friend_/consent_ -> считаем системным
-            logging.info(f'User {user_id} started with non-numeric parameter (treated as reserved): {arg}')
+            logging.info(f'{utag(user_id)} started with non-numeric parameter (treated as reserved): {arg[:20]}')
             await show_menu(update, context, user_id)
     else:
         await show_menu(update, context, user_id)
@@ -873,7 +887,7 @@ async def referral_start(update: Update, context: CallbackContext, referrer_id: 
             credit_afn(referrer_id, 10, 'referral_inviter', ref)
             credit_afn(new_user_id, 5, 'referral_joined', ref)
 
-            logging.info(f'🎉 REFERRAL SUCCESS! {new_user_id} invited by {referrer_id} | +10 / +5 AFN')
+            logging.info(f'🎉 REFERRAL SUCCESS! {utag(new_user_id)} invited by {utag(referrer_id)} | +10 / +5 AFN')
 
             referrer_text = 'You have been credited with 10 AffinyCoin for inviting a new user.'
             new_user_text = ('Thank you for registering! You have been credited with 5 AffinyCoin.\n'
@@ -909,7 +923,7 @@ async def handle_invitation(update: Update, context: CallbackContext, token: str
     except RateLimited as e:
         invite, error, reply = None, e.message, e.message
     if error:
-        logging.info(f'Invite rejected for {user_id}: {error} ({token[:16]}...)')
+        logging.info(f'Invite rejected for {utag(user_id)}: {error}')
         await update.message.reply_text(reply)
         await show_menu(update, context, user_id)
         return
@@ -970,7 +984,7 @@ async def button_handler(update: Update, context: CallbackContext) -> None:
     elif command == 'create_consent':
         await create_consent_link_btn(query, context)
     else:
-        logging.warning(f'Unknown callback from {user_id}: {command[:40]}')
+        logging.warning(f'Unknown callback from {utag(user_id)}: {command[:40]}')
 
 
 async def balance(update: Update, context: CallbackContext, callback_query=False) -> None:
@@ -1117,11 +1131,11 @@ async def successful_payment_callback(update: Update, context: CallbackContext) 
         new_total = None
 
     if new_total is None:
-        logging.warning(f'Duplicate or failed payment {charge_id} for {user_id}, not crediting again')
+        logging.warning(f'Duplicate or failed payment {charge_id} for {utag(user_id)}, not crediting again')
     else:
         with data_lock:
             user_stars[user_id] = new_total
-        logging.info(f'⭐ PAYMENT: {user_id} +{amount} {payment.currency} (charge {charge_id})')
+        logging.info(f'⭐ PAYMENT: {utag(user_id)} +{amount} {payment.currency} (charge {charge_id})')
 
     # Отправляем персонализированное сообщение
     if amount >= 1000:
@@ -1198,7 +1212,7 @@ def get_avatar_data_url(user_id: str):
     try:
         data_url = run_bot_coro(_fetch_avatar_data_url(user_id))
     except Exception as e:
-        logging.warning(f'Avatar fetch failed for {user_id}: {e}')
+        logging.warning(f'Avatar fetch failed for {utag(user_id)}: {e}')
         data_url = None
     if len(_avatar_cache) >= AVATAR_CACHE_MAX:
         _avatar_cache.clear()
@@ -1395,7 +1409,7 @@ def handle_consent_invite():
             with data_lock:
                 new_partners_count[inviter_id] = new_partners_count.get(inviter_id, 0) + 1
             notify(inviter_id, 'consent_accepted', partner_id, 'Your intimate connection request was accepted! 💕')
-            logging.info(f'❤️ CONSENT ACCEPTED: {partner_id} ← {inviter_id}')
+            logging.info(f'❤️ CONSENT ACCEPTED: {utag(partner_id)} ← {utag(inviter_id)}')
         DatabaseService.mark_invite_used(invite_id, partner_id, 'accept')
 
         return jsonify({
@@ -1503,7 +1517,7 @@ def revoke_consent():
 
     if other_id:
         notify(other_id, 'consent_revoked', user_id, 'A consent with you has been withdrawn.')
-        logging.info(f'🚫 CONSENT REVOKED: id={consent_id} by {user_id}')
+        logging.info(f'🚫 CONSENT REVOKED: id={consent_id} by {utag(user_id)}')
 
     return jsonify({'success': True})
 
@@ -1531,6 +1545,65 @@ def get_consent_history_endpoint():
         'active_consents': active_consents,
         'this_month_consents': this_month_consents
     })
+
+
+# ===== Privacy: documents, data access and erasure (GDPR art. 13, 15, 17) =====
+
+PRIVACY_CONTACT = os.getenv('PRIVACY_CONTACT', '')
+POLICY_UPDATED = '2026-10-10'
+
+
+@app.route('/privacy')
+def privacy_policy():
+    return render_template('privacy.html', bot_username=BOT_USERNAME, contact=PRIVACY_CONTACT, updated=POLICY_UPDATED)
+
+
+@app.route('/terms')
+def terms_of_service():
+    return render_template('terms.html', bot_username=BOT_USERNAME, contact=PRIVACY_CONTACT, updated=POLICY_UPDATED)
+
+
+@app.route('/export_my_data', methods=['POST'])
+def export_my_data():
+    """Всё, что хранится о пользователе, в виде JSON (право на доступ)."""
+    data = request.json or {}
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        return jsonify({'error': 'Invalid authentication'}), 401
+    user_id = validated_user['user_id']
+    enforce_rate_limit(f"export:{user_id}", 5, 3600)
+    ensure_user_record(user_id)
+    export = DatabaseService.export_user(user_id)
+    if export is None:
+        return jsonify({'error': 'User not found'}), 404
+    export['exported_at'] = datetime.now(timezone.utc).isoformat()
+    logging.info(f'📤 Data export: {utag(user_id)}')
+    return jsonify(export)
+
+
+@app.route('/delete_account', methods=['POST'])
+def delete_account():
+    """Удаление аккаунта и данных (право на удаление). Необратимо."""
+    data = request.json or {}
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        return jsonify({'error': 'Invalid authentication'}), 401
+    if data.get('confirm') != 'DELETE':
+        return jsonify({'error': 'Confirmation required'}), 400
+    user_id = validated_user['user_id']
+
+    try:
+        deleted = DatabaseService.delete_user(user_id)
+    except Exception as e:
+        logging.error(f'Account deletion failed for {utag(user_id)}: {e}')
+        return jsonify({'error': 'Deletion failed, please try again later'}), 500
+    if not deleted:
+        return jsonify({'error': 'User not found'}), 404
+
+    _avatar_cache.pop(user_id, None)
+    load_data()  # кэш пересобирается из БД: связи и история у второй стороны обновляются тоже
+    logging.info(f'🗑️ Account deleted: {utag(user_id)}')
+    return jsonify({'success': True})
 
 
 # =====  WEBHOOK ПОДДЕРЖКА (готова, но не активна) =====

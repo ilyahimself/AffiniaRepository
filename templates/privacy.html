@@ -1,0 +1,107 @@
+{% extends "legal_base.html" %}
+{% block title %}Privacy Policy{% endblock %}
+{% block heading %}Privacy Policy{% endblock %}
+{% block body %}
+<p>
+    Affinia is a Telegram Mini App that lets two adults record that they have both agreed to an intimate
+    connection, keep a trust network of friends, and support the project with Telegram Stars.
+    This policy explains what data we store, why, for how long, and how you can access or delete it.
+</p>
+
+<h2>1. Who is responsible</h2>
+<p>
+    The app is operated by the Affinia project team (the "controller"). Affinia is an early-stage product;
+    the legal entity, registered address and data-protection contact will be published here once incorporated.
+</p>
+
+<h2>2. What we store and why</h2>
+<table>
+    <tr><th>Data</th><th>Source</th><th>Purpose</th><th>Legal basis (GDPR art. 6/9)</th></tr>
+    <tr><td>Telegram user ID, username, first/last name, language, Premium flag</td>
+        <td>Telegram, when you open the app or the bot</td>
+        <td>Identify your account, show your name to people you connect with</td>
+        <td>Contract (art. 6(1)(b))</td></tr>
+    <tr><td>Friend links and partner links</td><td>You and the other person</td>
+        <td>Your trust network; both sides see the link</td><td>Contract</td></tr>
+    <tr><td>Consent records: the two user IDs, time created, status (active / revoked), time and author of revocation</td>
+        <td>Created when you accept an invitation</td>
+        <td>The core service: a record both parties can see and either party can revoke</td>
+        <td>Explicit consent (art. 9(2)(a)); you create the record deliberately and can revoke it at any time</td></tr>
+    <tr><td>Invitation links you create (random token, type, expiry, whether it was used)</td>
+        <td>Generated on request</td><td>Deliver and validate invitations; expire after 7 (consent) or 30 (friend) days</td>
+        <td>Contract</td></tr>
+    <tr><td>In-app points (AFN) and a ledger of how they changed</td><td>App</td>
+        <td>Rewards for inviting friends and partners. AFN is an internal score, not money or a cryptocurrency</td>
+        <td>Contract</td></tr>
+    <tr><td>Telegram Stars payments: Telegram charge ID, amount, time</td><td>Telegram Payments</td>
+        <td>Credit your support, prevent double crediting, accounting</td>
+        <td>Contract; legal obligation for accounting records</td></tr>
+    <tr><td>In-app notifications (who connected with you, when)</td><td>App</td><td>Show you what happened</td><td>Contract</td></tr>
+    <tr><td>Technical logs: pseudonymous user tag (a keyed hash, not your ID), IP address on authentication failures and rate-limit events, errors</td>
+        <td>Server</td><td>Security, abuse prevention, debugging</td><td>Legitimate interest (art. 6(1)(f))</td></tr>
+</table>
+<p>
+    We do not ask for or store your phone number, location, messages, photos (your Telegram avatar is fetched
+    on demand and cached in memory for up to one hour), payment card details or any health data.
+    The app contains no advertising or tracking SDKs; Telegram's optional Mini App analytics is enabled only
+    if the operator configures it, and in that case it is listed here.
+</p>
+
+<h2>3. What a consent record is and is not</h2>
+<div class="note">
+    A consent record shows that two Telegram accounts each tapped "accept" at a given time, and whether one of them
+    later revoked it. It is stored in a regular database with timestamps. It is <strong>not</strong> end-to-end
+    encrypted, <strong>not</strong> anchored in a blockchain, <strong>not</strong> a digital signature in the legal sense,
+    and we make no claim about how courts in any country will treat it. Consent to intimacy can be withdrawn at
+    any moment, by words or actions, regardless of what this app shows.
+</div>
+
+<h2>4. Who can see your data</h2>
+<ul>
+    <li>People you are linked with see your Telegram name and avatar and the records you share with them.</li>
+    <li>Nobody else can look you up: the app has no search, directory or public profile.</li>
+    <li>We do not sell or share data with advertisers or data brokers.</li>
+    <li>The project operator receives a notification when a new account is created (name and Telegram ID), used to monitor the service.</li>
+</ul>
+
+<h2>5. Processors and where data is stored</h2>
+<p>
+    The app and its PostgreSQL database are hosted on Heroku (Salesforce, Inc.) in the United States region.
+    Transfers from the EU/EEA rely on Salesforce's certification under the EU-U.S. Data Privacy Framework and
+    Standard Contractual Clauses in Heroku's data processing addendum. Telegram (Telegram FZ-LLC / Telegram
+    Messenger Inc.) processes your identity and payments under its own privacy policy; we receive from
+    Telegram only the fields listed in section 2. We may move hosting to an EU region; this policy will be updated if so.
+</p>
+
+<h2>6. Retention</h2>
+<ul>
+    <li>Account, links, points, notifications: until you delete your account.</li>
+    <li>Invitation tokens: deleted with the account; unused tokens expire automatically.</li>
+    <li>Consent records: until you delete your account. Because a record also belongs to the other person, on deletion your
+        ID in their copy is replaced with a "deleted user" placeholder and any active record is marked revoked.</li>
+    <li>Payment records: kept for accounting after account deletion, with your ID replaced by the placeholder.</li>
+    <li>Server logs: retained by the hosting provider for a short rolling window (typically up to 7 days).</li>
+    <li>Database backups: daily, kept by the hosting provider for up to 7 days, then overwritten.</li>
+</ul>
+
+<h2>7. Your rights</h2>
+<p>
+    Under the GDPR you can access, correct, export, restrict and delete your data, object to processing based on
+    legitimate interest, and complain to a supervisory authority (in Portugal: CNPD, <a href="https://www.cnpd.pt">cnpd.pt</a>).
+    Inside the app: <em>⋯ menu → Settings → Privacy &amp; data</em> gives you <strong>Export my data</strong> (JSON) and
+    <strong>Delete my account</strong>, both immediate and self-service. For anything else, use the contact below.
+</p>
+
+<h2>8. Age</h2>
+<p>The service is intended for adults (18+). We do not knowingly process data of minors; if you believe a minor is using the app, contact us.</p>
+
+<h2>9. Security</h2>
+<p>
+    Requests are authenticated with Telegram's signed <code>initData</code> (checked for signature and freshness);
+    invitation links are random single-use tokens; traffic is TLS-encrypted; database credentials are rotated and not
+    stored in code; access is rate-limited. No system is perfectly secure; if we learn of a breach affecting you, we will notify you via the bot.
+</p>
+
+<h2>10. Changes</h2>
+<p>We will post changes here with a new "last updated" date and, for material changes, notify you in the app.</p>
+{% endblock %}
