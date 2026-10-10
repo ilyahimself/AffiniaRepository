@@ -17,8 +17,9 @@
     <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <!-- Telegram Mini Apps Analytics SDK: сторонний скрипт без версии и SRI, подключаем только когда аналитика настроена -->
+    {# async: сторонний хост не должен блокировать парсинг и запуск приложения, если он медленный или недоступен #}
     {% if analytics_token and analytics_app_name %}
-    <script src="https://tganalytics.xyz/index.js"
+    <script async src="https://tganalytics.xyz/index.js"
         onload="window.telegramAnalyticsReady = true; try { initAnalytics(); } catch (e) { console.error(e); }"
         onerror="console.error('Analytics SDK failed to load')" type="text/javascript">
         </script>
@@ -68,7 +69,7 @@
     </script>
     <!-- TON Connect SDK -->
     <!-- Версия закреплена и защищена SRI: при обновлении поменять и версию, и хэш (sha384 файла) -->
-    <script src="https://unpkg.com/@tonconnect/ui@3.0.2/dist/tonconnect-ui.min.js"
+    <script async src="https://unpkg.com/@tonconnect/ui@3.0.2/dist/tonconnect-ui.min.js"
         integrity="sha384-BTareOTsWX/2zcVxklvKhoTWnYXs1NbbMON7wL80t6xeld55HGlSS/oBJmrEvNG9"
         crossorigin="anonymous"
         onload="console.log('TON Connect SDK loaded')"
@@ -2570,9 +2571,6 @@
             // Проверяем приглашения
             checkForInvitations();
 
-            // Проверяем consent ссылки
-            checkForConsentLink();
-
             // Проверяем уведомления
             checkForNotifications();
 
@@ -3184,55 +3182,6 @@
         function showSafetyDetails() {
             alert('🛡️ Safety Status Details\n\nYour current safety status:\n\n• Digital consent protection: ACTIVE\n• Emergency contacts: Configured\n• Trust network: Connected\n• Legal backup: Enabled\n• 24/7 monitoring: Active');
             addActivityItem('🛡️', 'Viewed safety details');
-        }
-
-        // Auto-add partner when consent link is used
-        function addPartnerFromConsent(consentId) {
-            const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
-            if (!userId) return;
-
-            // Parse consent ID to get referrer ID
-            const parts = consentId.split('_');
-            if (parts.length >= 2) {
-                const referrerId = parts[1];
-
-                // Add to partners list
-                if (!window.partners) window.partners = [];
-
-                const newPartner = {
-                    id: referrerId,
-                    name: `Partner from consent`,
-                    status: 'potential',
-                    addedAt: new Date(),
-                    consentId: consentId
-                };
-
-                // Check if partner already exists
-                const existingPartner = window.partners.find(p => p.id === referrerId);
-                if (!existingPartner) {
-                    window.partners.push(newPartner);
-                    addActivityItem('👥', 'New partner added from consent link');
-
-                    // Update partners list if on partners page
-                    if (document.getElementById('beloved-page').classList.contains('active')) {
-                        updateBelovedList();
-                    }
-                }
-            }
-        }
-
-        // Check for consent link on app start
-        function checkForConsentLink() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const startParam = urlParams.get('start');
-
-            if (startParam && startParam.startsWith('consent_')) {
-                addPartnerFromConsent(startParam);
-                // Show welcome message
-                setTimeout(() => {
-                    alert('👋 Welcome! You\'ve been invited to join a consent agreement.\n\nThis person will now appear in your Partners list.\n\nPlease review the consent details and respond accordingly.');
-                }, 1000);
-            }
         }
 
         // Функция для отслеживания событий аналитики
@@ -4695,7 +4644,9 @@
         }
 
 
-        window.onload = function () {
+        // DOMContentLoaded, а не window.onload: load ждёт все внешние скрипты и картинки,
+        // и один зависший сторонний хост держал бы приложение на экране загрузки
+        document.addEventListener('DOMContentLoaded', function () {
             // Инициализация Telegram WebApp
             if (window.Telegram && window.Telegram.WebApp) {
                 window.Telegram.WebApp.ready();
@@ -4740,7 +4691,7 @@
             updateCounter();
             showPage('main-page'); // Показываем страницу Main по умолчанию
 
-        };
+        });
 
 
         function getConsentLink() {
