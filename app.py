@@ -7,6 +7,8 @@ import asyncio
 import qrcode
 import hmac
 import hashlib
+import secrets
+from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, unquote
 from io import BytesIO
 from base64 import b64encode
@@ -429,6 +431,39 @@ def notify(user_id: str, type_: str, from_user: str, message: str) -> None:
         user_notifications.setdefault(user_id, []).append(record)
 
 
+# ===== Invites =====
+# Токен выдаёт только сервер; принять можно лишь существующий, неиспользованный и непросроченный.
+INVITE_TTL = {'friend': timedelta(days=30), 'consent': timedelta(days=7)}
+
+
+def issue_invite(user_id: str, kind: str) -> tuple[str, str]:
+    """Создаёт инвайт в БД. Возвращает (token, deep link). Префикс kind_ нужен боту и фронту для диспетчеризации."""
+    token = f"{kind}_{secrets.token_urlsafe(16)}"
+    expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + INVITE_TTL[kind]
+    if not DatabaseService.create_invite(token, user_id, kind, expires_at):
+        raise RuntimeError('could not create invite')
+    cache = pending_friend_requests if kind == 'friend' else pending_consent_requests
+    with data_lock:
+        cache.setdefault(user_id, []).append(token)
+    return token, f"https://t.me/{BOT_USERNAME}?start={token}"
+
+
+def lookup_invite(token: str, kind: str, acceptor_id: str = None):
+    """Возвращает (invite, None) если токен валиден, иначе (None, причина)."""
+    if not isinstance(token, str) or not token.startswith(f"{kind}_") or len(token) > 120:
+        return None, 'Invalid invite ID'
+    invite = DatabaseService.get_invite(token)
+    if invite is None or invite.kind != kind:
+        return None, 'Invite not found'
+    if invite.used_at is not None:
+        return None, 'Invite already used'
+    if invite.expires_at is not None and invite.expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
+        return None, 'Invite expired'
+    if acceptor_id is not None and invite.inviter_id == acceptor_id:
+        return None, 'You cannot accept your own invite'
+    return invite, None
+
+
 # Flask-маршруты
 @app.route('/mini_app')
 def mini_app():
@@ -578,112 +613,71 @@ def generate_referral_qr():
     user_id = validated_user['user_id']
     ensure_user_record(user_id)
     referral_link = f"https://t.me/{BOT_USERNAME}?start={user_id}"
+    return jsonify({'referral_link': referral_link, 'qr_code': _qr_png_base64(referral_link)})
 
-    # Генерация QR-кода
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(referral_link)
+
+def _qr_png_base64(payload: str) -> str:
+    qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=10, border=4)
+    qr.add_data(payload)
     qr.make(fit=True)
-
     img = qr.make_image(fill_color="black", back_color="white")
     buffered = BytesIO()
     img.save(buffered, format="PNG")
-    qr_code_base64 = b64encode(buffered.getvalue()).decode('utf-8')
-    return jsonify({'referral_link': referral_link, 'qr_code': qr_code_base64})
+    return b64encode(buffered.getvalue()).decode('utf-8')
 
 
 @app.route('/create_consent_link', methods=['POST'])
 def create_consent_link():
     data = request.json or {}
-    
+
     validated_user = get_validated_user(data)
     if not validated_user:
         return jsonify({'error': 'Invalid authentication'}), 401
-    
+
     user_id = validated_user['user_id']
     ensure_user_record(user_id)
-    consent_link = f"https://t.me/{BOT_USERNAME}?start=consent_{user_id}"
+    _, consent_link = issue_invite(user_id, 'consent')
     return jsonify({'link': consent_link})
 
 
 @app.route('/generate_consent_qr', methods=['POST'])
 def generate_consent_qr():
-    data = request.json
-    if 'user_id' not in data:
-        return jsonify({'error': 'user_id is required'}), 400
-
-    user_id = str(data['user_id'])
-    ensure_user_record(user_id)
-    # Ссылка ведёт прямо в мини-приложение с GET-параметром consent
-    consent_link = f"{URL}/mini_app?consent={user_id}"
-
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(consent_link)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-    buffered = BytesIO()
-    img.save(buffered, format="PNG")
-    qr_code_base64 = b64encode(buffered.getvalue()).decode('utf-8')
-    return jsonify({'consent_link': consent_link, 'qr_code': qr_code_base64})
-
-
-@app.route('/consent_response', methods=['POST'])
-def consent_response():
     data = request.json or {}
-    
+
     validated_user = get_validated_user(data)
     if not validated_user:
         return jsonify({'error': 'Invalid authentication'}), 401
 
-    new_user_id = validated_user['user_id']
-    
-    if 'referrer_id' not in data or 'decision' not in data:
-        return jsonify({'error': 'Missing parameters'}), 400
+    user_id = validated_user['user_id']
+    ensure_user_record(user_id)
+    _, consent_link = issue_invite(user_id, 'consent')
+    return jsonify({'consent_link': consent_link, 'qr_code': _qr_png_base64(consent_link)})
 
-    referrer_id = str(data['referrer_id'])
-    if not referrer_id.isdigit() or referrer_id == new_user_id or referrer_id not in user_tokens:
-        return jsonify({'error': 'Invalid referrer'}), 400
-    ensure_user_record(new_user_id)
-    decision = data['decision']
 
-    if decision == 'consent':
-        if DatabaseService.add_partner(referrer_id, new_user_id):
-            consent = DatabaseService.add_consent(referrer_id, new_user_id)
-            with data_lock:
-                consent_history.setdefault(referrer_id, []).append({**consent, 'partner_id': new_user_id})
-                consent_history.setdefault(new_user_id, []).append({**consent, 'partner_id': referrer_id})
-        _link_both(beloveds, referrer_id, new_user_id)
+@app.route('/invite_info', methods=['POST'])
+def invite_info():
+    """Кто прислал приглашение — для модального окна у получателя."""
+    data = request.json or {}
 
-        logging.info(f'❤️ CONSENT ACCEPTED: {new_user_id} ← {referrer_id}')
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        return jsonify({'error': 'Invalid authentication'}), 401
 
-        try:
-            run_bot_coro(application.bot.send_message(
-                chat_id=referrer_id,
-                text='Your consent request has been accepted. Check your Beloved page for the new connection.'
-            ), wait=False)
-        except Exception as e:
-            logging.error(f"Error sending bot message: {e}")
-        return jsonify({'success': True})
-    elif decision == 'decline':
-        logging.info(f'💔 CONSENT DECLINED: {new_user_id} ← {referrer_id}')
-        try:
-            run_bot_coro(application.bot.send_message(
-                chat_id=referrer_id, text='Your consent request has been declined.'
-            ), wait=False)
-        except Exception as e:
-            logging.error(f"Error sending message: {e}")
-        return jsonify({'success': True})
+    token = data.get('invite_id', '')
+    kind = 'friend' if isinstance(token, str) and token.startswith('friend_') else 'consent'
+    invite, error = lookup_invite(token, kind, validated_user['user_id'])
+    if error:
+        return jsonify({'error': error}), 400
+
+    inviter_id = invite.inviter_id
+    profile = user_profiles.get(inviter_id, {})
+    if profile.get('username'):
+        display_name = f"@{profile['username']}"
     else:
-        return jsonify({'error': 'Invalid decision'}), 400
+        display_name = f"{profile.get('first_name', '')} {profile.get('last_name', '')}".strip() or f"User {inviter_id[:6]}..."
+    avatar = get_avatar_data_url(inviter_id) or f'https://api.dicebear.com/6.x/avataaars/svg?seed={inviter_id}'
+
+    return jsonify({'kind': invite.kind, 'inviter_id': inviter_id, 'display_name': display_name, 'avatar': avatar})
 
 
 @app.route('/get_beloved', methods=['POST'])
@@ -819,15 +813,9 @@ async def start(update: Update, context: CallbackContext) -> None:
         
         # Проверяем тип приглашения
         if arg.startswith("friend_"):
-            # Это приглашение в друзья - открываем мини-апп с параметром
-            await handle_friend_invitation(update, context, arg)
+            await handle_invitation(update, context, arg, 'friend')
         elif arg.startswith("consent_"):
-            # Проверяем формат - новый или старый
-            parts = arg.split("_")
-            if len(parts) >= 3:  # Новый формат: consent_userId_timestamp
-                await handle_consent_invitation(update, context, arg)
-            else:  # Старый формат: consent_userId
-                await handle_consent(update, context, parts[1])
+            await handle_invitation(update, context, arg, 'consent')
         elif arg.isdigit():
             # Это потенциально реферальная ссылка (только числовые ID)
             if is_valid_referrer(arg, user_id):
@@ -882,68 +870,34 @@ async def referral_start(update: Update, context: CallbackContext, referrer_id: 
     await show_menu(update, context, new_user_id)
 
 
-async def handle_consent(update: Update, context: CallbackContext, referrer_id: str) -> None:
-    new_user = update.message.from_user
-    new_user_id = str(new_user.id)
-    update_user_profile(new_user)
-    ensure_user_record(new_user_id)
-    ensure_user_record(referrer_id)
-    # Формируем URL мини-приложения с GET-параметром consent,
-    # где referrer_id – это ID пользователя, отправившего consent-запрос.
-    open_app_url = f"{URL}/mini_app?consent={referrer_id}"
-
-    keyboard = [
-        [InlineKeyboardButton("Open App", web_app=WebAppInfo(url=open_app_url))]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    text = "To respond to the consent request, please open the app."
-    await update.message.reply_text(text, reply_markup=reply_markup)
+INVITE_TEXT = {
+    'friend': ("🌟 You've been invited to become friends in Affinia!\n\n"
+               "Click the button below to open the app and respond to the invitation.", "🚀 Open Affinia"),
+    'consent': ("💕 You've been invited to establish an intimate connection in Affinia!\n\n"
+                "This is a special invitation to become partners. "
+                "Click the button below to open the app and respond.", "💕 Open Affinia"),
+}
 
 
-async def handle_friend_invitation(update: Update, context: CallbackContext, invite_id: str) -> None:
-    """Обработка приглашения в друзья"""
+async def handle_invitation(update: Update, context: CallbackContext, token: str, kind: str) -> None:
+    """Deep link с инвайтом: проверяем токен в БД и открываем мини-апп с ним."""
     user = update.message.from_user
     user_id = str(user.id)
-    inviter_id = invite_id.split('_')[1] if '_' in invite_id else ''
     update_user_profile(user)
     ensure_user_record(user_id)
-    ensure_user_record(inviter_id)
-    
-    # Формируем URL мини-приложения с параметром приглашения
-    open_app_url = f"{URL}/mini_app?invite={invite_id}"
-    
-    text = f"🌟 You've been invited to become friends in Affinia!\n\n" \
-           f"Click the button below to open the app and respond to the invitation."
-    
-    keyboard = [
-        [InlineKeyboardButton("🚀 Open Affinia", web_app=WebAppInfo(url=open_app_url))]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await update.message.reply_text(text, reply_markup=reply_markup)
 
+    invite, error = lookup_invite(token, kind, user_id)
+    if error:
+        logging.info(f'Invite rejected for {user_id}: {error} ({token[:16]}...)')
+        await update.message.reply_text(
+            "This invitation link is invalid, expired or already used. Please ask for a new one."
+        )
+        await show_menu(update, context, user_id)
+        return
 
-async def handle_consent_invitation(update: Update, context: CallbackContext, invite_id: str) -> None:
-    """Обработка приглашения для партнерства"""
-    user = update.message.from_user
-    user_id = str(user.id)
-    inviter_id = invite_id.split('_')[1] if '_' in invite_id else ''
-    update_user_profile(user)
-    ensure_user_record(user_id)
-    ensure_user_record(inviter_id)
-    
-    # Формируем URL мини-приложения с параметром приглашения
-    open_app_url = f"{URL}/mini_app?invite={invite_id}"
-    
-    text = f"💕 You've been invited to establish an intimate connection in Affinia!\n\n" \
-           f"This is a special invitation to become partners. " \
-           f"Click the button below to open the app and respond."
-    
-    keyboard = [
-        [InlineKeyboardButton("💕 Open Affinia", web_app=WebAppInfo(url=open_app_url))]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
+    text, button = INVITE_TEXT[kind]
+    open_app_url = f"{URL}/mini_app?invite={token}"
+    reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton(button, web_app=WebAppInfo(url=open_app_url))]])
     await update.message.reply_text(text, reply_markup=reply_markup)
 
 
@@ -996,10 +950,8 @@ async def button_handler(update: Update, context: CallbackContext) -> None:
         await create_referral_link_btn(query, context)
     elif command == 'create_consent':
         await create_consent_link_btn(query, context)
-    elif command.startswith('consent_'):
-        await process_consent(query, context, command)
-    elif command.startswith('decline_'):
-        await process_decline(query, context, command)
+    else:
+        logging.warning(f'Unknown callback from {user_id}: {command[:40]}')
 
 
 async def balance(update: Update, context: CallbackContext, callback_query=False) -> None:
@@ -1032,33 +984,10 @@ async def create_consent_link_btn(update: Update, context: CallbackContext) -> N
     user_id = str(user.id)
     update_user_profile(user)
     ensure_user_record(user_id)
-    # Больше не списываем токены за создание consent link
-    consent_link = f"https://t.me/{BOT_USERNAME}?start=consent_{user_id}"
+    _, consent_link = issue_invite(user_id, 'consent')
     text = f'Share this link to request consent: {consent_link}'
     await update.edit_message_text(text)
     await show_menu(update, context, user_id)
-
-
-async def process_consent(query, context, command):
-    _, referrer_id, new_user_id = command.split('_')
-    update_user_profile(query.from_user)
-    ensure_user_record(referrer_id)
-    ensure_user_record(new_user_id)
-    referrer_text = 'Congratulations, you have been given consent for intimacy.'
-    await context.bot.send_message(chat_id=referrer_id, text=referrer_text)
-    await query.edit_message_text(text="You have given consent.")
-    await show_menu(query, context, new_user_id)
-
-
-async def process_decline(query, context, command):
-    _, referrer_id, new_user_id = command.split('_')
-    update_user_profile(query.from_user)
-    ensure_user_record(referrer_id)
-    ensure_user_record(new_user_id)
-    referrer_text = 'Sorry, you have been declined.'
-    await context.bot.send_message(chat_id=referrer_id, text=referrer_text)
-    await query.edit_message_text(text="You have declined consent.")
-    await show_menu(query, context, new_user_id)
 
 
 # Инициализация обработчиков (общая для polling и webhook)
@@ -1306,14 +1235,7 @@ def send_friend_invite():
     user_id = validated_user['user_id']
     ensure_user_record(user_id)
     
-    # Генерируем уникальный ID приглашения
-    invite_id = f"friend_{user_id}_{int(time())}"
-
-    DatabaseService.create_invite(invite_id, user_id, 'friend')
-    with data_lock:
-        pending_friend_requests.setdefault(user_id, []).append(invite_id)
-
-    invite_link = f"https://t.me/{BOT_USERNAME}?start={invite_id}"
+    _, invite_link = issue_invite(user_id, 'friend')
 
     return jsonify({
         'invite_link': invite_link,
@@ -1337,18 +1259,12 @@ def handle_friend_invite():
     invite_id = data['invite_id']
     decision = data['decision']
     ensure_user_record(invitee_id)
-    
-    # Извлекаем ID приглашающего из invite_id
-    if not invite_id.startswith('friend_'):
-        return jsonify({'error': 'Invalid invite ID'}), 400
-    
-    parts = invite_id.split('_')
-    if len(parts) < 3:
-        return jsonify({'error': 'Invalid invite ID format'}), 400
-    
-    inviter_id = parts[1]
-    if not inviter_id.isdigit() or inviter_id == invitee_id or inviter_id not in user_tokens:
-        return jsonify({'error': 'Invalid invite ID'}), 400
+
+    # Инвайтер берётся из записи в БД, а не из строки токена
+    invite, error = lookup_invite(invite_id, 'friend', invitee_id)
+    if error:
+        return jsonify({'error': error}), 400
+    inviter_id = invite.inviter_id
 
     if decision == 'accept':
         tokens_earned = 0
@@ -1393,14 +1309,7 @@ def send_consent_invite():
     user_id = validated_user['user_id']
     ensure_user_record(user_id)
     
-    # Генерируем уникальный ID приглашения
-    invite_id = f"consent_{user_id}_{int(time())}"
-
-    DatabaseService.create_invite(invite_id, user_id, 'consent')
-    with data_lock:
-        pending_consent_requests.setdefault(user_id, []).append(invite_id)
-
-    invite_link = f"https://t.me/{BOT_USERNAME}?start={invite_id}"
+    _, invite_link = issue_invite(user_id, 'consent')
 
     return jsonify({
         'invite_link': invite_link,
@@ -1424,18 +1333,12 @@ def handle_consent_invite():
     invite_id = data['invite_id']
     decision = data['decision']
     ensure_user_record(partner_id)
-    
-    # Извлекаем ID приглашающего из invite_id
-    if not invite_id.startswith('consent_'):
-        return jsonify({'error': 'Invalid invite ID'}), 400
-    
-    parts = invite_id.split('_')
-    if len(parts) < 3:
-        return jsonify({'error': 'Invalid invite ID format'}), 400
-    
-    inviter_id = parts[1]
-    if not inviter_id.isdigit() or inviter_id == partner_id or inviter_id not in user_tokens:
-        return jsonify({'error': 'Invalid invite ID'}), 400
+
+    # Инвайтер берётся из записи в БД, а не из строки токена
+    invite, error = lookup_invite(invite_id, 'consent', partner_id)
+    if error:
+        return jsonify({'error': error}), 400
+    inviter_id = invite.inviter_id
 
     if decision == 'accept':
         tokens_earned = 0

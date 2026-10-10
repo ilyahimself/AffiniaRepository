@@ -194,7 +194,8 @@ class DatabaseService:
             if not database_url.startswith('sqlite'):
                 engine_kwargs.update(poolclass=QueuePool, pool_size=5, max_overflow=10)
             cls._engine = create_engine(database_url, **engine_kwargs)
-            cls._session_factory = scoped_session(sessionmaker(bind=cls._engine))
+            # expire_on_commit=False: объекты возвращаются наружу после commit/close, их атрибуты должны читаться
+            cls._session_factory = scoped_session(sessionmaker(bind=cls._engine, expire_on_commit=False))
 
             if create_tables:
                 Base.metadata.create_all(cls._engine)

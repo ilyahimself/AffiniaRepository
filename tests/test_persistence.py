@@ -38,9 +38,14 @@ def test_consent_flow_persists_and_rewards_once(client, app_module):
     r = post(client, '/handle_consent_invite', partner, invite_id=invite_id, decision='accept').get_json()
     assert r['success'] and r['tokens_earned'] == 100
 
-    # Second accept of the same invite must not pay again or duplicate the consent
-    r2 = post(client, '/handle_consent_invite', partner, invite_id=invite_id, decision='accept').get_json()
-    assert r2['success'] and r2['tokens_earned'] == 0
+    # The token is single-use: a second accept is rejected and pays nothing
+    r2 = post(client, '/handle_consent_invite', partner, invite_id=invite_id, decision='accept')
+    assert r2.status_code == 400 and 'used' in r2.get_json()['error']
+
+    # A second, fresh invite between the same two people must not pay or duplicate the link either
+    invite_id2 = post(client, '/send_consent_invite', inviter).get_json()['invite_link'].split('start=')[1]
+    r3 = post(client, '/handle_consent_invite', partner, invite_id=invite_id2, decision='accept').get_json()
+    assert r3['success'] and r3['tokens_earned'] == 0
 
     reload_cache(app_module)
 
@@ -108,12 +113,65 @@ def test_friend_flow_persists_and_counters_survive_restart(client, app_module):
     assert '4002' not in app_module.referrals.get('4001', [])
 
 
-def test_invite_from_unknown_or_self_is_rejected(client):
-    post(client, '/get_balance', 5001)
-    r = post(client, '/handle_consent_invite', 5001, invite_id='consent_5001_1', decision='accept')
-    assert r.status_code == 400
-    r = post(client, '/handle_consent_invite', 5001, invite_id='consent_999999_1', decision='accept')
-    assert r.status_code == 400
+def test_forged_or_reused_invites_are_rejected(client, app_module):
+    victim, attacker = 5001, 5002
+    post(client, '/get_balance', victim)
+    post(client, '/get_balance', attacker)
+
+    # Old client-built format naming an arbitrary inviter: not in DB → rejected, no link, no reward
+    for forged in ('consent_5001_1700000000', 'friend_5001_1700000000', 'consent_whatever', ''):
+        r = post(client, '/handle_consent_invite', attacker, invite_id=forged, decision='accept')
+        assert r.status_code == 400, forged
+    assert '5002' not in app_module.beloveds.get('5001', [])
+    assert app_module.user_tokens['5002'] == 0
+
+    # A real token cannot be accepted by its own issuer
+    token = post(client, '/send_consent_invite', victim).get_json()['invite_link'].split('start=')[1]
+    assert token.startswith('consent_') and len(token) > 20
+    r = post(client, '/handle_consent_invite', victim, invite_id=token, decision='accept')
+    assert r.status_code == 400 and 'own' in r.get_json()['error']
+
+    # A friend token cannot be used on the consent endpoint
+    ftoken = post(client, '/send_friend_invite', victim).get_json()['invite_link'].split('start=')[1]
+    assert post(client, '/handle_consent_invite', attacker, invite_id=ftoken, decision='accept').status_code == 400
+
+    # Decline consumes the token; it cannot be accepted afterwards
+    assert post(client, '/handle_consent_invite', attacker, invite_id=token, decision='decline').get_json()['success']
+    r = post(client, '/handle_consent_invite', attacker, invite_id=token, decision='accept')
+    assert r.status_code == 400 and 'used' in r.get_json()['error']
+
+
+def test_expired_invite_is_rejected(client, app_module):
+    from datetime import timedelta
+    from services.database_service import utcnow
+    a, b = 5101, 5102
+    post(client, '/get_balance', a)
+    post(client, '/get_balance', b)
+    token = 'consent_expiredtoken1234567890'
+    app_module.DatabaseService.create_invite(token, '5101', 'consent', utcnow() - timedelta(minutes=1))
+    r = post(client, '/handle_consent_invite', b, invite_id=token, decision='accept')
+    assert r.status_code == 400 and 'expired' in r.get_json()['error']
+
+
+def test_invite_info_reveals_inviter_only_for_valid_token(client, app_module):
+    a, b = 5201, 5202
+    post(client, '/get_balance', a)
+    post(client, '/get_balance', b)
+    token = post(client, '/send_friend_invite', a).get_json()['invite_link'].split('start=')[1]
+
+    info = post(client, '/invite_info', b, invite_id=token).get_json()
+    assert info['inviter_id'] == '5201' and info['kind'] == 'friend' and info['display_name']
+
+    assert post(client, '/invite_info', b, invite_id='friend_5201_1').status_code == 400
+    assert post(client, '/invite_info', a, invite_id=token).status_code == 400  # own invite
+
+
+def test_consent_qr_requires_auth_and_issues_server_token(client, app_module):
+    assert client.post('/generate_consent_qr', json={'user_id': '7001'}).status_code == 401
+    r = post(client, '/generate_consent_qr', 7001).get_json()
+    token = r['consent_link'].split('start=')[1]
+    assert r['qr_code'] and token.startswith('consent_')
+    assert app_module.DatabaseService.get_invite(token).inviter_id == '7001'
 
 
 def test_payment_is_recorded_once(app_module):
