@@ -16,11 +16,13 @@
 
     <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <!-- Telegram Mini Apps Analytics SDK -->
+    <!-- Telegram Mini Apps Analytics SDK: сторонний скрипт без версии и SRI, подключаем только когда аналитика настроена -->
+    {% if analytics_token and analytics_app_name %}
     <script src="https://tganalytics.xyz/index.js"
         onload="window.telegramAnalyticsReady = true; try { initAnalytics(); } catch (e) { console.error(e); }"
         onerror="console.error('Analytics SDK failed to load')" type="text/javascript">
         </script>
+    {% endif %}
     <script>
         // Функция для генерации session ID (UUID v4-подобный)
         function generateSessionId() {
@@ -65,7 +67,10 @@
         window.telegramAnalyticsReady = window.telegramAnalyticsReady || false;
     </script>
     <!-- TON Connect SDK -->
-    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"
+    <!-- Версия закреплена и защищена SRI: при обновлении поменять и версию, и хэш (sha384 файла) -->
+    <script src="https://unpkg.com/@tonconnect/ui@3.0.2/dist/tonconnect-ui.min.js"
+        integrity="sha384-BTareOTsWX/2zcVxklvKhoTWnYXs1NbbMON7wL80t6xeld55HGlSS/oBJmrEvNG9"
+        crossorigin="anonymous"
         onload="console.log('TON Connect SDK loaded')"
         onerror="console.error('TON Connect SDK failed to load')"></script>
     <script>
@@ -2507,7 +2512,6 @@
         }
     </style>
 
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script>
         Telegram.WebApp.ready();
 
