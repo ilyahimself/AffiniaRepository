@@ -4,6 +4,7 @@ import hmac
 import json
 import os
 import sys
+import time
 from urllib.parse import urlencode
 
 import pytest
@@ -39,12 +40,19 @@ def client(app_module):
     return app_module.app.test_client()
 
 
-def make_init_data(user_id: int, token: str = FAKE_BOT_TOKEN, username: str = '', auth_date: int = 1_700_000_000) -> str:
-    """Build a Telegram WebApp initData string with a valid hash for `token`."""
+def make_init_data(user_id: int, token: str = FAKE_BOT_TOKEN, username: str = '', auth_date='now') -> str:
+    """Build a Telegram WebApp initData string with a valid hash for `token`.
+
+    auth_date: 'now' (default) for a fresh timestamp, an int for a specific one, None to omit the field.
+    """
     user = {'id': user_id, 'first_name': f'User{user_id}'}
     if username:
         user['username'] = username
-    fields = {'auth_date': str(auth_date), 'query_id': 'AAE', 'user': json.dumps(user, separators=(',', ':'))}
+    fields = {'query_id': 'AAE', 'user': json.dumps(user, separators=(',', ':'))}
+    if auth_date == 'now':
+        fields['auth_date'] = str(int(time.time()))
+    elif auth_date is not None:
+        fields['auth_date'] = str(auth_date)
     data_check_string = '\n'.join(f'{k}={v}' for k, v in sorted(fields.items()))
     secret = hmac.new(b'WebAppData', token.encode(), hashlib.sha256).digest()
     fields['hash'] = hmac.new(secret, data_check_string.encode(), hashlib.sha256).hexdigest()

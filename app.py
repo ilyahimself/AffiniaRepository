@@ -50,50 +50,72 @@ ADMIN_ID = '478201816'
 
 app = Flask(__name__)
 
-# Простой rate limiting
+# За Heroku-роутером реальный IP клиента — последний элемент X-Forwarded-For (роутер дописывает его сам,
+# всё что левее — прислал клиент и может быть подделано). PROXY_HOPS=0 для запуска без прокси.
+PROXY_HOPS = int(os.getenv('PROXY_HOPS', '1' if os.getenv('DYNO') else '0'))
+if PROXY_HOPS > 0:
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=PROXY_HOPS, x_proto=1, x_host=1)
+
+
+# ---------------------------------------------------------------------------
+# Rate limiting (in-memory, скользящее окно; достаточно для одного дино)
+# ---------------------------------------------------------------------------
 from collections import defaultdict
 from time import time
 
-request_counts = defaultdict(list)
-RATE_LIMIT = 100  # Максимум 100 запросов
-RATE_WINDOW = 3600  # В час (3600 секунд)
+class RateLimited(Exception):
+    """Поднимается из любого места обработчика; превращается в 429 через errorhandler."""
+    def __init__(self, message='Too many requests. Please try again later.'):
+        super().__init__(message)
+        self.message = message
 
-def check_rate_limit(user_id):
-    """Проверка rate limit для пользователя"""
+
+_rate_buckets = defaultdict(list)
+_rate_lock = threading.Lock()
+_rate_calls = 0
+
+# Общие лимиты. Фронтенд опрашивает /get_notifications каждые 15 с (240/ч), поэтому per-user не ниже ~1000/ч.
+# Лимит по IP щадящий: мобильные операторы сажают тысячи людей за один NAT-адрес.
+USER_RATE_LIMIT = (1200, 3600)
+IP_RATE_LIMIT = (3000, 3600)
+AUTH_FAIL_LIMIT = (30, 600)        # неудачных проверок initData с одного IP за 10 минут
+
+
+def enforce_rate_limit(key: str, limit: int, window: int, message: str = None) -> None:
+    """Регистрирует обращение по ключу; при превышении лимита поднимает RateLimited."""
+    global _rate_calls
     now = time()
-    user_requests = request_counts[str(user_id)]
-    
-    # Удаляем старые запросы
-    user_requests[:] = [req_time for req_time in user_requests if now - req_time < RATE_WINDOW]
-    
-    if len(user_requests) >= RATE_LIMIT:
-        return False
-    
-    user_requests.append(now)
-    return True
+    with _rate_lock:
+        bucket = _rate_buckets[key]
+        bucket[:] = [t for t in bucket if now - t < window]
+        if len(bucket) >= limit:
+            logging.warning(f'🛡️ rate limit exceeded: {key}')
+            raise RateLimited(message or RateLimited().message)
+        bucket.append(now)
+        # Периодически выбрасываем протухшие ключи, чтобы словарь не рос бесконечно
+        _rate_calls += 1
+        if _rate_calls % 2000 == 0:
+            stale = [k for k, b in _rate_buckets.items() if not b or now - b[-1] > 3600]
+            for k in stale:
+                del _rate_buckets[k]
 
 
-# Rate limiting по IP адресу (защита от DDoS и брутфорса)
-ip_request_counts = defaultdict(list)
-IP_RATE_LIMIT = 200  # Максимум 200 запросов с одного IP
-IP_RATE_WINDOW = 3600  # В час
+@app.errorhandler(RateLimited)
+def _handle_rate_limited(e):
+    return jsonify({'error': e.message}), 429
 
-def check_ip_rate_limit(ip_address: str) -> bool:
-    """Проверка rate limit для IP адреса"""
-    if not ip_address:
-        return True
-    now = time()
-    ip_requests = ip_request_counts[ip_address]
-    
-    # Удаляем старые запросы
-    ip_requests[:] = [req_time for req_time in ip_requests if now - req_time < IP_RATE_WINDOW]
-    
-    if len(ip_requests) >= IP_RATE_LIMIT:
-        logging.warning(f'🛡️ IP rate limit exceeded: {ip_address}')
-        return False
-    
-    ip_requests.append(now)
-    return True
+
+@app.before_request
+def _ip_rate_limit():
+    if request.method == 'POST' and request.remote_addr:
+        enforce_rate_limit(f'ip:{request.remote_addr}', *IP_RATE_LIMIT)
+
+
+# Максимальный возраст initData. Telegram не инвалидирует подпись сам: без этой проверки
+# однажды перехваченная строка работала бы вечно.
+INIT_DATA_MAX_AGE = int(os.getenv('INIT_DATA_MAX_AGE', str(24 * 3600)))
+CLOCK_SKEW = 300
 
 
 def validate_init_data(init_data: str, bot_token: str) -> dict:
@@ -138,6 +160,16 @@ def validate_init_data(init_data: str, bot_token: str) -> dict:
         if not hmac.compare_digest(computed_hash, received_hash):
             logging.warning(f'🛡️ initData validation failed: hash mismatch')
             return None
+
+        # Свежесть: auth_date подписан Telegram, подделать его нельзя
+        auth_date = parsed.get('auth_date', '')
+        if not auth_date.isdigit():
+            logging.warning('🛡️ initData validation failed: no auth_date')
+            return None
+        age = time() - int(auth_date)
+        if age > INIT_DATA_MAX_AGE or age < -CLOCK_SKEW:
+            logging.warning(f'🛡️ initData validation failed: stale auth_date (age {int(age)}s)')
+            return None
         
         # Парсим JSON с данными пользователя
         user_json = unquote(parsed.get('user', '{}'))
@@ -164,14 +196,15 @@ def get_validated_user(data: dict) -> dict:
     """
     init_data = data.get('init_data', '')
     
-    # Валидируем initData
     user_data = validate_init_data(init_data, API_TOKEN)
     
     if user_data and user_data.get('user_id'):
+        enforce_rate_limit(f"user:{user_data['user_id']}", *USER_RATE_LIMIT)
         return user_data
-    
-    # Fallback для бота и внутренних вызовов (без initData)
-    # Для внешних API запросов возвращаем None
+
+    # Неудачные попытки считаем отдельно и строже: перебор подписей с одного IP быстро упирается в 429
+    if request.remote_addr:
+        enforce_rate_limit(f'authfail:{request.remote_addr}', *AUTH_FAIL_LIMIT)
     return None
 
 user_tokens = {}
@@ -438,6 +471,8 @@ INVITE_TTL = {'friend': timedelta(days=30), 'consent': timedelta(days=7)}
 
 def issue_invite(user_id: str, kind: str) -> tuple[str, str]:
     """Создаёт инвайт в БД. Возвращает (token, deep link). Префикс kind_ нужен боту и фронту для диспетчеризации."""
+    # Ограничивает и спам ссылками, и рост таблицы invites
+    enforce_rate_limit(f"invite_issue:{user_id}", 30, 3600, 'Too many invitations created. Please try again later.')
     token = f"{kind}_{secrets.token_urlsafe(16)}"
     expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + INVITE_TTL[kind]
     if not DatabaseService.create_invite(token, user_id, kind, expires_at):
@@ -450,6 +485,8 @@ def issue_invite(user_id: str, kind: str) -> tuple[str, str]:
 
 def lookup_invite(token: str, kind: str, acceptor_id: str = None):
     """Возвращает (invite, None) если токен валиден, иначе (None, причина)."""
+    if acceptor_id is not None:
+        enforce_rate_limit(f"invite_lookup:{acceptor_id}", 60, 3600)
     if not isinstance(token, str) or not token.startswith(f"{kind}_") or len(token) > 120:
         return None, 'Invalid invite ID'
     invite = DatabaseService.get_invite(token)
@@ -525,17 +562,9 @@ def test_manifest():
 def get_balance():
     data = request.json or {}
     
-    # IP Rate limiting (защита от DDoS)
-    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-    if client_ip:
-        client_ip = client_ip.split(',')[0].strip()
-    if not check_ip_rate_limit(client_ip):
-        return jsonify({'error': 'Too many requests. Please try again later.'}), 429
-    
-    # Валидация initData от Telegram (КРИТИЧНО для безопасности!)
     validated_user = get_validated_user(data)
     if not validated_user:
-        logging.warning(f'🛡️ Unauthorized /get_balance attempt from IP: {client_ip}')
+        logging.warning(f'🛡️ Unauthorized /get_balance attempt from IP: {request.remote_addr}')
         return jsonify({'error': 'Invalid authentication'}), 401
     
     user_id = validated_user['user_id']
@@ -561,11 +590,6 @@ def get_balance():
         except Exception as e:
             logging.error(f"DB error saving profile: {e}")
     
-    # Rate limiting по user_id
-    if not check_rate_limit(user_id):
-        logging.warning(f'Rate limit exceeded for user {user_id}')
-        return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
-    
     with data_lock:
         balance = user_tokens.get(user_id, 0)
     
@@ -578,23 +602,12 @@ def get_balance():
 def create_referral_link():
     data = request.json or {}
     
-    # IP Rate limiting
-    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-    if client_ip:
-        client_ip = client_ip.split(',')[0].strip()
-    if not check_ip_rate_limit(client_ip):
-        return jsonify({'error': 'Too many requests'}), 429
-    
-    # Валидация initData
     validated_user = get_validated_user(data)
     if not validated_user:
         return jsonify({'error': 'Invalid authentication'}), 401
     
     user_id = validated_user['user_id']
     ensure_user_record(user_id)
-    
-    if not check_rate_limit(user_id):
-        return jsonify({'error': 'Rate limit exceeded'}), 429
     
     referral_link = f"https://t.me/{BOT_USERNAME}?start={user_id}"
     display_name = get_user_display_name(user_id)
@@ -748,10 +761,7 @@ def get_donate_link():
     user_id = validated_user['user_id']
     ensure_user_record(user_id)
     
-    # Rate limiting для донатов (более строгий)
-    if not check_rate_limit(f"donate_{user_id}"):
-        logging.warning(f'Donation rate limit exceeded for user {user_id}')
-        return jsonify({'error': 'Too many donation requests. Please wait before trying again.'}), 429
+    enforce_rate_limit(f"donate:{user_id}", 10, 3600, 'Too many donation requests. Please wait before trying again.')
     
     # Получаем сумму из запроса или используем 100 по умолчанию
     amount = data.get('amount', 100)
@@ -886,12 +896,14 @@ async def handle_invitation(update: Update, context: CallbackContext, token: str
     update_user_profile(user)
     ensure_user_record(user_id)
 
-    invite, error = lookup_invite(token, kind, user_id)
+    try:
+        invite, error = lookup_invite(token, kind, user_id)
+        reply = "This invitation link is invalid, expired or already used. Please ask for a new one."
+    except RateLimited as e:
+        invite, error, reply = None, e.message, e.message
     if error:
         logging.info(f'Invite rejected for {user_id}: {error} ({token[:16]}...)')
-        await update.message.reply_text(
-            "This invitation link is invalid, expired or already used. Please ask for a new one."
-        )
+        await update.message.reply_text(reply)
         await show_menu(update, context, user_id)
         return
 
@@ -984,8 +996,11 @@ async def create_consent_link_btn(update: Update, context: CallbackContext) -> N
     user_id = str(user.id)
     update_user_profile(user)
     ensure_user_record(user_id)
-    _, consent_link = issue_invite(user_id, 'consent')
-    text = f'Share this link to request consent: {consent_link}'
+    try:
+        _, consent_link = issue_invite(user_id, 'consent')
+        text = f'Share this link to request consent: {consent_link}'
+    except RateLimited as e:
+        text = e.message
     await update.edit_message_text(text)
     await show_menu(update, context, user_id)
 
