@@ -4655,13 +4655,6 @@
             updateCounter();
             showPage('main-page'); // Показываем страницу Main по умолчанию
 
-            const urlParams = new URLSearchParams(window.location.search);
-            const consentParam = urlParams.get('consent');
-            if (consentParam) {
-                window.consentRequesterId = consentParam;
-                // Показываем модальное окно для выбора ответа
-                document.getElementById('consent-response-modal').style.display = 'flex';
-            }
         };
 
 
@@ -4672,27 +4665,33 @@
                 return;
             }
 
-            // Создаем уникальную ссылку для согласия
-            const uniqueConsentId = `consent_${userId}_${Date.now()}`;
-            const consentLink = `https://t.me/${BOT_USERNAME}?start=${uniqueConsentId}`;
-
-            // Показываем модальное окно с ссылкой
-            document.getElementById('consent-link').setAttribute('data-link', consentLink);
-            document.getElementById('consent-link').textContent = consentLink;
+            // Ссылку (одноразовый токен) выдаёт сервер — клиент её не собирает
+            const linkEl = document.getElementById('consent-link');
+            linkEl.textContent = 'Generating link...';
+            linkEl.removeAttribute('data-link');
+            document.getElementById('consent-qr-code').removeAttribute('src');
+            currentConsentInviteLink = null;
             document.getElementById('consent-modal').style.display = 'flex';
-            // Генерируем QR сразу
+
             fetch('/generate_consent_qr', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId, init_data: Telegram.WebApp.initData })
+                body: JSON.stringify({ init_data: Telegram.WebApp.initData })
             })
                 .then(r => r.json())
-                .then(qrData => {
-                    if (qrData.qr_code) {
-                        document.getElementById('consent-qr-code').src = `data:image/png;base64,${qrData.qr_code}`;
+                .then(data => {
+                    if (data.error || !data.consent_link) {
+                        linkEl.textContent = data.error || 'Could not create link';
+                        return;
+                    }
+                    currentConsentInviteLink = data.consent_link;
+                    linkEl.setAttribute('data-link', data.consent_link);
+                    linkEl.textContent = data.consent_link;
+                    if (data.qr_code) {
+                        document.getElementById('consent-qr-code').src = `data:image/png;base64,${data.qr_code}`;
                     }
                 })
-                .catch(() => { });
+                .catch(() => { linkEl.textContent = 'Network error'; });
 
             // Добавляем активность
             addActivityItem('🔐', 'Created new consent link for partner');
@@ -4705,135 +4704,72 @@
             document.getElementById('consent-modal').style.display = 'none';
         }
 
+        let currentConsentInviteLink = null;
+
         function sendConsentLink() {
-            // Обновленная функция для отправки consent приглашения
+            const share = (link, message) => {
+                const shareLink = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(message)}`;
+                Telegram.WebApp.openTelegramLink(shareLink);
+                addActivityItem('📤', 'Sent intimate connection request');
+                closeConsentModal();
+            };
+            // Если ссылка уже выдана для открытого окна — делимся ею, а не создаём вторую
+            if (currentConsentInviteLink) {
+                share(currentConsentInviteLink, 'Ready to explore an intimate connection? 💕');
+                return;
+            }
             fetch('/send_consent_invite', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: Telegram.WebApp.initDataUnsafe?.user?.id, init_data: Telegram.WebApp.initData })
+                body: JSON.stringify({ init_data: Telegram.WebApp.initData })
             })
                 .then(response => response.json())
                 .then(data => {
                     if (data.error) {
                         alert(data.error);
                     } else {
-                        const shareLink = `https://t.me/share/url?url=${encodeURIComponent(data.invite_link)}&text=${encodeURIComponent(data.message)}`;
-                        Telegram.WebApp.openTelegramLink(shareLink);
-                        addActivityItem('📤', 'Sent intimate connection request');
-                        closeConsentModal();
+                        share(data.invite_link, data.message);
                     }
                 });
         }
 
-        function sendConsentResponse(decision) {
-            const referrer_id = window.consentRequesterId; // ID отправителя consent-ссылки (из URL)
-            const new_user_id = Telegram.WebApp.initDataUnsafe?.user?.id;
-            if (!referrer_id || !new_user_id) {
-                alert("Missing data");
+        // Входящее приглашение: токен из URL/start_param, отправитель — только с сервера (/invite_info)
+        function checkForInvitations() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const inviteId = urlParams.get('invite') || Telegram.WebApp.initDataUnsafe?.start_param;
+            if (!inviteId) return;
+
+            let modalId, avatarId, nameId;
+            if (inviteId.startsWith('friend_')) {
+                modalId = 'friend-request-modal'; avatarId = 'friend-requester-avatar'; nameId = 'friend-requester-name';
+            } else if (inviteId.startsWith('consent_')) {
+                modalId = 'partner-request-modal'; avatarId = 'partner-requester-avatar'; nameId = 'partner-requester-name';
+            } else {
                 return;
             }
 
-            fetch('/consent_response', {
+            fetch('/invite_info', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    referrer_id: referrer_id,
-                    new_user_id: new_user_id,
-                    init_data: Telegram.WebApp.initData,
-                    decision: decision
-                })
+                body: JSON.stringify({ invite_id: inviteId, init_data: Telegram.WebApp.initData })
             })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Просто закрываем модальное окно без уведомления
-                        document.getElementById('consent-response-modal').style.display = 'none';
-                        // Обновляем список beloved на странице
-                        updateBelovedList();
-                    } else {
-                        alert("Error: " + data.error);
+                .then(r => r.json())
+                .then(info => {
+                    if (info.error) {
+                        showNotification('Invitation unavailable', info.error, 'error');
+                        return;
                     }
+                    currentInviteId = inviteId;
+                    const avatarElement = document.getElementById(avatarId);
+                    const nameElement = document.getElementById(nameId);
+                    if (avatarElement) avatarElement.src = info.avatar;
+                    if (nameElement) nameElement.textContent = info.display_name;
+                    setTimeout(() => {
+                        const modal = document.getElementById(modalId);
+                        if (modal) modal.style.display = 'flex';
+                    }, 800);
                 })
-                .catch(error => console.error('Error:', error));
-        }
-
-        // Новые функции для обработки приглашений
-        function checkForInvitations() {
-            console.log('Checking for invitations...');
-
-            // Проверяем параметры URL
-            const urlParams = new URLSearchParams(window.location.search);
-            const inviteParam = urlParams.get('invite');
-            const startapp = Telegram.WebApp.initDataUnsafe?.start_param;
-
-            console.log('URL invite param:', inviteParam);
-            console.log('Start param:', startapp);
-
-            // Приоритет: сначала проверяем параметр invite из URL, потом start_param
-            const inviteId = inviteParam || startapp;
-
-            if (inviteId) {
-                console.log('Found invite ID:', inviteId);
-
-                if (inviteId.startsWith('friend_')) {
-                    console.log('Processing friend invitation');
-                    // Это приглашение в друзья
-                    currentInviteId = inviteId;
-                    const inviterId = inviteId.split('_')[1];
-
-                    // Показываем модальное окно с подтверждением дружбы
-                    const avatarElement = document.getElementById('friend-requester-avatar');
-                    const nameElement = document.getElementById('friend-requester-name');
-
-                    if (avatarElement && nameElement) {
-                        avatarElement.src = `https://api.dicebear.com/6.x/avataaars/svg?seed=${inviterId}`;
-                        nameElement.textContent = `User ${inviterId.substring(0, 6)}...`;
-
-                        // Даем время на загрузку интерфейса
-                        setTimeout(() => {
-                            const modal = document.getElementById('friend-request-modal');
-                            if (modal) {
-                                console.log('Showing friend request modal');
-                                modal.style.display = 'flex';
-                            } else {
-                                console.error('Friend request modal not found');
-                            }
-                        }, 1500);
-                    } else {
-                        console.error('Friend request elements not found');
-                    }
-
-                } else if (inviteId.startsWith('consent_')) {
-                    console.log('Processing consent invitation');
-                    // Это приглашение для партнерства
-                    currentInviteId = inviteId;
-                    const inviterId = inviteId.split('_')[1];
-
-                    // Показываем модальное окно с подтверждением партнерства
-                    const avatarElement = document.getElementById('partner-requester-avatar');
-                    const nameElement = document.getElementById('partner-requester-name');
-
-                    if (avatarElement && nameElement) {
-                        avatarElement.src = `https://api.dicebear.com/6.x/avataaars/svg?seed=${inviterId}`;
-                        nameElement.textContent = `User ${inviterId.substring(0, 6)}...`;
-
-                        // Даем время на загрузку интерфейса
-                        setTimeout(() => {
-                            const modal = document.getElementById('partner-request-modal');
-                            if (modal) {
-                                console.log('Showing partner request modal');
-                                modal.style.display = 'flex';
-                            } else {
-                                console.error('Partner request modal not found');
-                            }
-                        }, 1500);
-                    } else {
-                        console.error('Partner request elements not found');
-                    }
-                }
-            } else {
-                console.log('No invitation found in parameters');
-            }
+                .catch(err => console.error('invite_info failed', err));
         }
 
         function handleFriendRequest(decision) {
@@ -4848,7 +4784,6 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     invite_id: currentInviteId,
-                    invitee_id: userId,
                     init_data: Telegram.WebApp.initData,
                     decision: decision === 'accept' ? 'accept' : 'decline'
                 })
@@ -4883,7 +4818,6 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     invite_id: currentInviteId,
-                    partner_id: userId,
                     init_data: Telegram.WebApp.initData,
                     decision: decision === 'accept' ? 'accept' : 'decline'
                 })
@@ -6246,16 +6180,6 @@
         </div>
 
         <!-- Consent Response Modal -->
-        <div id="consent-response-modal"
-            style="display: none; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
-            <div id="consent-response-content"
-                style="background-color: #fff; padding: 20px; border-radius: 10px; text-align: center; width: 300px; position: relative; color: #000;">
-                <h3>Please choose</h3>
-                <button onclick="sendConsentResponse('consent')">Consent</button>
-                <button onclick="sendConsentResponse('decline')">Decline</button>
-            </div>
-        </div>
-
         <!-- Consent History Modal -->
         <div id="consent-history-modal" class="consent-history-modal">
             <div class="consent-history-content">
