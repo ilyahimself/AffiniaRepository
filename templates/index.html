@@ -2780,12 +2780,14 @@
                     // Преобразуем данные в нужный формат
                     consentHistoryData = (data.consent_history || []).map(consent => ({
                         id: `consent_${consent.partner_id}_${consent.timestamp}`,
+                        consentId: consent.id,
                         partnerId: consent.partner_id,
                         partnerName: `User ${consent.partner_id.substring(0, 6)}...`,
-                        status: consent.status || 'active',
+                        status: consent.status === 'revoked' ? 'withdrawn' : (consent.status || 'active'),
                         createdAt: new Date(consent.timestamp * 1000),
-                        expiresAt: new Date((consent.timestamp + 7 * 24 * 60 * 60) * 1000), // 7 дней
-                        details: getConsentDetails(consent.status || 'active'),
+                        withdrawnAt: consent.revoked_at ? new Date(consent.revoked_at * 1000) : null,
+                        expiresAt: null,
+                        details: getConsentDetails(consent.status === 'revoked' ? 'withdrawn' : (consent.status || 'active')),
                         location: 'Digital consent',
                         witnessId: null,
                         type: consent.type || 'intimate'
@@ -3014,21 +3016,40 @@
         }
 
         function withdrawConsent(consentId) {
-            if (confirm('🚫 Withdraw Consent\n\nAre you sure you want to withdraw this consent? This action will be immediately recorded and cannot be undone.\n\nThe withdrawal will be timestamped and both parties will be notified.')) {
-                // Update the consent status
-                const consent = consentHistoryData.find(c => c.id === consentId);
-                if (consent) {
+            if (!confirm('🚫 Withdraw Consent\n\nAre you sure you want to withdraw this consent? This action will be immediately recorded and cannot be undone.\n\nThe withdrawal will be timestamped and both parties will be notified.')) {
+                return;
+            }
+            const consent = consentHistoryData.find(c => c.id === consentId);
+            if (!consent || !consent.consentId) {
+                alert('Consent record not found.');
+                return;
+            }
+            fetch('/revoke_consent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ consent_id: consent.consentId, init_data: Telegram.WebApp.initData })
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) {
+                        alert('Error: ' + (data.error || 'could not withdraw consent'));
+                        return;
+                    }
                     consent.status = 'withdrawn';
                     consent.withdrawnAt = new Date();
                     consent.details = 'Consent withdrawn by user request.';
 
                     updateHistoryStatistics();
                     displayConsentHistory();
+                    updateBelovedList();
 
                     addActivityItem('🚫', 'Withdrew consent agreement');
                     alert('✅ Consent has been withdrawn and recorded.');
-                }
-            }
+                })
+                .catch(err => {
+                    console.error('revoke_consent failed', err);
+                    alert('Network error, please try again.');
+                });
         }
 
         function exportConsentHistory() {
@@ -4459,14 +4480,15 @@
         }
 
         function getConsentStatus(partner) {
-            // Simulate consent status - in real app this would come from backend
-            const statuses = [
-                { class: 'active', text: 'Active consent', time: '2 hours ago', lastConsent: '2 hours ago' },
-                { class: 'expired', text: 'Consent expired', time: '1 day ago', lastConsent: '1 day ago' },
-                { class: 'none', text: 'No active consent', time: 'Never', lastConsent: 'Never' }
-            ];
-
-            return statuses[Math.floor(Math.random() * statuses.length)];
+            // Статус приходит с бэкенда (/get_beloved) из таблицы consents
+            const lastAt = partner.last_consent_at ? getTimeAgo(partner.last_consent_at * 1000) : 'Never';
+            if (partner.active_consent_id) {
+                return { class: 'active', text: 'Active consent', time: lastAt, lastConsent: lastAt };
+            }
+            if (partner.last_consent_at) {
+                return { class: 'expired', text: 'Consent withdrawn', time: lastAt, lastConsent: lastAt };
+            }
+            return { class: 'none', text: 'No active consent', time: 'Never', lastConsent: 'Never' };
         }
 
         function getRelationshipStatusBadge(category) {
