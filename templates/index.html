@@ -2516,6 +2516,13 @@
     <script>
         Telegram.WebApp.ready();
 
+        // Снимаем service worker, оставшийся у старых пользователей (cache-first, отдавал устаревшие файлы)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations()
+                .then(regs => regs.forEach(r => r.unregister()))
+                .catch(() => { });
+        }
+
         // Расширяем viewport для полноэкранного режима
         Telegram.WebApp.expand();
 

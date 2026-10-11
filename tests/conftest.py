@@ -12,7 +12,7 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-FAKE_BOT_TOKEN = '123456789:TESTTOKENxxxxxxxxxxxxxxxxxxxxxxxxxx'
+FAKE_BOT_TOKEN = '123:TESTTOKEN'  # deliberately not shaped like a real token, so secret scanners stay quiet
 
 
 @pytest.fixture(scope='session')

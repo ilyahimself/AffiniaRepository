@@ -1,41 +1,14 @@
-const CACHE_NAME = 'affinia-cache-v1';
-const urlsToCache = [
-    '/mini_app',
-    '/static/icon-192x192.png',
-    '/static/icon-512x512.png',
-    '/static/manifest.json',
-];
-
-self.addEventListener('install', event => {
-    console.log('Service Worker installing.');
-    event.waitUntil(
-        caches.open(CACHE_NAME).then(cache => {
-            console.log('Caching app shell');
-            return cache.addAll(urlsToCache);
-        })
-    );
-});
-
-self.addEventListener('fetch', event => {
-    event.respondWith(
-        caches.match(event.request).then(response => {
-            return response || fetch(event.request);
-        })
-    );
-});
+// Самоудаляющийся service worker.
+// Старая версия (cache-first) могла остаться установленной у пользователей с 2025 года
+// и отдавать устаревшие статические файлы. Эта версия при обновлении чистит кэш и снимает регистрацию.
+self.addEventListener('install', () => self.skipWaiting());
 
 self.addEventListener('activate', event => {
-    console.log('Service Worker activating.');
-    event.waitUntil(
-        caches.keys().then(keyList => {
-            return Promise.all(
-                keyList.map(key => {
-                    if (key !== CACHE_NAME) {
-                        console.log('Removing old cache:', key);
-                        return caches.delete(key);
-                    }
-                })
-            );
-        })
-    );
+    event.waitUntil((async () => {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(key => caches.delete(key)));
+        await self.registration.unregister();
+        const clients = await self.clients.matchAll({ type: 'window' });
+        clients.forEach(client => client.navigate(client.url));
+    })());
 });
