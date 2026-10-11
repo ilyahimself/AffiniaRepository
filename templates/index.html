@@ -2535,13 +2535,34 @@
                     window.location.href = 'tel:112';
                 }
             };
-            const locate = () => new Promise(resolve => {
+            // Браузерная геолокация: WebView Telegram спрашивает разрешение при каждом вызове
+            const locateViaBrowser = () => new Promise(resolve => {
                 if (!navigator.geolocation) return resolve({});
                 navigator.geolocation.getCurrentPosition(
                     pos => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
                     () => resolve({}),
                     { timeout: 4000, maximumAge: 60000 });
             });
+            // Telegram LocationManager (Bot API 8.0+): разрешение запрашивается один раз и запоминается в настройках Mini App
+            const locateViaTelegram = () => new Promise(resolve => {
+                const lm = tg?.LocationManager;
+                if (!lm || typeof lm.init !== 'function') return resolve(null);
+                const timer = setTimeout(() => resolve(null), 6000);
+                const finish = value => { clearTimeout(timer); resolve(value); };
+                try {
+                    lm.init(() => {
+                        if (!lm.isLocationAvailable) return finish(null);
+                        lm.getLocation(data => finish(data ? { lat: data.latitude, lon: data.longitude } : {}));
+                    });
+                } catch (e) {
+                    finish(null);
+                }
+            });
+            // null = LocationManager недоступен в этом клиенте → запасной браузерный способ; {} = отказ, координаты не шлём
+            const locate = async () => {
+                const viaTelegram = await locateViaTelegram();
+                return viaTelegram !== null ? viaTelegram : locateViaBrowser();
+            };
             const proceed = async (ok) => {
                 if (!ok) return;
                 const coords = await locate();
