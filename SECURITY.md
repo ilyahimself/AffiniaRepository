@@ -1,74 +1,30 @@
-# 🔒 Security Guide for Affinia
+# Security
 
-## 🚨 Critical Security Measures
+## Reporting
 
-### 1. **API Token Protection**
-- **NEVER** commit API tokens to Git
-- **NEVER** hardcode tokens in source code
-- **ALWAYS** use environment variables
-- **NEVER** share tokens publicly
+If you find a vulnerability, please message the project via the bot [@AffiniaBot](https://t.me/AffiniaBot) or the contact on `/privacy`. Do not open a public issue for security problems. We aim to acknowledge within 72 hours.
 
-### 2. **Environment Variables Setup**
+## What is in place
 
-#### For Local Development:
-```bash
-# Windows PowerShell
-$env:API_TOKEN="your_bot_token_here"
-$env:BOT_USERNAME="your_bot_username"
-$env:WEBAPP_URL="http://localhost:5000"
+- **Authentication**: every API request carries Telegram `initData`, verified with HMAC-SHA256 against the bot token (`validate_init_data` in `app.py`). Signatures older than 24 h or from the future are rejected. There are no passwords or sessions to steal.
+- **Invitations**: random single-use tokens issued by the server (`secrets.token_urlsafe(16)`), validated against the `invites` table with TTL, kind and self-accept checks. The inviter is read from the database, never from the link.
+- **Rewards and payments**: idempotent (`ledger` with reason/ref; `payments` unique on Telegram charge id).
+- **Rate limiting**: per IP (behind the Heroku router via `ProxyFix`, last `X-Forwarded-For` hop), per user, and strict buckets for failed auth, invite creation/lookup, data export and donations.
+- **Secrets**: environment variables only. The bot token and database credentials were rotated and the git history rewritten in October 2026 after earlier leaks. CI fails on anything shaped like a bot token or a database URL with credentials.
+- **Logs**: no Telegram IDs or names; a keyed hash per user instead.
+- **Dependencies**: pinned in `requirements.txt`; updated October 2026 (python-telegram-bot 22, Pillow 12, SQLAlchemy 2.0.x).
+- **Third-party scripts**: TON Connect UI pinned with Subresource Integrity; analytics SDK loaded `async` and only when configured.
+- **Data rights**: self-service export and deletion (`/export_my_data`, `/delete_account`).
 
-# Windows CMD
-set API_TOKEN=your_bot_token_here
-set BOT_USERNAME=your_bot_username
-set WEBAPP_URL=http://localhost:5000
-```
+## Known limitations
 
-#### For Heroku:
-```bash
-heroku config:set API_TOKEN=your_bot_token_here
-heroku config:set BOT_USERNAME=your_bot_username
-heroku config:set WEBAPP_URL=https://your-app.herokuapp.com
-```
+- Rate limiting is in-memory and resets on restart; fine for one dyno, would need Redis for more.
+- Hosting is in the US region (Heroku); see the Privacy Policy for the transfer basis.
+- `initData` is sent in the JSON body of each request; TLS protects it in transit, but any XSS in the Mini App would expose it. The page currently has no Content-Security-Policy header — on the list.
 
-### 3. **Rate Limiting**
-- **100 requests per hour** per user
-- **Stricter limits** for sensitive operations (donations)
-- **Automatic blocking** of excessive requests
+## Incident response
 
-### 4. **Logging & Monitoring**
-- **Secure logging** without sensitive data exposure
-- **File rotation** to prevent disk space issues
-- **Error tracking** for security incidents
-
-### 5. **Data Protection**
-- **User data encryption** (planned)
-- **Secure file storage** (planned)
-- **GDPR compliance** (planned)
-
-## 🛡️ Security Checklist
-
-- [ ] API token moved to environment variables
-- [ ] No hardcoded secrets in source code
-- [ ] Rate limiting implemented
-- [ ] Secure logging configured
-- [ ] .gitignore updated
-- [ ] Environment variables set in production
-- [ ] Regular security audits scheduled
-
-## 🚨 Emergency Response
-
-If you suspect a security breach:
-
-1. **Immediately** revoke the bot token at @BotFather
-2. **Generate** a new token
-3. **Update** environment variables
-4. **Review** logs for suspicious activity
-5. **Monitor** for unusual behavior
-
-## 📞 Security Contact
-
-For security issues, contact: [Your Contact Info]
-
----
-
-**Remember: Security is everyone's responsibility!** 🔒
+1. Revoke the bot token in @BotFather and set the new one: `heroku config:set API_TOKEN=…`.
+2. Rotate database credentials: `heroku pg:credentials:rotate HEROKU_POSTGRESQL_COBALT_URL -a affinia`.
+3. Check `heroku logs` for the pseudonymous tags involved; `LOG_SALT` lets you re-derive a tag from a known user id.
+4. Notify affected users via the bot if personal data was exposed (GDPR art. 33/34 timelines apply).

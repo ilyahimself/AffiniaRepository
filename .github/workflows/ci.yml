@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+
+      - name: Compile
+        run: python -m compileall -q app.py services migrations gunicorn.conf.py
+
+      - name: Migrations apply cleanly to an empty database
+        env:
+          DATABASE_URL: sqlite:////tmp/affinia_ci.db
+          HEROKU_POSTGRESQL_COBALT_URL: sqlite:////tmp/affinia_ci.db
+        run: alembic upgrade head
+
+      - name: Tests
+        run: pytest tests -q -p no:cacheprovider
+
+      - name: No secrets committed
+        run: |
+          set -e
+          if git grep -nE '[0-9]{8,10}:[A-Za-z0-9_-]{35}' -- ':!*.md' ; then
+            echo "::error::Looks like a Telegram bot token is committed"; exit 1; fi
+          if git grep -nE 'postgres(ql)?://[^ ]+:[^ ]+@' -- ':!*.md' ':!.env.example' ':!migrations/env.py' ; then
+            echo "::error::Looks like a database URL with credentials is committed"; exit 1; fi
