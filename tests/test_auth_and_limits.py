@@ -28,6 +28,15 @@ def test_stale_init_data_is_rejected(client, app_module):
     assert client.post('/get_balance', json={'init_data': make_init_data(uid, auth_date=None)}).status_code == 401
 
 
+def test_names_with_percent_and_plus_survive_decoding(client, app_module):
+    """M11: parse_qs already URL-decodes; a second unquote used to corrupt names like '100% Ann+Bob'."""
+    _reset_limits(app_module)
+    uid = 8002
+    data = make_init_data(uid, first_name='100% Ann+Bob %41 Ко')
+    assert client.post('/get_balance', json={'init_data': data}).status_code == 200
+    assert app_module.user_profiles[str(uid)]['first_name'] == '100% Ann+Bob %41 Ко'
+
+
 def test_failed_auth_attempts_are_throttled_per_ip(client, app_module):
     _reset_limits(app_module)
     limit, _ = app_module.AUTH_FAIL_LIMIT
