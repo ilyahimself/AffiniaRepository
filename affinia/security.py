@@ -6,7 +6,7 @@ import logging
 import threading
 from collections import defaultdict
 from time import time
-from urllib.parse import parse_qs, unquote
+from urllib.parse import parse_qs
 
 from flask import request
 
@@ -115,8 +115,8 @@ def validate_init_data(init_data: str, bot_token: str) -> dict:
             return None
         
         # Парсим JSON с данными пользователя
-        user_json = unquote(parsed.get('user', '{}'))
-        user_data = json.loads(user_json)
+        # parse_qs уже URL-декодировал значение; повторный unquote ломал имена с '%' и '+'
+        user_data = json.loads(parsed.get('user', '{}'))
         
         return {
             'user_id': str(user_data.get('id', '')),
