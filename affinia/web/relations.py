@@ -9,8 +9,7 @@ from services.database_service import DatabaseService
 from ..invites import _qr_png_base64, issue_invite, lookup_invite
 from ..security import get_validated_user, utag
 from ..state import (_link_both, _unlink_both, beloveds, consent_history, credit_afn, data_lock,
-                     is_connected, new_friends_count, new_partners_count, notify, referrals, user_profiles,
-                     user_tokens)
+                     is_connected, new_friends_count, new_partners_count, notify, referrals, user_profiles)
 from ..users import ensure_user_record, get_avatar_data_url
 
 bp = Blueprint('relations', __name__)
@@ -141,7 +140,13 @@ def get_friends():
     if user_id not in referrals:
         return jsonify({'friends': []})
 
-    friends_data = [{"user_id": friend_id, "coins": user_tokens.get(friend_id, 0)} for friend_id in referrals[user_id]]
+    emergency = set(DatabaseService.get_emergency_contacts(user_id))
+    with data_lock:
+        friend_ids = list(referrals.get(user_id, []))
+    friends_data = [
+        {"user_id": friend_id, "trust_level": "emergency" if friend_id in emergency else "friend"}
+        for friend_id in friend_ids
+    ]
 
     return jsonify({'friends': friends_data})
 

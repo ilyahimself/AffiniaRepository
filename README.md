@@ -15,12 +15,13 @@ Both people have to accept. Either one can revoke at any time. The record is a t
 | Consent invitation | User asks the server for a link/QR. The server issues a random single-use token (7-day TTL) stored in `invites`. The other person opens it in Telegram, sees who invited them (name + avatar), and accepts or declines. |
 | Consent record | On acceptance a row is written to `consents` (both IDs, time, status). Visible to both. Either side can revoke; the row is kept with `revoked_at` / `revoked_by`. |
 | Friend network | Same invitation mechanism with a 30-day TTL; links are stored in `referral_friends`. |
-| AFN points | Internal points for inviting friends (+25) and partners (+100), tracked in `ledger`. **Not a token, not a currency, not transferable.** |
-| Telegram Stars | Voluntary support of the project via Telegram's native payments; recorded idempotently by Telegram's charge id. |
+| Emergency contacts & SOS | A user marks friends as emergency contacts (`referral_friends.is_emergency`). The SOS button opens the phone dialer with 112 and calls `/sos`, which makes the bot message each emergency contact with the time and, if the user allowed it, a map link. Rate-limited to 5 per hour. |
+| Learn & Earn | Six missions (three short reads on consent/safety, friend milestones, supporter badge). Completion and rewards are recorded server-side in `mission_completions`, once per user. |
+| AFN points | Internal points for inviting friends (+25), partners (+100) and missions, tracked in `ledger`. **Not a token, not a currency, not transferable.** |
+| Telegram Stars | Voluntary support of the project via Telegram's native payments; recorded idempotently by Telegram's charge id. Donations do not unlock features. |
 | Data rights | Export everything stored about you as JSON; delete your account (immediate, irreversible, keeps the other party's record consistent). |
-| TON Connect | Wallet connection UI only (shows balance). No on-chain logic in the product. |
 
-Things shown in the UI as "coming soon" or still placeholder (ID verification, blockchain verification, witness mode, nearby search) are **not implemented**; see the roadmap section.
+Everything in the UI is backed by the server. Earlier placeholder screens (phone/email/ID verification, blockchain verification, witness mode, nearby search, TON wallet, partner search/messaging) were removed in October 2026 rather than left as "coming soon".
 
 ## Architecture
 
@@ -99,10 +100,11 @@ scripts/update_icons.py generate favicon/app icons from one image
 ## Roadmap (short)
 
 1. ~~Split `app.py` into modules~~ done: `affinia/` package (config, security, state, users, invites, bot/, web/ blueprints).
-2. Replace placeholder screens with either working features or honest "planned" labels.
-3. Real SOS: notify trusted contacts via the bot, one-tap call to local emergency number.
+2. ~~Remove placeholder screens~~ done (October 2026).
+3. ~~Real SOS~~ done: emergency contacts + bot alert + 112 dialer. Still to verify on iOS/Android inside Telegram.
 4. Time-limited consents (auto-expire), optional per-record notes.
-5. EU hosting region before public launch.
+5. Escape user-provided names in the Mini App templates (they come from Telegram profiles and are inserted via innerHTML).
+6. EU hosting region before public launch.
 
 ## Legal
 
