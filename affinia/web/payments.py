@@ -1,11 +1,10 @@
-"""Telegram Stars invoice links and the (inactive) webhook endpoint."""
+"""Telegram Stars invoice links."""
 import logging
 
 from flask import Blueprint, jsonify, request
-from telegram import LabeledPrice, Update
+from telegram import LabeledPrice
 
-from ..bot.runtime import application, bot, run_bot_coro
-from ..config import USE_WEBHOOK
+from ..bot.runtime import application, run_bot_coro
 from ..security import enforce_rate_limit, get_validated_user, utag
 from ..users import ensure_user_record
 
@@ -57,26 +56,3 @@ def get_donate_link():
     except Exception as e:
         logging.error(f"Error creating invoice for {utag(user_id)}: {e}")
         return jsonify({'error': 'Failed to create donation invoice'}), 500
-
-
-@bp.route('/webhook', methods=['POST'])
-def webhook():
-    """Webhook endpoint для будущего использования"""
-    if not USE_WEBHOOK:
-        return jsonify({'error': 'Webhook not enabled'}), 400
-    
-    try:
-        json_data = request.get_json()
-        update = Update.de_json(json_data, bot)
-        
-        # Обрабатываем update в отдельной задаче
-        import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(application.process_update(update))
-        loop.close()
-        
-        return jsonify({'ok': True})
-    except Exception as e:
-        logging.error(f'❌ Webhook error: {e}')
-        return jsonify({'error': str(e)}), 500

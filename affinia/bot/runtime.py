@@ -7,7 +7,7 @@ import threading
 from telegram import Bot
 from telegram.ext import Application
 
-from ..config import API_TOKEN, BOT_USERNAME, WEBAPP_URL
+from ..config import API_TOKEN, BOT_USERNAME
 from ..state import load_data
 
 bot_loop = None
@@ -76,37 +76,3 @@ def start_bot_in_background() -> threading.Thread:
     _bot_thread = threading.Thread(target=run_bot_polling, name='telegram-bot', daemon=True)
     _bot_thread.start()
     return _bot_thread
-
-
-async def run_bot_webhook():
-    """Запуск бота в режиме webhook"""
-    from .handlers import setup_handlers
-    setup_handlers()
-    
-    # Удаляем старый webhook (на всякий случай)
-    await remove_webhook()
-    
-    # Устанавливаем новый webhook
-    await setup_webhook()
-    
-    logging.info('🌐 Bot started in WEBHOOK mode')
-
-
-async def setup_webhook():
-    """Настройка webhook (для будущего использования)"""
-    webhook_url = f"{WEBAPP_URL}/webhook"
-    try:
-        await bot.set_webhook(webhook_url)
-        logging.info(f'✅ Webhook set to: {webhook_url}')
-    except Exception as e:
-        logging.error(f'❌ Failed to set webhook: {e}')
-        raise
-
-
-async def remove_webhook():
-    """Удаление webhook"""
-    try:
-        await bot.delete_webhook()
-        logging.info('✅ Webhook removed')
-    except Exception as e:
-        logging.error(f'❌ Failed to remove webhook: {e}')
