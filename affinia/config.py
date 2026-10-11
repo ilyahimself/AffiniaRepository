@@ -54,7 +54,6 @@ URL = WEBAPP_URL  # historical alias used by the bot handlers
 # Optional settings
 # ---------------------------------------------------------------------------
 ADMIN_ID = os.getenv('ADMIN_ID', '478201816')  # получает уведомление о каждом новом пользователе
-USE_WEBHOOK = os.getenv('USE_WEBHOOK', 'False').lower() == 'true'
 
 # Telegram Apps Center analytics; the SDK is embedded only when both are set
 TGA_TOKEN = os.getenv('TGA_TOKEN') or os.getenv('ANALYTICS_TOKEN')

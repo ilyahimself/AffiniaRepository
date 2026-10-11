@@ -85,7 +85,7 @@ Tests run against a temporary SQLite database with a fake bot token and forge va
 ```
 app.py                  Entry point; builds the Flask app from the affinia/ package
 affinia/                config, security (initData + rate limits), state cache, users, invites
-affinia/bot/            bot runtime (polling/webhook) and command handlers
+affinia/bot/            bot runtime (long polling in a background thread) and command handlers
 affinia/web/            Flask blueprints: pages, account, relations, payments
 services/database_service.py   SQLAlchemy models and all DB access
 migrations/             Alembic

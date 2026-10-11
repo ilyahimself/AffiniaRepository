@@ -2366,6 +2366,13 @@
             console.log('App initialization complete');
         }
 
+        // Имена и тексты приходят из профилей Telegram других людей — вставлять в HTML только экранированными
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
         function updateUserInfo() {
             const user = Telegram.WebApp.initDataUnsafe?.user;
             console.log('Updating user info for:', user);
@@ -2696,8 +2703,8 @@
             entry.innerHTML = `
                 <div class="consent-header">
                     <div class="consent-partner">
-                        <img src="${avatar}" alt="Partner" class="consent-partner-avatar">
-                        <span class="consent-partner-name">${consent.partnerName}</span>
+                        <img src="${escapeHtml(avatar)}" alt="Partner" class="consent-partner-avatar">
+                        <span class="consent-partner-name">${escapeHtml(consent.partnerName)}</span>
                     </div>
                     ${statusBadge}
                 </div>
@@ -3036,7 +3043,7 @@
                 newItem.className = 'activity-item';
                 newItem.innerHTML = `
                     <span class="activity-icon">${icon}</span>
-                    <span class="activity-text">${text}</span>
+                    <span class="activity-text">${escapeHtml(text)}</span>
                 `;
 
                 // Добавляем в начало списка
@@ -3376,9 +3383,9 @@
             card.innerHTML = `
                 <div class="friend-header">
                     <div class="friend-main-info">
-                        <img src="${userInfo.avatar}" alt="Avatar" class="friend-avatar">
+                        <img src="${escapeHtml(userInfo.avatar)}" alt="Avatar" class="friend-avatar">
                         <div class="friend-name-info">
-                            <h4>${userInfo.username}</h4>
+                            <h4>${escapeHtml(userInfo.username)}</h4>
                         </div>
                     </div>
                     ${badge}
@@ -3695,9 +3702,9 @@ Nothing else is monitored and nobody is notified automatically. Set up at least 
 
             card.innerHTML = `
                 <div class="partner-header">
-                    <img src="${userInfo.avatar}" alt="Avatar" class="partner-avatar">
+                    <img src="${escapeHtml(userInfo.avatar)}" alt="Avatar" class="partner-avatar">
                     <div class="partner-info">
-                        <h4 class="partner-name">${userInfo.username}</h4>
+                        <h4 class="partner-name">${escapeHtml(userInfo.username)}</h4>
                         ${relationshipStatus}
                     </div>
                 </div>
@@ -4085,8 +4092,8 @@ Nothing else is monitored and nobody is notified automatically. Set up at least 
             `;
 
             notification.innerHTML = `
-                <div style="font-weight: bold; margin-bottom: 5px;">${title}</div>
-                <div style="font-size: 14px;">${message}</div>
+                <div style="font-weight: bold; margin-bottom: 5px;">${escapeHtml(title)}</div>
+                <div style="font-size: 14px;">${escapeHtml(message)}</div>
             `;
 
             container.appendChild(notification);
