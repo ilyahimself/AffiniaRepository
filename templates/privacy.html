@@ -30,8 +30,15 @@
     <tr><td>Invitation links you create (random token, type, expiry, whether it was used)</td>
         <td>Generated on request</td><td>Deliver and validate invitations; expire after 7 (consent) or 30 (friend) days</td>
         <td>Contract</td></tr>
-    <tr><td>In-app points (AFN) and a ledger of how they changed</td><td>App</td>
-        <td>Rewards for inviting friends and partners. AFN is an internal score, not money or a cryptocurrency</td>
+    <tr><td>Emergency-contact flag on your friend links</td><td>You</td>
+        <td>Decide which friends the bot messages when you press SOS; the other person is told they were added</td>
+        <td>Contract</td></tr>
+    <tr><td>SOS alerts: time of the alert and, only if you grant location access at that moment, your coordinates</td>
+        <td>You, when you press SOS</td>
+        <td>Sent once to your emergency contacts as a Telegram message (with a map link). We do not keep the coordinates; the log records only that an alert was sent</td>
+        <td>Vital interests (art. 6(1)(d)) and your explicit action</td></tr>
+    <tr><td>In-app points (AFN), a ledger of how they changed, and which learning missions you completed</td><td>App</td>
+        <td>Rewards for inviting friends and partners and for reading the safety material. AFN is an internal score, not money or a cryptocurrency</td>
         <td>Contract</td></tr>
     <tr><td>Telegram Stars payments: Telegram charge ID, amount, time</td><td>Telegram Payments</td>
         <td>Credit your support, prevent double crediting, accounting</td>
@@ -41,8 +48,9 @@
         <td>Server</td><td>Security, abuse prevention, debugging</td><td>Legitimate interest (art. 6(1)(f))</td></tr>
 </table>
 <p>
-    We do not ask for or store your phone number, location, messages, photos (your Telegram avatar is fetched
-    on demand and cached in memory for up to one hour), payment card details or any health data.
+    We do not ask for or store your phone number, messages, photos (your Telegram avatar is fetched
+    on demand and cached in memory for up to one hour), payment card details or any health data. Location is
+    requested only when you press SOS, is used once for that alert and is not stored.
     The app contains no advertising or tracking SDKs; Telegram's optional Mini App analytics is enabled only
     if the operator configures it, and in that case it is listed here.
 </p>
@@ -75,7 +83,7 @@
 
 <h2>6. Retention</h2>
 <ul>
-    <li>Account, links, points, notifications: until you delete your account.</li>
+    <li>Account, links, emergency-contact flags, points, completed missions, notifications: until you delete your account.</li>
     <li>Invitation tokens: deleted with the account; unused tokens expire automatically.</li>
     <li>Consent records: until you delete your account. Because a record also belongs to the other person, on deletion your
         ID in their copy is replaced with a "deleted user" placeholder and any active record is marked revoked.</li>

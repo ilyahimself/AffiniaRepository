@@ -13,7 +13,8 @@ If you find a vulnerability, please message the project via the bot [@AffiniaBot
 - **Secrets**: environment variables only. The bot token and database credentials were rotated and the git history rewritten in October 2026 after earlier leaks. CI fails on anything shaped like a bot token or a database URL with credentials.
 - **Logs**: no Telegram IDs or names; a keyed hash per user instead.
 - **Dependencies**: pinned in `requirements.txt`; updated October 2026 (python-telegram-bot 22, Pillow 12, SQLAlchemy 2.0.x).
-- **Third-party scripts**: TON Connect UI pinned with Subresource Integrity; analytics SDK loaded `async` and only when configured.
+- **Third-party scripts**: only the Telegram WebApp SDK and (when configured) the Telegram Apps Center analytics SDK, loaded `async`. The TON Connect wallet widget was removed in October 2026.
+- **SOS**: `/sos` is rate-limited per user (5/hour); messages go only to friends the user explicitly marked as emergency contacts. Location is sent only if the browser granted it for that request.
 - **Data rights**: self-service export and deletion (`/export_my_data`, `/delete_account`).
 
 ## Known limitations

@@ -28,7 +28,8 @@ def create_app() -> Flask:
     from .pages import bp as pages_bp
     from .payments import bp as payments_bp
     from .relations import bp as relations_bp
-    for bp in (pages_bp, account_bp, relations_bp, payments_bp):
+    from .safety import bp as safety_bp
+    for bp in (pages_bp, account_bp, relations_bp, payments_bp, safety_bp):
         app.register_blueprint(bp)
     return app
 

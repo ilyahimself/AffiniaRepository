@@ -41,7 +41,9 @@ referral_friends = Table(
     'referral_friends',
     Base.metadata,
     Column('user_id', String(50), ForeignKey('users.user_id'), primary_key=True),
-    Column('friend_id', String(50), ForeignKey('users.user_id'), primary_key=True)
+    Column('friend_id', String(50), ForeignKey('users.user_id'), primary_key=True),
+    # user_id has marked friend_id as an emergency contact (one direction only)
+    Column('is_emergency', Boolean, nullable=False, default=False, server_default='0'),
 )
 
 beloved_partners = Table(
@@ -157,6 +159,16 @@ class LedgerEntry(Base):
     reason = Column(String(50), nullable=False)
     ref = Column(String(120), nullable=True)
     created_at = Column(DateTime, default=utcnow, nullable=False)
+
+
+class MissionCompletion(Base):
+    """A mission completed by a user; the primary key makes the reward idempotent."""
+    __tablename__ = 'mission_completions'
+
+    user_id = Column(String(50), ForeignKey('users.user_id'), primary_key=True)
+    mission_id = Column(String(40), primary_key=True)
+    reward = Column(Integer, nullable=False, default=0)
+    completed_at = Column(DateTime, default=utcnow, nullable=False)
 
 
 def _ts(dt: Optional[datetime]) -> int:
@@ -436,6 +448,87 @@ class DatabaseService:
         finally:
             cls.close_session()
 
+    # ===== Emergency contacts (a flag on the user's own friend link) =====
+
+    @classmethod
+    def set_emergency_contact(cls, user_id: str, friend_id: str, enabled: bool) -> bool:
+        """Mark/unmark a friend as an emergency contact. Returns False if they are not friends."""
+        session = cls.get_session()
+        try:
+            result = session.execute(
+                referral_friends.update()
+                .where((referral_friends.c.user_id == user_id) & (referral_friends.c.friend_id == friend_id))
+                .values(is_emergency=bool(enabled))
+            )
+            session.commit()
+            return result.rowcount > 0
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error setting emergency contact: {e}")
+            return False
+        finally:
+            cls.close_session()
+
+    @classmethod
+    def get_emergency_contacts(cls, user_id: str) -> List[str]:
+        """Friend ids the user has marked as emergency contacts."""
+        session = cls.get_session()
+        try:
+            rows = session.execute(
+                select(referral_friends.c.friend_id).where(
+                    (referral_friends.c.user_id == user_id) & (referral_friends.c.is_emergency.is_(True)))
+            ).all()
+            return [fid for (fid,) in rows]
+        finally:
+            cls.close_session()
+
+    # ===== Missions (server-side, idempotent rewards) =====
+
+    @classmethod
+    def get_completed_missions(cls, user_id: str) -> List[str]:
+        session = cls.get_session()
+        try:
+            rows = session.execute(
+                select(MissionCompletion.mission_id).where(MissionCompletion.user_id == user_id)).all()
+            return [m for (m,) in rows]
+        finally:
+            cls.close_session()
+
+    @classmethod
+    def complete_mission(cls, user_id: str, mission_id: str, reward: int) -> Optional[int]:
+        """Record a mission completion and credit the reward once.
+
+        Returns the new balance, or None if the mission was already completed.
+        """
+        session = cls.get_session()
+        try:
+            cls._get_or_create(session, user_id)
+            exists = session.execute(select(MissionCompletion.mission_id).where(
+                (MissionCompletion.user_id == user_id) & (MissionCompletion.mission_id == mission_id))).first()
+            if exists:
+                return None
+            session.add(MissionCompletion(user_id=user_id, mission_id=mission_id, reward=reward))
+            if reward:
+                session.execute(update(User).where(User.user_id == user_id).values(balance=User.balance + reward))
+                session.add(LedgerEntry(user_id=user_id, delta=reward, reason='mission', ref=mission_id))
+            session.commit()
+            return session.execute(select(User.balance).where(User.user_id == user_id)).scalar_one()
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error completing mission {mission_id}: {e}")
+            raise
+        finally:
+            cls.close_session()
+
+    @classmethod
+    def count_payments(cls, user_id: str) -> int:
+        session = cls.get_session()
+        try:
+            return session.execute(
+                select(func.count()).select_from(Payment).where(Payment.user_id == user_id)).scalar_one()
+        finally:
+            cls.close_session()
+
     # ===== Partners/Beloveds Operations =====
 
     @classmethod
@@ -708,6 +801,14 @@ class DatabaseService:
                 },
                 'friends': [fid for (fid,) in session.execute(
                     select(referral_friends.c.friend_id).where(referral_friends.c.user_id == user_id)).all()],
+                'emergency_contacts': [fid for (fid,) in session.execute(
+                    select(referral_friends.c.friend_id).where(
+                        (referral_friends.c.user_id == user_id) & (referral_friends.c.is_emergency.is_(True)))).all()],
+                'missions': [
+                    {'mission_id': m.mission_id, 'reward': m.reward, 'completed_at': iso(m.completed_at)}
+                    for m in session.execute(select(MissionCompletion).where(
+                        MissionCompletion.user_id == user_id)).scalars().all()
+                ],
                 'partners': [pid for (pid,) in session.execute(
                     select(beloved_partners.c.partner_id).where(beloved_partners.c.user_id == user_id)).all()],
                 'consents': [
@@ -772,6 +873,7 @@ class DatabaseService:
             session.execute(update(Notification).where(Notification.from_user == user_id).values(from_user=DELETED_USER_ID))
 
             session.execute(LedgerEntry.__table__.delete().where(LedgerEntry.user_id == user_id))
+            session.execute(MissionCompletion.__table__.delete().where(MissionCompletion.user_id == user_id))
             session.execute(update(Payment).where(Payment.user_id == user_id).values(user_id=DELETED_USER_ID))
 
             session.execute(User.__table__.delete().where(User.user_id == user_id))
