@@ -17,11 +17,13 @@ If you find a vulnerability, please message the project via the bot [@AffiniaBot
 - **SOS**: `/sos` is rate-limited per user (5/hour); messages go only to friends the user explicitly marked as emergency contacts. Location is sent only if the browser granted it for that request.
 - **Data rights**: self-service export and deletion (`/export_my_data`, `/delete_account`).
 
+- **Browser headers**: HTML responses carry a `Content-Security-Policy` restricting `connect-src` and `script-src` to Telegram (and optional analytics) origins, `Referrer-Policy: no-referrer` (so `?invite=` tokens never leak in `Referer` headers), and `X-Content-Type-Options: nosniff`. All user-supplied strings in the Mini App are escaped via `escapeHtml()`.
+
 ## Known limitations
 
 - Rate limiting is in-memory and resets on restart; fine for one dyno, would need Redis for more.
 - Hosting is in the US region (Heroku); see the Privacy Policy for the transfer basis.
-- `initData` is sent in the JSON body of each request; TLS protects it in transit, but any XSS in the Mini App would expose it. The page currently has no Content-Security-Policy header — on the list.
+- `initData` is sent in the JSON body of each request; TLS protects it in transit, and CSP restricts `connect-src` exfiltration, though moving inline scripts into static files would allow dropping `'unsafe-inline'` in the future.
 
 ## Incident response
 
