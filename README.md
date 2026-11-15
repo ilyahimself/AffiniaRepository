@@ -19,7 +19,7 @@ Both people have to accept. Either one can revoke at any time. The record is a t
 | Learn & Earn | Six missions (three short reads on consent/safety, friend milestones, supporter badge). Completion and rewards are recorded server-side in `mission_completions`, once per user. |
 | AFN points | Internal points for inviting friends (+25), partners (+100) and missions, tracked in `ledger`. **Not a token, not a currency, not transferable.** |
 | Telegram Stars | Voluntary support of the project via Telegram's native payments; recorded idempotently by Telegram's charge id. Donations do not unlock features. |
-| Data rights | Export everything stored about you as JSON; delete your account (immediate, irreversible, keeps the other party's record consistent). |
+| Data rights & GDPR Art. 9 | First-launch 18+ age gate and unbundled explicit GDPR Art. 9(2)(a) consent recorded in PostgreSQL (`terms_accepted_at`, `art9_consent_at`); self-service JSON export and immediate irreversible account erasure. |
 
 Everything in the UI is backed by the server. Earlier placeholder screens (phone/email/ID verification, blockchain verification, witness mode, nearby search, TON wallet, partner search/messaging) were removed in October 2026 rather than left as "coming soon".
 

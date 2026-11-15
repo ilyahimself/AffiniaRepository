@@ -15,7 +15,7 @@ If you find a vulnerability, please message the project via the bot [@AffiniaBot
 - **Dependencies**: pinned in `requirements.txt`; updated October 2026 (python-telegram-bot 22, Pillow 12, SQLAlchemy 2.0.x).
 - **Third-party scripts**: only the Telegram WebApp SDK and (when configured) the Telegram Apps Center analytics SDK, loaded `async`. The TON Connect wallet widget was removed in October 2026.
 - **SOS**: `/sos` is rate-limited per user (5/hour); messages go only to friends the user explicitly marked as emergency contacts. Location is sent only if the browser granted it for that request.
-- **Data rights**: self-service export and deletion (`/export_my_data`, `/delete_account`).
+- **Data rights & accountability**: unbundled 18+ & GDPR art. 9(2)(a) onboarding gate stored with UTC timestamps (`/accept_compliance`), plus self-service export and deletion (`/export_my_data`, `/delete_account`).
 
 - **Browser headers**: HTML responses carry a `Content-Security-Policy` restricting `connect-src` and `script-src` to Telegram (and optional analytics) origins, `Referrer-Policy: no-referrer` (so `?invite=` tokens never leak in `Referer` headers), and `X-Content-Type-Options: nosniff`. All user-supplied strings in the Mini App are escaped via `escapeHtml()`.
 

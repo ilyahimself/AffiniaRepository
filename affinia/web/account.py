@@ -9,8 +9,8 @@ from services.database_service import DatabaseService
 from ..config import BOT_USERNAME
 from ..invites import _qr_png_base64
 from ..security import enforce_rate_limit, get_validated_user, utag
-from ..state import (_avatar_cache, data_lock, load_data, new_friends_count, user_notifications,
-                     user_profiles, user_stars, user_tokens)
+from ..state import (_avatar_cache, data_lock, load_data, new_friends_count, user_compliance,
+                     user_notifications, user_profiles, user_stars, user_tokens)
 from ..users import ensure_user_record
 
 bp = Blueprint('account', __name__)
@@ -50,9 +50,34 @@ def get_balance():
     
     with data_lock:
         balance = user_tokens.get(user_id, 0)
-    
+        compliance_ok = bool(user_compliance.get(user_id, False))
+
     logging.info(f'💰 Balance check: {utag(user_id)} → {balance} AFN')
-    return jsonify({'balance': balance})
+    return jsonify({'balance': balance, 'compliance_accepted': compliance_ok})
+
+
+@bp.route('/accept_compliance', methods=['POST'])
+def accept_compliance():
+    """Фиксация подтверждения 18+ (Terms/Privacy) и раздельного согласия по ст. 9(2)(a) GDPR."""
+    data = request.json or {}
+
+    validated_user = get_validated_user(data)
+    if not validated_user:
+        return jsonify({'error': 'Invalid authentication'}), 401
+
+    if data.get('age_and_terms') is not True or data.get('gdpr_art9') is not True:
+        return jsonify({
+            'error': 'Both 18+ eligibility confirmation and explicit GDPR Art. 9 consent are required'
+        }), 400
+
+    user_id = validated_user['user_id']
+    ensure_user_record(user_id)
+    stamps = DatabaseService.accept_compliance(user_id)
+    with data_lock:
+        user_compliance[user_id] = True
+
+    logging.info(f'✅ Compliance accepted (18+ & GDPR Art.9): {utag(user_id)}')
+    return jsonify({'success': True, 'compliance_accepted': True, **stamps})
 
 
 @bp.route('/create_referral_link', methods=['POST'])

@@ -73,6 +73,10 @@ class User(Base):
     unseen_friends = Column(Integer, default=0, nullable=False)
     unseen_partners = Column(Integer, default=0, nullable=False)
 
+    # GDPR Art. 7(1) / Art. 9(2)(a) accountability & 18+ eligibility confirmation
+    terms_accepted_at = Column(DateTime, nullable=True)
+    art9_consent_at = Column(DateTime, nullable=True)
+
     # Timestamps
     created_at = Column(DateTime, default=utcnow)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
@@ -401,6 +405,29 @@ class DatabaseService:
             full_name = f"{user.first_name or ''} {user.last_name or ''}".strip()
             return f"{full_name} (ID: {user_id})"
         return f"User {user_id}"
+
+    @classmethod
+    def accept_compliance(cls, user_id: str) -> Dict[str, str]:
+        """Record 18+ Terms confirmation and explicit GDPR Art. 9(2)(a) consent timestamps."""
+        session = cls.get_session()
+        try:
+            user = cls._get_or_create(session, user_id)
+            now = utcnow()
+            if user.terms_accepted_at is None:
+                user.terms_accepted_at = now
+            if user.art9_consent_at is None:
+                user.art9_consent_at = now
+            session.commit()
+            return {
+                'terms_accepted_at': user.terms_accepted_at.isoformat() + 'Z',
+                'art9_consent_at': user.art9_consent_at.isoformat() + 'Z',
+            }
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error recording compliance for {user_id}: {e}")
+            raise
+        finally:
+            cls.close_session()
 
     # ===== Friends/Referrals Operations =====
 
@@ -926,6 +953,8 @@ class DatabaseService:
                     'user_id': u.user_id, 'balance': u.balance, 'stars': u.stars,
                     'username': u.username, 'first_name': u.first_name, 'last_name': u.last_name,
                     'language_code': u.language_code, 'is_premium': bool(u.is_premium),
+                    'terms_accepted_at': iso(u.terms_accepted_at),
+                    'art9_consent_at': iso(u.art9_consent_at),
                     'created_at': iso(u.created_at), 'updated_at': iso(u.updated_at),
                 },
                 'friends': [fid for (fid,) in session.execute(
@@ -1054,12 +1083,15 @@ class DatabaseService:
             user_tokens: Dict[str, int] = {}
             user_stars: Dict[str, int] = {}
             user_profiles: Dict[str, Dict[str, Any]] = {}
+            user_compliance: Dict[str, bool] = {}
             new_friends_count: Dict[str, int] = {}
             new_partners_count: Dict[str, int] = {}
             for u in users:
                 if u.user_id == DELETED_USER_ID:
                     continue
                 user_tokens[u.user_id] = u.balance or 0
+                if u.terms_accepted_at and u.art9_consent_at:
+                    user_compliance[u.user_id] = True
                 if u.stars:
                     user_stars[u.user_id] = u.stars
                 if u.username or u.first_name:
@@ -1109,6 +1141,7 @@ class DatabaseService:
                 'beloveds': beloveds,
                 'user_stars': user_stars,
                 'user_profiles': user_profiles,
+                'user_compliance': user_compliance,
                 'pending_friend_requests': pending_friend_requests,
                 'pending_consent_requests': pending_consent_requests,
                 'user_notifications': user_notifications,

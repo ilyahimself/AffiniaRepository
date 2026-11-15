@@ -18,6 +18,7 @@ referrals = {}
 beloveds = {}
 user_stars = {}
 user_profiles = {}
+user_compliance = {}  # Подтверждение 18+ и явного согласия по ст. 9 GDPR
 pending_friend_requests = {}  # Хранение ожидающих запросов дружбы
 pending_consent_requests = {}  # Хранение ожидающих запросов партнерства
 user_notifications = {}  # Хранение уведомлений для пользователей
@@ -29,7 +30,7 @@ _avatar_cache: dict = {}
 
 _CACHES = (
     (user_tokens, 'user_tokens'), (referrals, 'referrals'), (beloveds, 'beloveds'),
-    (user_stars, 'user_stars'), (user_profiles, 'user_profiles'),
+    (user_stars, 'user_stars'), (user_profiles, 'user_profiles'), (user_compliance, 'user_compliance'),
     (pending_friend_requests, 'pending_friend_requests'), (pending_consent_requests, 'pending_consent_requests'),
     (user_notifications, 'user_notifications'), (new_friends_count, 'new_friends_count'),
     (new_partners_count, 'new_partners_count'), (consent_history, 'consent_history'),

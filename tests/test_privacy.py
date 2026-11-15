@@ -109,3 +109,30 @@ def test_logs_do_not_contain_raw_user_ids(client, app_module, caplog):
     assert '9301' not in text and '9302' not in text
     assert 'u:' in text
     assert app_module.utag('9301') == app_module.utag('9301') != app_module.utag('9302')
+
+
+def test_compliance_gate_requires_unbundled_18plus_and_art9_and_persists(client, app_module):
+    user = 9401
+    bal = post(client, '/get_balance', user).get_json()
+    assert bal['compliance_accepted'] is False
+
+    # Unauthenticated or bundled / partial consent is rejected
+    assert client.post('/accept_compliance', json={'age_and_terms': True, 'gdpr_art9': True}).status_code == 401
+    assert post(client, '/accept_compliance', user, age_and_terms=True, gdpr_art9=False).status_code == 400
+    assert post(client, '/accept_compliance', user, age_and_terms=False, gdpr_art9=True).status_code == 400
+    assert post(client, '/accept_compliance', user, age_and_terms='yes', gdpr_art9='yes').status_code == 400
+
+    acc = post(client, '/accept_compliance', user, age_and_terms=True, gdpr_art9=True).get_json()
+    assert acc['success'] and acc['compliance_accepted'] is True
+    assert acc['terms_accepted_at'] and acc['art9_consent_at']
+
+    # Survives cache reload (simulated dyno restart) and appears in GDPR data export
+    app_module.load_data()
+    assert post(client, '/get_balance', user).get_json()['compliance_accepted'] is True
+    exported = post(client, '/export_my_data', user).get_json()['user']
+    assert exported['terms_accepted_at'] == acc['terms_accepted_at']
+    assert exported['art9_consent_at'] == acc['art9_consent_at']
+
+    # Account erasure resets compliance so a returning user must consent afresh
+    assert post(client, '/delete_account', user, confirm='DELETE').get_json()['success']
+    assert post(client, '/get_balance', user).get_json()['compliance_accepted'] is False

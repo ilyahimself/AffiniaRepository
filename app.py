@@ -28,8 +28,8 @@ from affinia.security import (  # noqa: F401
 )
 from affinia.state import (  # noqa: F401
     beloveds, consent_history, data_lock, load_data, new_friends_count, new_partners_count,
-    pending_consent_requests, pending_friend_requests, referrals, user_notifications, user_profiles,
-    user_stars, user_tokens,
+    pending_consent_requests, pending_friend_requests, referrals, user_compliance, user_notifications,
+    user_profiles, user_stars, user_tokens,
 )
 from affinia.bot.runtime import (  # noqa: F401
     application, bot, run_bot_coro, run_bot_polling, start_bot_in_background,
