@@ -8,7 +8,7 @@ from telegram.ext import (CallbackContext, CallbackQueryHandler, CommandHandler,
 from services.database_service import DatabaseService
 
 from ..config import BOT_USERNAME, URL
-from ..invites import issue_invite, lookup_invite
+from ..invites import format_duration, issue_invite, lookup_invite
 from ..security import RateLimited, utag
 from ..state import (_link_both, credit_afn, data_lock, is_reserved_start_payload, is_valid_referrer,
                      referrals, user_stars, user_tokens)
@@ -114,9 +114,10 @@ async def handle_invitation(update: Update, context: CallbackContext, token: str
     ensure_user_record(user_id)
 
     try:
-        _, error = lookup_invite(token, kind, user_id)
+        invite, error = lookup_invite(token, kind, user_id)
         reply = "This invitation link is invalid, expired or already used. Please ask for a new one."
     except RateLimited as e:
+        invite = None
         error = reply = e.message
     if error:
         logging.info(f'Invite rejected for {utag(user_id)}: {error}')
@@ -125,6 +126,8 @@ async def handle_invitation(update: Update, context: CallbackContext, token: str
         return
 
     text, button = INVITE_TEXT[kind]
+    if kind == 'consent' and invite and invite.duration_hours:
+        text += f"\n\n⏳ Proposed duration: {format_duration(invite.duration_hours)} (auto-expires)"
     open_app_url = f"{URL}/mini_app?invite={token}"
     reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton(button, web_app=WebAppInfo(url=open_app_url))]])
     await update.message.reply_text(text, reply_markup=reply_markup)

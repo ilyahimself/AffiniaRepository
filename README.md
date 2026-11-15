@@ -12,8 +12,8 @@ Both people have to accept. Either one can revoke at any time. The record is a t
 
 | Feature | How it works |
 |---|---|
-| Consent invitation | User asks the server for a link/QR. The server issues a random single-use token (7-day TTL) stored in `invites`. The other person opens it in Telegram, sees who invited them (name + avatar), and accepts or declines. |
-| Consent record | On acceptance a row is written to `consents` (both IDs, time, status). Visible to both. Either side can revoke; the row is kept with `revoked_at` / `revoked_by`. |
+| Consent invitation | User asks the server for a link/QR (with optional duration and short note). The server issues a random single-use token (7-day TTL) stored in `invites`. The other person opens it in Telegram, sees who invited them (name + avatar) and the proposed duration/note, and accepts or declines. |
+| Consent record | On acceptance a row is written to `consents` (both IDs, time, optional `expires_at` and `note`, status). Visible to both. Time-limited consents auto-expire (`status = expired`); either side can revoke at any time (`revoked_at` / `revoked_by`). |
 | Friend network | Same invitation mechanism with a 30-day TTL; links are stored in `referral_friends`. |
 | Emergency contacts & SOS | A user marks friends as emergency contacts (`referral_friends.is_emergency`). The SOS button opens the phone dialer with 112 and calls `/sos`, which makes the bot message each emergency contact with the time and, if the user allowed it, a map link. Rate-limited to 5 per hour. |
 | Learn & Earn | Six missions (three short reads on consent/safety, friend milestones, supporter badge). Completion and rewards are recorded server-side in `mission_completions`, once per user. |
@@ -101,9 +101,9 @@ scripts/update_icons.py generate favicon/app icons from one image
 
 1. ~~Split `app.py` into modules~~ done: `affinia/` package (config, security, state, users, invites, bot/, web/ blueprints).
 2. ~~Remove placeholder screens~~ done (October 2026).
-3. ~~Real SOS~~ done: emergency contacts + bot alert + 112 dialer. Still to verify on iOS/Android inside Telegram.
-4. Time-limited consents (auto-expire), optional per-record notes.
-5. Escape user-provided names in the Mini App templates (they come from Telegram profiles and are inserted via innerHTML).
+3. ~~Real SOS~~ done: emergency contacts + bot alert + 112 dialer (`Telegram.WebApp.LocationManager` with browser fallback).
+4. ~~Time-limited consents (auto-expire), optional per-record notes~~ done (November 2026).
+5. ~~Escape user-provided names in the Mini App templates~~ done (`escapeHtml`).
 6. EU hosting region before public launch.
 
 ## Legal

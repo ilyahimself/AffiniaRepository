@@ -10,7 +10,7 @@ must go through a method here (write-through).
 import os
 import logging
 from typing import Optional, Dict, List, Any
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import (
     create_engine, Column, Integer, BigInteger, String, Boolean, DateTime, Text,
@@ -96,15 +96,18 @@ class User(Base):
 
 
 class Consent(Base):
-    """An accepted consent between two users. One row per pair."""
+    """An accepted consent between two users."""
     __tablename__ = 'consents'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     inviter_id = Column(String(50), ForeignKey('users.user_id'), nullable=False, index=True)
     partner_id = Column(String(50), ForeignKey('users.user_id'), nullable=False, index=True)
     kind = Column(String(30), default='intimate', nullable=False)
-    status = Column(String(20), default='active', nullable=False)  # active | revoked
+    status = Column(String(20), default='active', nullable=False)  # active | expired | revoked
     created_at = Column(DateTime, default=utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=True)
+    duration_hours = Column(Integer, nullable=True)
+    note = Column(String(200), nullable=True)
     revoked_at = Column(DateTime, nullable=True)
     revoked_by = Column(String(50), nullable=True)
 
@@ -118,6 +121,8 @@ class Invite(Base):
     kind = Column(String(20), nullable=False)  # friend | consent
     created_at = Column(DateTime, default=utcnow, nullable=False)
     expires_at = Column(DateTime, nullable=True)
+    duration_hours = Column(Integer, nullable=True)
+    note = Column(String(200), nullable=True)
     used_by = Column(String(50), nullable=True)
     used_at = Column(DateTime, nullable=True)
     decision = Column(String(20), nullable=True)  # accept | decline
@@ -175,6 +180,19 @@ def _ts(dt: Optional[datetime]) -> int:
     if dt is None:
         return 0
     return int(dt.replace(tzinfo=timezone.utc).timestamp())
+
+
+def _consent_base(c: Consent) -> Dict[str, Any]:
+    return {
+        'id': c.id,
+        'timestamp': _ts(c.created_at),
+        'expires_at': _ts(c.expires_at) if c.expires_at else None,
+        'revoked_at': _ts(c.revoked_at) if c.revoked_at else None,
+        'duration_hours': c.duration_hours,
+        'note': c.note,
+        'status': c.status,
+        'type': c.kind,
+    }
 
 
 class DatabaseService:
@@ -596,22 +614,100 @@ class DatabaseService:
     # ===== Consents =====
 
     @classmethod
-    def add_consent(cls, inviter_id: str, partner_id: str, kind: str = 'intimate') -> Dict[str, Any]:
+    def _expire_due_in_session(cls, session, now: Optional[datetime] = None) -> List[int]:
+        now = now or utcnow()
+        due_ids = [
+            cid for (cid,) in session.execute(
+                select(Consent.id).where(
+                    (Consent.status == 'active')
+                    & Consent.expires_at.is_not(None)
+                    & (Consent.expires_at <= now)
+                )
+            ).all()
+        ]
+        if due_ids:
+            session.execute(
+                update(Consent).where(Consent.id.in_(due_ids)).values(status='expired')
+            )
+        return due_ids
+
+    @classmethod
+    def expire_due_consents(cls, now: Optional[datetime] = None) -> List[int]:
+        """Transition any past-due active consents to 'expired'. Returns transitioned IDs."""
+        session = cls.get_session()
+        try:
+            due_ids = cls._expire_due_in_session(session, now)
+            if due_ids:
+                session.commit()
+            return due_ids
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error expiring consents: {e}")
+            return []
+        finally:
+            cls.close_session()
+
+    @classmethod
+    def _pair_clause(cls, a_id: str, b_id: str):
+        return (
+            ((Consent.inviter_id == a_id) & (Consent.partner_id == b_id))
+            | ((Consent.inviter_id == b_id) & (Consent.partner_id == a_id))
+        )
+
+    @classmethod
+    def has_prior_consent(cls, a_id: str, b_id: str) -> bool:
+        """True if these two users have ever recorded a consent together."""
+        session = cls.get_session()
+        try:
+            return session.execute(select(Consent.id).where(cls._pair_clause(a_id, b_id)).limit(1)).first() is not None
+        finally:
+            cls.close_session()
+
+    @classmethod
+    def has_active_consent(cls, a_id: str, b_id: str) -> bool:
+        """True if there is currently an active (non-expired, non-revoked) consent between a_id and b_id."""
+        session = cls.get_session()
+        try:
+            due = cls._expire_due_in_session(session)
+            if due:
+                session.commit()
+            row = session.execute(
+                select(Consent.id).where(cls._pair_clause(a_id, b_id) & (Consent.status == 'active')).limit(1)
+            ).first()
+            return row is not None
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error checking active consent: {e}")
+            return False
+        finally:
+            cls.close_session()
+
+    @classmethod
+    def add_consent(cls, inviter_id: str, partner_id: str, kind: str = 'intimate',
+                    duration_hours: Optional[int] = None, note: Optional[str] = None) -> Dict[str, Any]:
         """Record an accepted consent. Returns dict in the app's consent_history shape."""
         session = cls.get_session()
         try:
             cls._get_or_create(session, inviter_id)
             cls._get_or_create(session, partner_id)
-            consent = Consent(inviter_id=inviter_id, partner_id=partner_id, kind=kind, status='active')
+            created = utcnow()
+            expires = (created + timedelta(hours=duration_hours)) if duration_hours else None
+            consent = Consent(
+                inviter_id=inviter_id,
+                partner_id=partner_id,
+                kind=kind,
+                status='active',
+                created_at=created,
+                expires_at=expires,
+                duration_hours=duration_hours,
+                note=note,
+            )
             session.add(consent)
             session.commit()
             return {
-                'id': consent.id,
+                **_consent_base(consent),
                 'inviter_id': inviter_id,
                 'partner_id': partner_id,
-                'timestamp': _ts(consent.created_at),
-                'status': consent.status,
-                'type': consent.kind,
             }
         except Exception as e:
             session.rollback()
@@ -625,14 +721,16 @@ class DatabaseService:
         """Revoke a consent; only one of the two parties may do it."""
         session = cls.get_session()
         try:
+            cls._expire_due_in_session(session)
             consent = session.get(Consent, consent_id)
             if not consent or by_user_id not in (consent.inviter_id, consent.partner_id):
+                session.commit()
                 return False
             if consent.status == 'active':
                 consent.status = 'revoked'
                 consent.revoked_at = utcnow()
                 consent.revoked_by = by_user_id
-                session.commit()
+            session.commit()
             return True
         except Exception as e:
             session.rollback()
@@ -641,14 +739,43 @@ class DatabaseService:
         finally:
             cls.close_session()
 
+    @classmethod
+    def revoke_active_consents_between(cls, by_user_id: str, other_user_id: str) -> List[int]:
+        """Withdraw any currently active consents between two users. Returns revoked IDs."""
+        session = cls.get_session()
+        try:
+            cls._expire_due_in_session(session)
+            now = utcnow()
+            rows = session.execute(
+                select(Consent).where(cls._pair_clause(by_user_id, other_user_id) & (Consent.status == 'active'))
+            ).scalars().all()
+            ids = []
+            for c in rows:
+                c.status = 'revoked'
+                c.revoked_at = now
+                c.revoked_by = by_user_id
+                ids.append(c.id)
+            session.commit()
+            return ids
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error revoking consents between pair: {e}")
+            return []
+        finally:
+            cls.close_session()
+
     # ===== Invites =====
 
     @classmethod
-    def create_invite(cls, token: str, inviter_id: str, kind: str, expires_at: Optional[datetime] = None) -> bool:
+    def create_invite(cls, token: str, inviter_id: str, kind: str, expires_at: Optional[datetime] = None,
+                      duration_hours: Optional[int] = None, note: Optional[str] = None) -> bool:
         session = cls.get_session()
         try:
             cls._get_or_create(session, inviter_id)
-            session.add(Invite(token=token, inviter_id=inviter_id, kind=kind, expires_at=expires_at))
+            session.add(Invite(
+                token=token, inviter_id=inviter_id, kind=kind, expires_at=expires_at,
+                duration_hours=duration_hours, note=note,
+            ))
             session.commit()
             return True
         except Exception as e:
@@ -788,6 +915,8 @@ class DatabaseService:
         """Everything stored about one user, as plain JSON-serialisable data (right of access)."""
         session = cls.get_session()
         try:
+            if cls._expire_due_in_session(session):
+                session.commit()
             u = session.get(User, user_id)
             if u is None:
                 return None
@@ -813,13 +942,15 @@ class DatabaseService:
                     select(beloved_partners.c.partner_id).where(beloved_partners.c.user_id == user_id)).all()],
                 'consents': [
                     {'id': c.id, 'inviter_id': c.inviter_id, 'partner_id': c.partner_id, 'kind': c.kind,
-                     'status': c.status, 'created_at': iso(c.created_at), 'revoked_at': iso(c.revoked_at),
-                     'revoked_by': c.revoked_by}
+                     'status': c.status, 'created_at': iso(c.created_at), 'expires_at': iso(c.expires_at),
+                     'duration_hours': c.duration_hours, 'note': c.note,
+                     'revoked_at': iso(c.revoked_at), 'revoked_by': c.revoked_by}
                     for c in session.execute(select(Consent).where(
                         (Consent.inviter_id == user_id) | (Consent.partner_id == user_id))).scalars().all()
                 ],
                 'invites_issued': [
                     {'kind': i.kind, 'created_at': iso(i.created_at), 'expires_at': iso(i.expires_at),
+                     'duration_hours': i.duration_hours, 'note': i.note,
                      'used_at': iso(i.used_at), 'decision': i.decision}
                     for i in session.execute(select(Invite).where(Invite.inviter_id == user_id)).scalars().all()
                 ],
@@ -859,9 +990,13 @@ class DatabaseService:
             session.execute(beloved_partners.delete().where(
                 (beloved_partners.c.user_id == user_id) | (beloved_partners.c.partner_id == user_id)))
 
+            cls._expire_due_in_session(session, now)
             session.execute(update(Consent).where(
                 ((Consent.inviter_id == user_id) | (Consent.partner_id == user_id)) & (Consent.status == 'active')
             ).values(status='revoked', revoked_at=now, revoked_by=DELETED_USER_ID))
+            session.execute(update(Consent).where(
+                (Consent.inviter_id == user_id) | (Consent.partner_id == user_id)
+            ).values(note=None))
             session.execute(update(Consent).where(Consent.inviter_id == user_id).values(inviter_id=DELETED_USER_ID))
             session.execute(update(Consent).where(Consent.partner_id == user_id).values(partner_id=DELETED_USER_ID))
             session.execute(update(Consent).where(Consent.revoked_by == user_id).values(revoked_by=DELETED_USER_ID))
@@ -912,6 +1047,8 @@ class DatabaseService:
         """Load the whole state in a handful of queries (no N+1) in app.py's cache shape."""
         session = cls.get_session()
         try:
+            if cls._expire_due_in_session(session):
+                session.commit()
             users = session.execute(select(User)).scalars().all()
 
             user_tokens: Dict[str, int] = {}
@@ -948,7 +1085,7 @@ class DatabaseService:
 
             consent_history: Dict[str, List[Dict[str, Any]]] = {}
             for c in session.execute(select(Consent).order_by(Consent.created_at)).scalars().all():
-                base = {'id': c.id, 'timestamp': _ts(c.created_at), 'status': c.status, 'type': c.kind}
+                base = _consent_base(c)
                 consent_history.setdefault(c.inviter_id, []).append({**base, 'partner_id': c.partner_id})
                 consent_history.setdefault(c.partner_id, []).append({**base, 'partner_id': c.inviter_id})
 

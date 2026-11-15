@@ -23,11 +23,11 @@
         <td>Contract (art. 6(1)(b))</td></tr>
     <tr><td>Friend links and partner links</td><td>You and the other person</td>
         <td>Your trust network; both sides see the link</td><td>Contract</td></tr>
-    <tr><td>Consent records: the two user IDs, time created, status (active / revoked), time and author of revocation</td>
+    <tr><td>Consent records: the two user IDs, time created, optional expiry time / duration, optional short note, status (active / expired / revoked), time and author of revocation</td>
         <td>Created when you accept an invitation</td>
         <td>The core service: a record both parties can see and either party can revoke</td>
         <td>Explicit consent (art. 9(2)(a)); you create the record deliberately and can revoke it at any time</td></tr>
-    <tr><td>Invitation links you create (random token, type, expiry, whether it was used)</td>
+    <tr><td>Invitation links you create (random token, type, proposed duration and optional note, link expiry, whether it was used)</td>
         <td>Generated on request</td><td>Deliver and validate invitations; expire after 7 (consent) or 30 (friend) days</td>
         <td>Contract</td></tr>
     <tr><td>Emergency-contact flag on your friend links</td><td>You</td>
@@ -86,7 +86,7 @@
     <li>Account, links, emergency-contact flags, points, completed missions, notifications: until you delete your account.</li>
     <li>Invitation tokens: deleted with the account; unused tokens expire automatically.</li>
     <li>Consent records: until you delete your account. Because a record also belongs to the other person, on deletion your
-        ID in their copy is replaced with a "deleted user" placeholder and any active record is marked revoked.</li>
+        ID in their copy is replaced with a "deleted user" placeholder, any shared note is cleared, and any active record is marked revoked.</li>
     <li>Payment records: kept for accounting after account deletion, with your ID replaced by the placeholder.</li>
     <li>Server logs: retained by the hosting provider for a short rolling window (typically up to 7 days).</li>
     <li>Database backups: daily, kept by the hosting provider for up to 7 days, then overwritten.</li>
