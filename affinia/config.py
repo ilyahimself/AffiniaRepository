@@ -70,7 +70,7 @@ INIT_DATA_MAX_AGE = int(os.getenv('INIT_DATA_MAX_AGE', str(24 * 3600)))
 CLOCK_SKEW = 300
 
 PRIVACY_CONTACT = os.getenv('PRIVACY_CONTACT', '')
-POLICY_UPDATED = '2026-10-10'
+POLICY_UPDATED = '2026-11-15'
 
 # ---------------------------------------------------------------------------
 # Limits and TTLs
@@ -82,6 +82,8 @@ IP_RATE_LIMIT = (3000, 3600)
 AUTH_FAIL_LIMIT = (30, 600)        # неудачных проверок initData с одного IP за 10 минут
 
 INVITE_TTL = {'friend': timedelta(days=30), 'consent': timedelta(days=7)}
+CONSENT_MAX_DURATION_HOURS = 24 * 365  # до 1 года для срочных согласий; None = бессрочно до отзыва
+CONSENT_NOTE_MAX_LEN = 200
 
 AVATAR_CACHE_TTL = 3600
 AVATAR_CACHE_MAX = 2000

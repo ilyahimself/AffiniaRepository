@@ -3,23 +3,63 @@ import secrets
 from base64 import b64encode
 from datetime import datetime, timezone
 from io import BytesIO
+from typing import Optional
 
 import qrcode
 
 from services.database_service import DatabaseService
 
-from .config import BOT_USERNAME, INVITE_TTL
+from .config import BOT_USERNAME, CONSENT_MAX_DURATION_HOURS, CONSENT_NOTE_MAX_LEN, INVITE_TTL
 from .security import enforce_rate_limit
 from .state import data_lock, pending_consent_requests, pending_friend_requests
 
 
-def issue_invite(user_id: str, kind: str) -> tuple[str, str]:
+def format_duration(hours: Optional[int]) -> str:
+    """Human-readable label for a consent duration in hours."""
+    if not hours:
+        return 'ongoing'
+    if hours == 1:
+        return '1 hour'
+    if hours >= 48 and hours % 24 == 0:
+        return f'{hours // 24} days'
+    return f'{hours} hours'
+
+
+def parse_consent_options(data: dict) -> tuple[Optional[int], Optional[str], Optional[str]]:
+    """Validate optional duration_hours and note on consent-link creation.
+
+    Returns (duration_hours, note, error_message).
+    """
+    raw_dur = data.get('duration_hours')
+    duration_hours: Optional[int] = None
+    if raw_dur not in (None, '', 0):
+        if isinstance(raw_dur, bool) or not isinstance(raw_dur, int):
+            return None, None, 'duration_hours must be an integer number of hours'
+        if raw_dur < 1 or raw_dur > CONSENT_MAX_DURATION_HOURS:
+            return None, None, f'duration_hours must be between 1 and {CONSENT_MAX_DURATION_HOURS}'
+        duration_hours = raw_dur
+
+    raw_note = data.get('note')
+    note: Optional[str] = None
+    if raw_note is not None:
+        if not isinstance(raw_note, str):
+            return None, None, 'note must be a string'
+        cleaned = ' '.join(raw_note.split())
+        if len(cleaned) > CONSENT_NOTE_MAX_LEN:
+            return None, None, f'note must be at most {CONSENT_NOTE_MAX_LEN} characters'
+        note = cleaned or None
+
+    return duration_hours, note, None
+
+
+def issue_invite(user_id: str, kind: str, duration_hours: Optional[int] = None,
+                 note: Optional[str] = None) -> tuple[str, str]:
     """Создаёт инвайт в БД. Возвращает (token, deep link). Префикс kind_ нужен боту и фронту для диспетчеризации."""
     # Ограничивает и спам ссылками, и рост таблицы invites
     enforce_rate_limit(f"invite_issue:{user_id}", 30, 3600, 'Too many invitations created. Please try again later.')
     token = f"{kind}_{secrets.token_urlsafe(16)}"
     expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + INVITE_TTL[kind]
-    if not DatabaseService.create_invite(token, user_id, kind, expires_at):
+    if not DatabaseService.create_invite(token, user_id, kind, expires_at, duration_hours=duration_hours, note=note):
         raise RuntimeError('could not create invite')
     cache = pending_friend_requests if kind == 'friend' else pending_consent_requests
     with data_lock:

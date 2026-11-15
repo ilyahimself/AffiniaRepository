@@ -141,3 +141,16 @@ def is_connected(user_id: str, target_id: str) -> bool:
     if user_id == target_id:
         return True
     return target_id in referrals.get(user_id, []) or target_id in beloveds.get(user_id, [])
+
+
+def sync_expired_consents() -> list[int]:
+    """Переводит истёкшие срочные согласия в статус 'expired' в PostgreSQL и в кэше."""
+    expired_ids = DatabaseService.expire_due_consents()
+    if expired_ids:
+        expired_set = set(expired_ids)
+        with data_lock:
+            for records in consent_history.values():
+                for rec in records:
+                    if rec.get('id') in expired_set and rec.get('status') == 'active':
+                        rec['status'] = 'expired'
+    return expired_ids

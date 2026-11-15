@@ -23,7 +23,7 @@ jobs:
           pip install -r requirements.txt pytest
 
       - name: Compile
-        run: python -m compileall -q app.py services migrations gunicorn.conf.py
+        run: python -m compileall -q app.py affinia services migrations gunicorn.conf.py
 
       - name: Migrations apply cleanly to an empty database
         env:

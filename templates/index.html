@@ -2639,18 +2639,23 @@
                     console.log('Consent history received:', data);
 
                     // Преобразуем данные в нужный формат
-                    consentHistoryData = (data.consent_history || []).map(consent => ({
-                        id: `consent_${consent.partner_id}_${consent.timestamp}`,
-                        consentId: consent.id,
-                        partnerId: consent.partner_id,
-                        partnerName: `User ${consent.partner_id.substring(0, 6)}...`,
-                        status: consent.status === 'revoked' ? 'withdrawn' : (consent.status || 'active'),
-                        createdAt: new Date(consent.timestamp * 1000),
-                        withdrawnAt: consent.revoked_at ? new Date(consent.revoked_at * 1000) : null,
-                        expiresAt: null,
-                        details: getConsentDetails(consent.status === 'revoked' ? 'withdrawn' : (consent.status || 'active')),
-                        type: consent.type || 'intimate'
-                    }));
+                    consentHistoryData = (data.consent_history || []).map(consent => {
+                        const uiStatus = consent.status === 'revoked' ? 'withdrawn' : (consent.status || 'active');
+                        return {
+                            id: `consent_${consent.id || (consent.partner_id + '_' + consent.timestamp)}`,
+                            consentId: consent.id,
+                            partnerId: consent.partner_id,
+                            partnerName: `User ${consent.partner_id.substring(0, 6)}...`,
+                            status: uiStatus,
+                            createdAt: new Date(consent.timestamp * 1000),
+                            withdrawnAt: consent.revoked_at ? new Date(consent.revoked_at * 1000) : null,
+                            expiresAt: consent.expires_at ? new Date(consent.expires_at * 1000) : null,
+                            durationHours: consent.duration_hours || null,
+                            note: consent.note || '',
+                            details: getConsentDetails(uiStatus, consent.duration_hours),
+                            type: consent.type || 'intimate'
+                        };
+                    });
 
                     updateHistoryStatistics();
                     displayConsentHistory();
@@ -2670,9 +2675,20 @@
                 });
         }
 
-        function getConsentDetails(status) {
+        function formatDurationLabel(hours) {
+            if (!hours) return 'Ongoing';
+            if (hours === 1) return '1 hour';
+            if (hours >= 48 && hours % 24 === 0) return `${hours / 24} days`;
+            return `${hours} hours`;
+        }
+
+        function getConsentDetails(status, durationHours) {
+            if (status === 'active' && durationHours) {
+                return `Time-limited consent (${formatDurationLabel(durationHours)}). Auto-expires; either side can withdraw anytime.`;
+            }
             const details = {
                 'active': 'Mutual consent recorded. Either side can withdraw it at any time.',
+                'expired': 'Time-limited consent ended automatically.',
                 'withdrawn': 'Consent was withdrawn.'
             };
             return details[status] || 'Consent record';
@@ -2720,6 +2736,9 @@
 
             const statusBadge = getStatusBadge(consent.status);
             const avatar = consent.avatar || `https://api.dicebear.com/6.x/avataaars/svg?seed=${consent.partnerId}`;
+            const noteBlock = consent.note
+                ? `<div class="consent-note" style="margin: 6px 0 10px; padding: 8px 10px; border-radius: 8px; background: rgba(128,128,140,0.12); font-size: 13px;">📝 ${escapeHtml(consent.note)}</div>`
+                : '';
 
             entry.innerHTML = `
                 <div class="consent-header">
@@ -2730,7 +2749,8 @@
                     ${statusBadge}
                 </div>
                 
-                <div class="consent-details">${consent.details}</div>
+                <div class="consent-details">${escapeHtml(consent.details)}</div>
+                ${noteBlock}
                 
                 <div class="consent-timestamp">
                     <span>Created: ${formatDate(consent.createdAt)}</span>
@@ -2799,14 +2819,15 @@
             return baseActions;
         }
 
-        function filterConsents(status) {
+        function filterConsents(status, btnEl) {
             currentFilter = status;
 
             // Update filter button states
             document.querySelectorAll('.filter-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
-            event.target.classList.add('active');
+            const activeBtn = btnEl || (typeof event !== 'undefined' ? event?.target : null);
+            if (activeBtn) activeBtn.classList.add('active');
 
             displayConsentHistory();
         }
@@ -2825,7 +2846,8 @@
             if (searchTerm) {
                 filtered = filtered.filter(consent =>
                     consent.partnerName.toLowerCase().includes(searchTerm) ||
-                    consent.details.toLowerCase().includes(searchTerm)
+                    consent.details.toLowerCase().includes(searchTerm) ||
+                    (consent.note || '').toLowerCase().includes(searchTerm)
                 );
             }
 
@@ -2840,7 +2862,11 @@
             const consent = consentHistoryData.find(c => c.id === consentId);
             if (consent) {
                 const withdrawn = consent.withdrawnAt ? `\nWithdrawn: ${formatDate(consent.withdrawnAt)}` : '';
-                alert(`📋 Consent Record #${consent.consentId}\n\nPartner: ${consent.partnerName}\nStatus: ${consent.status}\nCreated: ${formatDate(consent.createdAt)}${withdrawn}\n\n${consent.details}\n\nA record is a timestamped entry both of you can see. It is not a contract or legal advice. Export everything via Settings → Export my data.`);
+                const expiryLine = consent.expiresAt
+                    ? `\n${consent.status === 'expired' ? 'Expired' : 'Expires'}: ${formatDate(consent.expiresAt)}`
+                    : '\nDuration: Ongoing (until withdrawn)';
+                const noteLine = consent.note ? `\nNote: ${consent.note}` : '';
+                alert(`📋 Consent Record #${consent.consentId}\n\nPartner: ${consent.partnerName}\nStatus: ${consent.status}\nCreated: ${formatDate(consent.createdAt)}${expiryLine}${withdrawn}${noteLine}\n\n${consent.details}\n\nA record is a timestamped entry both of you can see. It is not a contract or legal advice. Export everything via Settings → Export my data.`);
             }
         }
 
@@ -3720,6 +3746,9 @@ Nothing else is monitored and nobody is notified automatically. Set up at least 
 
             const consentStatus = getConsentStatus(partner);
             const relationshipStatus = getRelationshipStatusBadge(category);
+            const activeNoteLine = (partner.active_consent_id && partner.active_note)
+                ? `<div class="timeline-item">📝 Note: ${escapeHtml(partner.active_note)}</div>`
+                : '';
 
             card.innerHTML = `
                 <div class="partner-header">
@@ -3739,6 +3768,7 @@ Nothing else is monitored and nobody is notified automatically. Set up at least 
                 <div class="relationship-timeline">
                     <div class="timeline-item">💝 Added to partners: ${getTimeAgo(partner.added_date || Date.now())}</div>
                     <div class="timeline-item">🔐 Last consent: ${consentStatus.lastConsent || 'Never'}</div>
+                    ${activeNoteLine}
                 </div>
 
                 <div class="partner-actions">
@@ -3749,11 +3779,32 @@ Nothing else is monitored and nobody is notified automatically. Set up at least 
             return card;
         }
 
+        function formatTimeLeft(expiresMs) {
+            const diff = expiresMs - Date.now();
+            if (diff <= 0) return 'expired';
+            const mins = Math.ceil(diff / 60000);
+            if (mins < 60) return `${mins}m left`;
+            const hrs = Math.floor(mins / 60);
+            if (hrs < 48) return `${hrs}h left`;
+            return `${Math.ceil(hrs / 24)}d left`;
+        }
+
         function getConsentStatus(partner) {
             // Статус приходит с бэкенда (/get_beloved) из таблицы consents
             const lastAt = partner.last_consent_at ? getTimeAgo(partner.last_consent_at * 1000) : 'Never';
             if (partner.active_consent_id) {
+                if (partner.active_expires_at) {
+                    return {
+                        class: 'active',
+                        text: '⏳ Active consent',
+                        time: formatTimeLeft(partner.active_expires_at * 1000),
+                        lastConsent: lastAt,
+                    };
+                }
                 return { class: 'active', text: 'Active consent', time: lastAt, lastConsent: lastAt };
+            }
+            if (partner.last_consent_status === 'expired') {
+                return { class: 'expired', text: '⏰ Consent expired', time: lastAt, lastConsent: lastAt };
             }
             if (partner.last_consent_at) {
                 return { class: 'expired', text: 'Consent withdrawn', time: lastAt, lastConsent: lastAt };
@@ -3887,25 +3938,66 @@ Nothing else is monitored and nobody is notified automatically. Set up at least 
         });
 
 
-        function getConsentLink() {
-            const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
-            if (!userId) {
-                alert('User ID not found. Please restart the app.');
-                return;
-            }
+        let selectedConsentDuration = null; // null = бессрочно (до отзыва), иначе часы (12 / 24 / 72)
+        let currentConsentInviteLink = null;
+        let currentConsentKey = null;
 
-            // Ссылку (одноразовый токен) выдаёт сервер — клиент её не собирает
+        function getConsentFormOptions() {
+            const rawNote = (document.getElementById('consent-note-input')?.value || '').trim();
+            return {
+                duration_hours: selectedConsentDuration,
+                note: rawNote || null,
+            };
+        }
+
+        function updateConsentPillStyles() {
+            document.querySelectorAll('.consent-duration-pill').forEach(btn => {
+                const raw = btn.getAttribute('data-hours');
+                const hrs = raw === '' ? null : Number(raw);
+                const active = hrs === selectedConsentDuration;
+                btn.style.background = active ? 'linear-gradient(135deg, #ff6b6b 0%, #ff4757 100%)' : 'rgba(255,255,255,0.08)';
+                btn.style.borderColor = active ? 'rgba(255,107,107,0.8)' : 'rgba(255,255,255,0.16)';
+                btn.style.fontWeight = active ? '700' : '500';
+            });
+        }
+
+        function onConsentNoteInput() {
+            const optsKey = JSON.stringify(getConsentFormOptions());
+            const refreshBtn = document.getElementById('refresh-consent-qr-btn');
+            if (refreshBtn) {
+                refreshBtn.style.display = (currentConsentKey && optsKey !== currentConsentKey) ? 'inline-block' : 'none';
+            }
+        }
+
+        function selectConsentDuration(hours) {
+            selectedConsentDuration = hours;
+            updateConsentPillStyles();
+            try { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.(); } catch (e) {}
+            refreshConsentQr();
+        }
+
+        function refreshConsentQr() {
             const linkEl = document.getElementById('consent-link');
+            const qrImg = document.getElementById('consent-qr-code');
+            const refreshBtn = document.getElementById('refresh-consent-qr-btn');
+            const opts = getConsentFormOptions();
+            const optsKey = JSON.stringify(opts);
+
             linkEl.textContent = 'Generating link...';
             linkEl.removeAttribute('data-link');
-            document.getElementById('consent-qr-code').removeAttribute('src');
+            qrImg.removeAttribute('src');
             currentConsentInviteLink = null;
-            document.getElementById('consent-modal').style.display = 'flex';
+            currentConsentKey = null;
+            if (refreshBtn) refreshBtn.style.display = 'none';
 
             fetch('/generate_consent_qr', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ init_data: Telegram.WebApp.initData })
+                body: JSON.stringify({
+                    init_data: Telegram.WebApp.initData,
+                    duration_hours: opts.duration_hours,
+                    note: opts.note,
+                })
             })
                 .then(r => r.json())
                 .then(data => {
@@ -3914,13 +4006,29 @@ Nothing else is monitored and nobody is notified automatically. Set up at least 
                         return;
                     }
                     currentConsentInviteLink = data.consent_link;
+                    currentConsentKey = optsKey;
                     linkEl.setAttribute('data-link', data.consent_link);
                     linkEl.textContent = data.consent_link;
                     if (data.qr_code) {
-                        document.getElementById('consent-qr-code').src = `data:image/png;base64,${data.qr_code}`;
+                        qrImg.src = `data:image/png;base64,${data.qr_code}`;
                     }
                 })
                 .catch(() => { linkEl.textContent = 'Network error'; });
+        }
+
+        function getConsentLink() {
+            const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
+            if (!userId) {
+                alert('User ID not found. Please restart the app.');
+                return;
+            }
+
+            selectedConsentDuration = null;
+            const noteInput = document.getElementById('consent-note-input');
+            if (noteInput) noteInput.value = '';
+            updateConsentPillStyles();
+            document.getElementById('consent-modal').style.display = 'flex';
+            refreshConsentQr();
 
             // Добавляем активность
             addActivityItem('🔐', 'Created new consent link for partner');
@@ -3933,24 +4041,69 @@ Nothing else is monitored and nobody is notified automatically. Set up at least 
             document.getElementById('consent-modal').style.display = 'none';
         }
 
-        let currentConsentInviteLink = null;
+        function copyConsentLink() {
+            const opts = getConsentFormOptions();
+            const optsKey = JSON.stringify(opts);
+            const copy = (link) => {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(link).then(() => showNotification('Copied', 'Consent link copied to clipboard', 'success')).catch(() => {});
+                } else {
+                    const ta = document.createElement('textarea');
+                    ta.value = link; document.body.appendChild(ta); ta.select();
+                    try { document.execCommand('copy'); showNotification('Copied', 'Consent link copied to clipboard', 'success'); } catch (e) {}
+                    document.body.removeChild(ta);
+                }
+            };
+            if (currentConsentInviteLink && currentConsentKey === optsKey) {
+                copy(currentConsentInviteLink);
+                return;
+            }
+            fetch('/create_consent_link', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    init_data: Telegram.WebApp.initData,
+                    duration_hours: opts.duration_hours,
+                    note: opts.note,
+                })
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error || !data.link) {
+                        alert(data.error || 'Could not create link');
+                        return;
+                    }
+                    currentConsentInviteLink = data.link;
+                    currentConsentKey = optsKey;
+                    copy(data.link);
+                });
+        }
 
         function sendConsentLink() {
+            const opts = getConsentFormOptions();
+            const optsKey = JSON.stringify(opts);
+            const defaultMsg = opts.duration_hours
+                ? `Ready to connect? (${formatDurationLabel(opts.duration_hours)} mutual consent) 💕`
+                : 'Ready to explore an intimate connection? 💕';
             const share = (link, message) => {
                 const shareLink = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(message)}`;
                 Telegram.WebApp.openTelegramLink(shareLink);
                 addActivityItem('📤', 'Sent intimate connection request');
                 closeConsentModal();
             };
-            // Если ссылка уже выдана для открытого окна — делимся ею, а не создаём вторую
-            if (currentConsentInviteLink) {
-                share(currentConsentInviteLink, 'Ready to explore an intimate connection? 💕');
+            // Если ссылка уже выдана для текущих настроек окна — делимся ею, а не создаём вторую
+            if (currentConsentInviteLink && currentConsentKey === optsKey) {
+                share(currentConsentInviteLink, defaultMsg);
                 return;
             }
             fetch('/send_consent_invite', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ init_data: Telegram.WebApp.initData })
+                body: JSON.stringify({
+                    init_data: Telegram.WebApp.initData,
+                    duration_hours: opts.duration_hours,
+                    note: opts.note,
+                })
             })
                 .then(response => response.json())
                 .then(data => {
@@ -3993,6 +4146,18 @@ Nothing else is monitored and nobody is notified automatically. Set up at least 
                     const nameElement = document.getElementById(nameId);
                     if (avatarElement) avatarElement.src = info.avatar;
                     if (nameElement) nameElement.textContent = info.display_name;
+                    if (info.kind === 'consent') {
+                        const termsEl = document.getElementById('partner-request-terms');
+                        if (termsEl) {
+                            const durLine = info.duration_hours
+                                ? `⏳ Duration: ${formatDurationLabel(info.duration_hours)} (auto-expires after acceptance)`
+                                : '♾️ Duration: Ongoing until either side withdraws';
+                            const noteHtml = info.note
+                                ? `<div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.2);">📝 Note: &ldquo;${escapeHtml(info.note)}&rdquo;</div>`
+                                : '';
+                            termsEl.innerHTML = `<div>${escapeHtml(durLine)}</div>${noteHtml}`;
+                        }
+                    }
                     setTimeout(() => {
                         const modal = document.getElementById(modalId);
                         if (modal) modal.style.display = 'flex';
@@ -4058,8 +4223,13 @@ Nothing else is monitored and nobody is notified automatically. Set up at least 
 
                         if (decision === 'accept') {
                             console.log('Partner request accepted, updating UI...');
-                            showNotification('💕 Connection established!', `You both earned ${data.tokens_earned} AFN!`, 'success');
-                            addActivityItem('💕', `Established intimate connection and earned ${data.tokens_earned} AFN`);
+                            const rewardMsg = data.tokens_earned
+                                ? `You both earned ${data.tokens_earned} AFN!`
+                                : 'Mutual consent has been recorded.';
+                            showNotification('💕 Consent recorded!', rewardMsg, 'success');
+                            addActivityItem('💕', data.tokens_earned
+                                ? `Established intimate connection and earned ${data.tokens_earned} AFN`
+                                : 'Recorded mutual consent with partner');
 
                             // Обновляем все связанные данные с небольшой задержкой
                             setTimeout(() => {
@@ -4082,11 +4252,8 @@ Nothing else is monitored and nobody is notified automatically. Set up at least 
         }
 
         function deleteProfile() {
-            if (confirm('Are you sure you want to delete your profile? This action cannot be undone!')) {
-                // Здесь можно добавить логику удаления профиля
-                alert('Profile deletion is not yet implemented. Contact support for assistance.');
-                document.getElementById('app-choice-modal').style.display = 'none';
-            }
+            document.getElementById('app-choice-modal').style.display = 'none';
+            deleteMyAccount();
         }
 
         function showNotification(title, message, type = 'info') {
@@ -4819,17 +4986,19 @@ Nothing else is monitored and nobody is notified automatically. Set up at least 
         <div id="partner-request-modal"
             style="display: none; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 10001;">
             <div
-                style="background: linear-gradient(135deg, #ff6b6b 0%, #ff4757 100%); padding: 30px; border-radius: 20px; text-align: center; width: 320px; position: relative; color: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
-                <h3 style="margin-bottom: 20px; font-size: 24px;">💕 Intimate Connection Request</h3>
-                <p style="margin-bottom: 10px; font-size: 16px;">You have received an intimate connection request from:
-                </p>
-                <div style="display: flex; align-items: center; justify-content: center; margin: 20px 0;">
+                style="background: linear-gradient(135deg, #ff6b6b 0%, #ff4757 100%); padding: 26px; border-radius: 20px; text-align: center; width: 332px; max-width: 92vw; position: relative; color: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+                <h3 style="margin-bottom: 14px; font-size: 22px;">💕 Mutual Consent Request</h3>
+                <p style="margin-bottom: 10px; font-size: 15px;">Invitation from:</p>
+                <div style="display: flex; align-items: center; justify-content: center; margin: 14px 0;">
                     <img id="partner-requester-avatar" src="" alt="Avatar"
-                        style="width: 60px; height: 60px; border-radius: 50%; margin-right: 15px;">
+                        style="width: 56px; height: 56px; border-radius: 50%; margin-right: 12px;">
                     <span id="partner-requester-name" style="font-size: 18px; font-weight: bold;"></span>
                 </div>
-                <p style="margin-bottom: 20px; font-size: 14px;">Accept to establish an intimate connection and both
-                    earn 100 AFN!</p>
+                <div id="partner-request-terms"
+                    style="margin: 12px 0; padding: 10px 12px; border-radius: 12px; background: rgba(0,0,0,0.22); font-size: 13px; line-height: 1.45; text-align: left;">
+                    ♾️ Duration: Ongoing until either side withdraws
+                </div>
+                <p style="margin-bottom: 16px; font-size: 13px; opacity: 0.92;">Either of you can withdraw at any time. First connection together rewards 100 AFN each.</p>
                 <div style="display: flex; gap: 10px;">
                     <button onclick="handlePartnerRequest('accept')"
                         style="flex: 1; padding: 12px; background: #ff1744; color: white; border: none; border-radius: 10px; font-size: 16px; cursor: pointer;">Accept
@@ -4866,17 +5035,43 @@ Nothing else is monitored and nobody is notified automatically. Set up at least 
 
         <!-- Consent Modal (для создания consent-ссылки) -->
         <div id="consent-modal"
-            style="display: none; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.55); z-index: 10003;">
+            style="display: none; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.65); z-index: 10003;">
             <div id="consent-modal-content"
-                style="background: rgba(20,20,24,0.55); border: 1px solid rgba(255,255,255,0.15); backdrop-filter: blur(14px) saturate(160%); -webkit-backdrop-filter: blur(14px) saturate(160%); padding: 20px; border-radius: 12px; text-align: center; width: 320px; position: relative; color: #fff; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
+                style="background: rgba(22,22,28,0.88); border: 1px solid rgba(255,255,255,0.16); backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%); padding: 20px; border-radius: 16px; text-align: center; width: 340px; max-width: 92vw; max-height: 90vh; overflow-y: auto; position: relative; color: #fff; box-shadow: 0 12px 36px rgba(0,0,0,0.5);">
                 <button id="close-consent-modal" onclick="closeConsentModal()"
-                    style="position: absolute; top: 10px; right: 10px; font-size: 18px; font-weight: bold; color: #ddd; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); width: 28px; height: 28px; border-radius: 8px;">×</button>
-                <h3>Your Consent Link</h3>
-                <img id="consent-qr-code" src="" alt="QR Code"
-                    style="width:200px; height:200px; image-rendering: pixelated;">
-                <!-- Скрытый элемент для хранения ссылки -->
-                <p id="consent-link" style="visibility: hidden;"></p>
-                <button onclick="sendConsentLink()" class="pixel-button" style="margin-top: 10px;">Send</button>
+                    style="position: absolute; top: 10px; right: 10px; font-size: 18px; font-weight: bold; color: #ddd; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); width: 28px; height: 28px; border-radius: 8px; cursor: pointer;">×</button>
+                <h3 style="margin: 0 0 6px; font-size: 19px;">🔐 Create Consent Link</h3>
+                <p style="margin: 0 0 12px; font-size: 12px; opacity: 0.72;">Choose duration &amp; optional note — visible to both before accepting.</p>
+
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px;">
+                    <button type="button" class="consent-duration-pill" data-hours="" onclick="selectConsentDuration(null)"
+                        style="padding: 8px 4px; border-radius: 10px; border: 1px solid rgba(255,107,107,0.8); background: linear-gradient(135deg, #ff6b6b 0%, #ff4757 100%); color: #fff; font-size: 12px; cursor: pointer;">♾️ Ongoing</button>
+                    <button type="button" class="consent-duration-pill" data-hours="12" onclick="selectConsentDuration(12)"
+                        style="padding: 8px 4px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.08); color: #fff; font-size: 12px; cursor: pointer;">🌙 12h</button>
+                    <button type="button" class="consent-duration-pill" data-hours="24" onclick="selectConsentDuration(24)"
+                        style="padding: 8px 4px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.08); color: #fff; font-size: 12px; cursor: pointer;">⏳ 24h</button>
+                    <button type="button" class="consent-duration-pill" data-hours="72" onclick="selectConsentDuration(72)"
+                        style="padding: 8px 4px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.08); color: #fff; font-size: 12px; cursor: pointer;">📅 72h</button>
+                </div>
+
+                <input id="consent-note-input" type="text" maxlength="200" oninput="onConsentNoteInput()"
+                    placeholder="Optional note (e.g. Tonight, weekend trip…)"
+                    style="width: 100%; box-sizing: border-box; padding: 9px 11px; margin-bottom: 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.07); color: #fff; font-size: 13px; outline: none;">
+
+                <button id="refresh-consent-qr-btn" type="button" onclick="refreshConsentQr()"
+                    style="display: none; margin-bottom: 8px; padding: 5px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.12); color: #fff; font-size: 12px; cursor: pointer;">↻ Update QR with note</button>
+
+                <div>
+                    <img id="consent-qr-code" src="" alt="QR Code"
+                        style="width: 180px; height: 180px; border-radius: 10px; background: #fff; padding: 6px; image-rendering: pixelated;">
+                </div>
+                <p id="consent-link" style="display: none;"></p>
+                <div style="display: flex; gap: 8px; margin-top: 12px;">
+                    <button type="button" onclick="copyConsentLink()" class="pixel-button"
+                        style="flex: 1; margin: 0; background: rgba(255,255,255,0.14);">Copy Link</button>
+                    <button type="button" onclick="sendConsentLink()" class="pixel-button"
+                        style="flex: 1; margin: 0;">Send</button>
+                </div>
             </div>
         </div>
 
@@ -4909,10 +5104,10 @@ Nothing else is monitored and nobody is notified automatically. Set up at least 
                 <!-- Filters -->
                 <div class="history-filters">
                     <div class="filter-buttons">
-                        <button class="filter-btn active" onclick="filterConsents('all')">All</button>
-                        <button class="filter-btn" onclick="filterConsents('active')">Active</button>
-                        <button class="filter-btn" onclick="filterConsents('expired')">Expired</button>
-                        <button class="filter-btn" onclick="filterConsents('withdrawn')">Withdrawn</button>
+                        <button class="filter-btn active" onclick="filterConsents('all', this)">All</button>
+                        <button class="filter-btn" onclick="filterConsents('active', this)">Active</button>
+                        <button class="filter-btn" onclick="filterConsents('expired', this)">Expired</button>
+                        <button class="filter-btn" onclick="filterConsents('withdrawn', this)">Withdrawn</button>
                     </div>
                     <input type="text" class="search-filter" placeholder="Search by partner name..." id="history-search"
                         oninput="searchHistory()">
