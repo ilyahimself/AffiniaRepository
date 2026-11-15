@@ -19,6 +19,7 @@ def test_legal_pages_render(client):
         assert r.headers.get('X-Content-Type-Options') == 'nosniff'
     body = client.get('/privacy').get_data(as_text=True)
     assert 'United States' in body and 'not</strong> end-to-end' in body
+    assert 'mailto:kuilya9649@gmail.com' in body
 
     app_r = client.get('/mini_app')
     assert app_r.status_code == 200

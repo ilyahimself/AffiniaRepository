@@ -58,6 +58,9 @@ Thumbs.db
 ngrok.exe
 .ngrok.exe.old
 
+# Startup Visa application package (contains founder personal details & financials)
+visa_application/
+
 
 
 user_tokens.json

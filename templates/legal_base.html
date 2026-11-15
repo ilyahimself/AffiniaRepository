@@ -25,7 +25,7 @@
     {% block body %}{% endblock %}
     <h2>Contact</h2>
     <p>
-        {% if contact %}Questions and requests: <a href="mailto:{{ contact }}">{{ contact }}</a>.{% else %}
+        {% if contact %}Questions and data-rights requests: <a href="mailto:{{ contact }}">{{ contact }}</a> or via the bot <a href="https://t.me/{{ bot_username }}">@{{ bot_username }}</a>.{% else %}
         Questions and requests: message the bot <a href="https://t.me/{{ bot_username }}">@{{ bot_username }}</a>.{% endif %}
     </p>
 </body>

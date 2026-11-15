@@ -69,7 +69,7 @@ PROXY_HOPS = int(os.getenv('PROXY_HOPS', '1' if os.getenv('DYNO') else '0'))
 INIT_DATA_MAX_AGE = int(os.getenv('INIT_DATA_MAX_AGE', str(24 * 3600)))
 CLOCK_SKEW = 300
 
-PRIVACY_CONTACT = os.getenv('PRIVACY_CONTACT', '')
+PRIVACY_CONTACT = os.getenv('PRIVACY_CONTACT', 'kuilya9649@gmail.com')
 POLICY_UPDATED = '2026-11-15'
 
 # ---------------------------------------------------------------------------
