@@ -14,8 +14,16 @@ def test_legal_pages_render(client):
     for path, marker in (('/privacy', 'Privacy Policy'), ('/terms', 'Terms of Service')):
         r = client.get(path)
         assert r.status_code == 200 and marker in r.get_data(as_text=True)
+        assert "default-src 'self'" in r.headers.get('Content-Security-Policy', '')
+        assert r.headers.get('Referrer-Policy') == 'no-referrer'
+        assert r.headers.get('X-Content-Type-Options') == 'nosniff'
     body = client.get('/privacy').get_data(as_text=True)
     assert 'United States' in body and 'not</strong> end-to-end' in body
+
+    app_r = client.get('/mini_app')
+    assert app_r.status_code == 200
+    assert "connect-src 'self' https://telegram.org" in app_r.headers.get('Content-Security-Policy', '')
+    assert 'via.placeholder.com' not in app_r.get_data(as_text=True)
 
 
 def test_export_contains_everything_about_the_user(client, app_module):
