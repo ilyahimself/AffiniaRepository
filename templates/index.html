@@ -4184,13 +4184,14 @@ Nothing else is monitored and nobody is notified automatically. Set up at least 
         function sendConsentLink() {
             const opts = getConsentFormOptions();
             const optsKey = JSON.stringify(opts);
+            const noteSuffix = opts.note ? ` — "${opts.note}"` : '';
             const defaultMsg = opts.duration_hours
-                ? `Ready to connect? (${formatDurationLabel(opts.duration_hours)} mutual consent) 💕`
-                : 'Ready to explore an intimate connection? 💕';
+                ? `Mutual consent invitation (${formatDurationLabel(opts.duration_hours)})${noteSuffix} 🔐`
+                : `Mutual consent invitation in Affinia${noteSuffix} 🔐`;
             const share = (link, message) => {
                 const shareLink = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(message)}`;
                 Telegram.WebApp.openTelegramLink(shareLink);
-                addActivityItem('📤', 'Sent intimate connection request');
+                addActivityItem('📤', 'Sent mutual consent invitation');
                 closeConsentModal();
             };
             // Если ссылка уже выдана для текущих настроек окна — делимся ею, а не создаём вторую
@@ -4334,8 +4335,8 @@ Nothing else is monitored and nobody is notified automatically. Set up at least 
                                 ? `You both earned ${data.tokens_earned} AFN!`
                                 : 'Mutual consent has been recorded.';
                             showNotification('💕 Consent recorded!', rewardMsg, 'success');
-                            addActivityItem('💕', data.tokens_earned
-                                ? `Established intimate connection and earned ${data.tokens_earned} AFN`
+                            addActivityItem('🔐', data.tokens_earned
+                                ? `Recorded mutual consent and earned ${data.tokens_earned} AFN`
                                 : 'Recorded mutual consent with partner');
 
                             // Обновляем все связанные данные с небольшой задержкой
@@ -4859,7 +4860,7 @@ Nothing else is monitored and nobody is notified automatically. Set up at least 
             <div class="beloved-container">
                 <!-- Beloved Header -->
                 <div class="beloved-header">
-                    <div class="beloved-title">💖 Intimate Partners</div>
+                    <div class="beloved-title">🔐 Mutual Consent Partners</div>
                     <div class="beloved-subtitle">Manage your relationships and consent with care and respect</div>
                     <div class="glass-divider"></div>
                 </div>

@@ -334,10 +334,11 @@ def send_consent_invite():
     ensure_user_record(user_id)
 
     _, invite_link = issue_invite(user_id, 'consent', duration_hours=duration_hours, note=note)
+    note_suffix = f' — "{note}"' if note else ''
     if duration_hours:
-        message = f"Ready to connect? ({format_duration(duration_hours)} mutual consent) 💕"
+        message = f"Mutual consent invitation ({format_duration(duration_hours)}){note_suffix} 🔐"
     else:
-        message = "Ready to explore an intimate connection? 💕"
+        message = f"Mutual consent invitation in Affinia{note_suffix} 🔐"
 
     return jsonify({
         'invite_link': invite_link,
@@ -401,7 +402,7 @@ def handle_consent_invite():
                 DatabaseService.bump_unseen(inviter_id, partners=1)
                 with data_lock:
                     new_partners_count[inviter_id] = new_partners_count.get(inviter_id, 0) + 1
-            notify(inviter_id, 'consent_accepted', partner_id, 'Your intimate connection request was accepted! 💕')
+            notify(inviter_id, 'consent_accepted', partner_id, 'Your mutual consent invitation was accepted! 🔐')
             logging.info(f'❤️ CONSENT ACCEPTED: {utag(partner_id)} ← {utag(inviter_id)}')
 
         DatabaseService.mark_invite_used(invite_id, partner_id, 'accept')
@@ -414,7 +415,7 @@ def handle_consent_invite():
         })
 
     elif decision == 'decline':
-        notify(inviter_id, 'consent_declined', partner_id, 'Your intimate connection request was declined 💔')
+        notify(inviter_id, 'consent_declined', partner_id, 'Your mutual consent invitation was declined')
         DatabaseService.mark_invite_used(invite_id, partner_id, 'decline')
 
         return jsonify({
