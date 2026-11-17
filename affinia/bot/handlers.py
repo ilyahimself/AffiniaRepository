@@ -100,9 +100,8 @@ async def referral_start(update: Update, context: CallbackContext, referrer_id: 
 INVITE_TEXT = {
     'friend': ("🌟 You've been invited to become friends in Affinia!\n\n"
                "Click the button below to open the app and respond to the invitation.", "🚀 Open Affinia"),
-    'consent': ("💕 You've been invited to establish an intimate connection in Affinia!\n\n"
-                "This is a special invitation to become partners. "
-                "Click the button below to open the app and respond.", "💕 Open Affinia"),
+    'consent': ("🔐 You've been invited to record mutual consent in Affinia!\n\n"
+                "Click the button below to review the proposed terms and respond.", "🔐 Open Affinia"),
 }
 
 
@@ -126,8 +125,11 @@ async def handle_invitation(update: Update, context: CallbackContext, token: str
         return
 
     text, button = INVITE_TEXT[kind]
-    if kind == 'consent' and invite and invite.duration_hours:
-        text += f"\n\n⏳ Proposed duration: {format_duration(invite.duration_hours)} (auto-expires)"
+    if kind == 'consent' and invite:
+        if invite.duration_hours:
+            text += f"\n\n⏳ Proposed duration: {format_duration(invite.duration_hours)} (auto-expires)"
+        if invite.note:
+            text += f'\n📝 Note: "{invite.note}"'
     open_app_url = f"{URL}/mini_app?invite={token}"
     reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton(button, web_app=WebAppInfo(url=open_app_url))]])
     await update.message.reply_text(text, reply_markup=reply_markup)

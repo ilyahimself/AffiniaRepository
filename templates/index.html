@@ -2605,29 +2605,32 @@
             showPage('friends-page');
         }
 
-        // SOS: звонок 112 на устройстве + сообщение экстренным контактам через бота (/sos)
+        // SOS: сначала гарантированно доставляем /sos на сервер, затем открываем набор 112
         function triggerSos() {
             const tg = window.Telegram?.WebApp;
             const dial = () => {
                 try {
-                    if (tg?.openLink) tg.openLink('tel:112'); else window.location.href = 'tel:112';
+                    const a = document.createElement('a');
+                    a.href = 'tel:112';
+                    a.style.display = 'none';
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(() => a.remove(), 500);
                 } catch (e) {
                     window.location.href = 'tel:112';
                 }
             };
-            // Браузерная геолокация: WebView Telegram спрашивает разрешение при каждом вызове
             const locateViaBrowser = () => new Promise(resolve => {
                 if (!navigator.geolocation) return resolve({});
                 navigator.geolocation.getCurrentPosition(
                     pos => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
                     () => resolve({}),
-                    { timeout: 4000, maximumAge: 60000 });
+                    { timeout: 1800, maximumAge: 120000 });
             });
-            // Telegram LocationManager (Bot API 8.0+): разрешение запрашивается один раз и запоминается в настройках Mini App
             const locateViaTelegram = () => new Promise(resolve => {
                 const lm = tg?.LocationManager;
                 if (!lm || typeof lm.init !== 'function') return resolve(null);
-                const timer = setTimeout(() => resolve(null), 6000);
+                const timer = setTimeout(() => resolve(null), 1800);
                 const finish = value => { clearTimeout(timer); resolve(value); };
                 try {
                     lm.init(() => {
@@ -2638,35 +2641,42 @@
                     finish(null);
                 }
             });
-            // null = LocationManager недоступен в этом клиенте → запасной браузерный способ; {} = отказ, координаты не шлём
-            const locate = async () => {
-                const viaTelegram = await locateViaTelegram();
-                return viaTelegram !== null ? viaTelegram : locateViaBrowser();
-            };
+            const locate = () => Promise.race([
+                (async () => {
+                    const viaTelegram = await locateViaTelegram();
+                    return viaTelegram !== null ? viaTelegram : locateViaBrowser();
+                })(),
+                new Promise(resolve => setTimeout(() => resolve({}), 2200))
+            ]);
             const proceed = async (ok) => {
                 if (!ok) return;
-                const coords = await locate();
-                // Запрос уходит до открытия звонилки: после неё WebView может быть свёрнут
-                const request = fetch('/sos', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ init_data: tg?.initData, ...coords })
-                });
-                dial();
                 addActivityItem('🆘', 'SOS triggered');
+                const coords = await locate();
+                // Дожидаемся ответа /sos ДО открытия звонилки: иначе переход на tel:112 на телефоне обрывает in-flight fetch!
+                const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+                const abortTimer = ctrl ? setTimeout(() => ctrl.abort(), 4000) : null;
                 try {
-                    const r = await request;
-                    const data = await r.json();
+                    const r = await fetch('/sos', {
+                        method: 'POST',
+                        keepalive: true,
+                        signal: ctrl ? ctrl.signal : undefined,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ init_data: tg?.initData, ...coords })
+                    });
+                    if (abortTimer) clearTimeout(abortTimer);
+                    const data = await r.json().catch(() => ({}));
                     if (r.ok) {
-                        showNotification('SOS sent', `${data.sent} of ${data.contacts} emergency contact(s) alerted via Telegram. If the dialer did not open, dial 112 manually.`, 'success');
+                        showNotification('🆘 SOS sent', `${data.sent} of ${data.contacts} emergency contact(s) alerted via Telegram.`, 'success', 12000);
                     } else if (data.error === 'No emergency contacts') {
-                        showNotification('No emergency contacts', 'Nobody was alerted. Mark a friend as emergency contact on the Friends page. Dial 112 manually if the dialer did not open.', 'error');
+                        showNotification('No emergency contacts set', 'Go to the Friends tab and tap "🆘 Emergency contact" on a friend first!', 'error', 12000);
                     } else {
-                        showNotification('SOS', data.error || 'Could not alert contacts', 'error');
+                        showNotification('SOS', data.error || 'Could not alert contacts', 'error', 12000);
                     }
                 } catch (e) {
-                    showNotification('SOS', 'Network error: contacts were not alerted. Call 112 directly.', 'error');
+                    if (abortTimer) clearTimeout(abortTimer);
+                    showNotification('SOS', 'Network timeout: check connection or call 112 directly.', 'error', 12000);
                 }
+                dial();
             };
             const msg = 'Call 112 and alert your emergency contacts via Telegram?';
             if (tg?.showConfirm) tg.showConfirm(msg, proceed); else proceed(confirm(msg));
@@ -4041,12 +4051,19 @@ Nothing else is monitored and nobody is notified automatically. Set up at least 
             });
         }
 
+        let noteDebounceTimer = null;
         function onConsentNoteInput() {
             const optsKey = JSON.stringify(getConsentFormOptions());
             const refreshBtn = document.getElementById('refresh-consent-qr-btn');
             if (refreshBtn) {
                 refreshBtn.style.display = (currentConsentKey && optsKey !== currentConsentKey) ? 'inline-block' : 'none';
             }
+            if (noteDebounceTimer) clearTimeout(noteDebounceTimer);
+            noteDebounceTimer = setTimeout(() => {
+                if (document.getElementById('consent-modal')?.style.display === 'flex') {
+                    refreshConsentQr();
+                }
+            }, 450);
         }
 
         function selectConsentDuration(hours) {
@@ -4346,7 +4363,7 @@ Nothing else is monitored and nobody is notified automatically. Set up at least 
             deleteMyAccount();
         }
 
-        function showNotification(title, message, type = 'info') {
+        function showNotification(title, message, type = 'info', durationMs = 5000) {
             const container = document.getElementById('notifications-container');
             if (!container) return;
 
@@ -4376,11 +4393,10 @@ Nothing else is monitored and nobody is notified automatically. Set up at least 
 
             container.appendChild(notification);
 
-            // Автоматически удаляем через 5 секунд
             setTimeout(() => {
                 notification.style.animation = 'slideOutRight 0.3s ease';
                 setTimeout(() => notification.remove(), 300);
-            }, 5000);
+            }, durationMs);
         }
 
         function checkForNotifications() {
